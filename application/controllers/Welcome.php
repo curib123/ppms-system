@@ -20,6 +20,16 @@ class Welcome extends CI_Controller {
 	 */
 	public function index()
 	{
-		$this->load->view('welcome_message');
+        $data = array('connected' => FALSE, 'counts' => array(), 'forms' => array());
+        try {
+            $this->load->model('Ppms_reference_model', 'reference');
+            $data['counts'] = $this->reference->summary();
+            $data['forms'] = $this->reference->forms();
+            $data['connected'] = TRUE;
+        } catch (Throwable $error) {
+            // Setup guidance stays available when PostgreSQL is not configured.
+        }
+        $this->output->set_header('Cache-Control: no-store');
+        $this->load->view('setup_status', $data);
 	}
 }
