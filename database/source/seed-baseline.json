@@ -1,0 +1,687 @@
+{
+  "roles": ["ADMIN", "PERSONNEL", "FSQA", "SUPERVISOR", "PLANT_MANAGER"],
+  "areas": [
+    {
+      "code": "EGG_PREPARATION",
+      "name": "Egg Preparation"
+    },
+    {
+      "code": "PEANUT_SECTION",
+      "name": "Peanut Section"
+    },
+    {
+      "code": "SCALING_MIXING",
+      "name": "Scaling & Mixing"
+    },
+    {
+      "code": "FORMING",
+      "name": "Forming"
+    },
+    {
+      "code": "BAKING",
+      "name": "Baking"
+    },
+    {
+      "code": "PACKING",
+      "name": "Packing"
+    },
+    {
+      "code": "WAREHOUSE",
+      "name": "Warehouse"
+    }
+  ],
+  "forms": [
+    {
+      "ppmCode": "PPM-001",
+      "title": "EGG PREPARATION",
+      "area": "Egg Preparation",
+      "status": "ACTIVE"
+    },
+    {
+      "ppmCode": "PPM-002",
+      "title": "EGGWHITES",
+      "area": "Egg Preparation",
+      "status": "ACTIVE"
+    },
+    {
+      "ppmCode": "PPM-003",
+      "title": "EGGYOLK",
+      "area": "Egg Preparation",
+      "status": "ACTIVE"
+    },
+    {
+      "ppmCode": "PPM-004",
+      "title": "PEANUT SORTING (RAW)",
+      "area": "Peanut Section",
+      "status": "ACTIVE"
+    },
+    {
+      "ppmCode": "PPM-005",
+      "title": "PEANUT BLANCHING",
+      "area": "Peanut Section",
+      "status": "RESERVED"
+    },
+    {
+      "ppmCode": "PPM-006",
+      "title": "PEANUT SORTING (PRE-ROASTED)",
+      "area": "Peanut Section",
+      "status": "RESERVED"
+    },
+    {
+      "ppmCode": "PPM-007",
+      "title": "PEANUT FINAL ROASTING",
+      "area": "Peanut Section",
+      "status": "ACTIVE"
+    },
+    {
+      "ppmCode": "PPM-008",
+      "title": "PEANUT GRINDING",
+      "area": "Peanut Section",
+      "status": "ACTIVE"
+    },
+    {
+      "ppmCode": "PPM-009",
+      "title": "GROUND PEANUTS",
+      "area": "Peanut Section",
+      "status": "ACTIVE"
+    },
+    {
+      "ppmCode": "PPM-010",
+      "title": "SUGAR",
+      "area": "Scaling & Mixing",
+      "status": "ACTIVE"
+    },
+    {
+      "ppmCode": "PPM-011",
+      "title": "MIXING - MERINGUE",
+      "area": "Scaling & Mixing",
+      "status": "ACTIVE"
+    },
+    {
+      "ppmCode": "PPM-012",
+      "title": "FORMING",
+      "area": "Forming",
+      "status": "ACTIVE"
+    },
+    {
+      "ppmCode": "PPM-013",
+      "title": "BAKING",
+      "area": "Baking",
+      "status": "ACTIVE"
+    },
+    {
+      "ppmCode": "PPM-014",
+      "title": "BAKED RECEIVING",
+      "area": "Baking",
+      "status": "ACTIVE"
+    },
+    {
+      "ppmCode": "PPM-015",
+      "title": "PRIMARY PACKING",
+      "area": "Packing",
+      "status": "ACTIVE"
+    },
+    {
+      "ppmCode": "PPM-016",
+      "title": "PRIMARY PACKING",
+      "area": "Packing",
+      "status": "ACTIVE"
+    },
+    {
+      "ppmCode": "PPM-017",
+      "title": "SECONDARY PACKING",
+      "area": "Packing",
+      "status": "ACTIVE"
+    },
+    {
+      "ppmCode": "PPM-018",
+      "title": "TERTIARY PACKING",
+      "area": "Packing",
+      "status": "ACTIVE"
+    },
+    {
+      "ppmCode": "PPM-019",
+      "title": "VANILLA",
+      "area": "Scaling & Mixing",
+      "status": "ACTIVE"
+    },
+    {
+      "ppmCode": "PPM-020",
+      "title": "FROZEN EGGYOLK",
+      "area": "Egg Preparation",
+      "status": "ACTIVE"
+    },
+    {
+      "ppmCode": "PPM-021",
+      "title": "RAW PEANUT RECEIVING",
+      "area": "Peanut Section",
+      "status": "ACTIVE"
+    },
+    {
+      "ppmCode": "PPM-022",
+      "title": "PAN GREASER",
+      "area": "Baking",
+      "status": "ACTIVE"
+    },
+    {
+      "ppmCode": "PPM-023",
+      "title": "FORMING",
+      "area": "Forming",
+      "status": "ACTIVE"
+    },
+    {
+      "ppmCode": "PPM-024",
+      "title": "PRODUCT CODING",
+      "area": "Packing",
+      "status": "ACTIVE"
+    },
+    {
+      "ppmCode": "PPM-026",
+      "title": "SUGAR RECEIVING",
+      "area": "Scaling & Mixing",
+      "status": "ACTIVE"
+    },
+    {
+      "ppmCode": "WH-STOCK-RELEASE",
+      "title": "STOCK RELEASING FORM",
+      "area": "Warehouse",
+      "status": "ACTIVE"
+    }
+  ],
+  "connections": [
+    {
+      "connectionId": "CONN-001",
+      "sourcePpm": "PPM-004",
+      "sourceOutputKey": "sortingCode",
+      "sourceFieldLabel": "Sorting Code",
+      "targetPpm": "PPM-005",
+      "targetInputKey": "sortingCode",
+      "targetFieldLabel": "Sorting Code",
+      "status": "RESERVED",
+      "requiresApprovalBeforeUse": true,
+      "notes": "Retain for future process return; do not delete.",
+      "implementationAction": "SEED_RESERVED_DISABLED"
+    },
+    {
+      "connectionId": "CONN-002",
+      "sourcePpm": "PPM-005",
+      "sourceOutputKey": "blanchingCode",
+      "sourceFieldLabel": "Blanching Code",
+      "targetPpm": "PPM-006",
+      "targetInputKey": "blanchingCode",
+      "targetFieldLabel": "Blanching Code",
+      "status": "RESERVED",
+      "requiresApprovalBeforeUse": true,
+      "notes": "Retain for future process return; do not delete.",
+      "implementationAction": "SEED_RESERVED_DISABLED"
+    },
+    {
+      "connectionId": "CONN-003",
+      "sourcePpm": "PPM-006",
+      "sourceOutputKey": "finalSortingCode",
+      "sourceFieldLabel": "Final Sorting Code",
+      "targetPpm": "PPM-007",
+      "targetInputKey": "entries[].sortingCode",
+      "targetFieldLabel": "Sorting Code",
+      "status": "RESERVED",
+      "requiresApprovalBeforeUse": true,
+      "notes": "Retain for future process return; do not delete.",
+      "implementationAction": "SEED_RESERVED_DISABLED"
+    },
+    {
+      "connectionId": "CONN-004",
+      "sourcePpm": "PPM-007",
+      "sourceOutputKey": "finalRoastingCode",
+      "sourceFieldLabel": "Final Roasting Code",
+      "targetPpm": "PPM-008",
+      "targetInputKey": "finalRoastingCode",
+      "targetFieldLabel": "Final Roasting Code",
+      "status": "ACTIVE",
+      "requiresApprovalBeforeUse": false,
+      "notes": "Current route.",
+      "implementationAction": "SEED_ACTIVE"
+    },
+    {
+      "connectionId": "CONN-005",
+      "sourcePpm": "PPM-008",
+      "sourceOutputKey": "grindingCode",
+      "sourceFieldLabel": "Grinding Code",
+      "targetPpm": "PPM-009",
+      "targetInputKey": "grindingCode",
+      "targetFieldLabel": "Grinding Code",
+      "status": "ACTIVE",
+      "requiresApprovalBeforeUse": false,
+      "notes": "Current route.",
+      "implementationAction": "SEED_ACTIVE"
+    },
+    {
+      "connectionId": "CONN-006",
+      "sourcePpm": "PPM-001",
+      "sourceOutputKey": "productionCode",
+      "sourceFieldLabel": "Production Code",
+      "targetPpm": "PPM-002",
+      "targetInputKey": "code",
+      "targetFieldLabel": "Code",
+      "status": "PENDING_VALIDATION",
+      "requiresApprovalBeforeUse": true,
+      "notes": "Confirm eggwhite output identity.",
+      "implementationAction": "SEED_PENDING_VALIDATION_DISABLED"
+    },
+    {
+      "connectionId": "CONN-007",
+      "sourcePpm": "PPM-001",
+      "sourceOutputKey": "productionCode",
+      "sourceFieldLabel": "Production Code",
+      "targetPpm": "PPM-003",
+      "targetInputKey": "code",
+      "targetFieldLabel": "Code",
+      "status": "PENDING_VALIDATION",
+      "requiresApprovalBeforeUse": true,
+      "notes": "Confirm eggyolk output identity.",
+      "implementationAction": "SEED_PENDING_VALIDATION_DISABLED"
+    },
+    {
+      "connectionId": "CONN-008",
+      "sourcePpm": "PPM-002",
+      "sourceOutputKey": "code",
+      "sourceFieldLabel": "Code",
+      "targetPpm": "PPM-011",
+      "targetInputKey": "eggwhitesCode",
+      "targetFieldLabel": "Eggwhites Code",
+      "status": "PENDING_VALIDATION",
+      "requiresApprovalBeforeUse": true,
+      "notes": "Use selector/scan, not retyping.",
+      "implementationAction": "SEED_PENDING_VALIDATION_DISABLED"
+    },
+    {
+      "connectionId": "CONN-009",
+      "sourcePpm": "PPM-010",
+      "sourceOutputKey": "sugarCode",
+      "sourceFieldLabel": "Sugar Code",
+      "targetPpm": "PPM-011",
+      "targetInputKey": "sugarCode",
+      "targetFieldLabel": "Sugar Code",
+      "status": "PENDING_VALIDATION",
+      "requiresApprovalBeforeUse": true,
+      "notes": "Use selector/scan.",
+      "implementationAction": "SEED_PENDING_VALIDATION_DISABLED"
+    },
+    {
+      "connectionId": "CONN-010",
+      "sourcePpm": "PPM-019",
+      "sourceOutputKey": "code",
+      "sourceFieldLabel": "Code (Vanilla Code)",
+      "targetPpm": "PPM-011",
+      "targetInputKey": "vanillaCode",
+      "targetFieldLabel": "Vanilla Code",
+      "status": "PENDING_VALIDATION",
+      "requiresApprovalBeforeUse": true,
+      "notes": "External vanilla components remain source-entered/scanned.",
+      "implementationAction": "SEED_PENDING_VALIDATION_DISABLED"
+    },
+    {
+      "connectionId": "CONN-014",
+      "sourcePpm": "PPM-012",
+      "sourceOutputKey": "mixingCode",
+      "sourceFieldLabel": "Mixing Code",
+      "targetPpm": "PPM-013",
+      "targetInputKey": "mixingCode",
+      "targetFieldLabel": "Mixing Code",
+      "status": "PENDING_VALIDATION",
+      "requiresApprovalBeforeUse": true,
+      "notes": "Pass-through continuity.",
+      "implementationAction": "SEED_PENDING_VALIDATION_DISABLED"
+    },
+    {
+      "connectionId": "CONN-015",
+      "sourcePpm": "PPM-013",
+      "sourceOutputKey": "mixingCode",
+      "sourceFieldLabel": "Mixing Code",
+      "targetPpm": "PPM-014",
+      "targetInputKey": "mixingCode",
+      "targetFieldLabel": "Mixing Code",
+      "status": "PENDING_VALIDATION",
+      "requiresApprovalBeforeUse": true,
+      "notes": "Pass-through continuity.",
+      "implementationAction": "SEED_PENDING_VALIDATION_DISABLED"
+    },
+    {
+      "connectionId": "CONN-016",
+      "sourcePpm": "PPM-014",
+      "sourceOutputKey": "bakedCode",
+      "sourceFieldLabel": "Baked Code",
+      "targetPpm": "PPM-015",
+      "targetInputKey": "bakedCode",
+      "targetFieldLabel": "Baked Code",
+      "status": "PENDING_VALIDATION",
+      "requiresApprovalBeforeUse": true,
+      "notes": "20g route.",
+      "implementationAction": "SEED_PENDING_VALIDATION_DISABLED"
+    },
+    {
+      "connectionId": "CONN-017",
+      "sourcePpm": "PPM-014",
+      "sourceOutputKey": "bakedCode",
+      "sourceFieldLabel": "Baked Code",
+      "targetPpm": "PPM-016",
+      "targetInputKey": "bakedCode",
+      "targetFieldLabel": "Baked Code",
+      "status": "PENDING_VALIDATION",
+      "requiresApprovalBeforeUse": true,
+      "notes": "100g route in received form.",
+      "implementationAction": "SEED_PENDING_VALIDATION_DISABLED"
+    },
+    {
+      "connectionId": "CONN-018",
+      "sourcePpm": "PPM-014",
+      "sourceOutputKey": "bakedCode",
+      "sourceFieldLabel": "Baked Code",
+      "targetPpm": "PPM-024",
+      "targetInputKey": "bakedCode",
+      "targetFieldLabel": "Baked Code",
+      "status": "PENDING_VALIDATION",
+      "requiresApprovalBeforeUse": true,
+      "notes": "Product Coding timing relative to packing needs UAT.",
+      "implementationAction": "SEED_PENDING_VALIDATION_DISABLED"
+    },
+    {
+      "connectionId": "CONN-019",
+      "sourcePpm": "PPM-024",
+      "sourceOutputKey": "rollCode",
+      "sourceFieldLabel": "Roll Code",
+      "targetPpm": "PPM-015",
+      "targetInputKey": "printedFoilRollCode",
+      "targetFieldLabel": "Printed Foil Roll Code",
+      "status": "PENDING_VALIDATION",
+      "requiresApprovalBeforeUse": true,
+      "notes": "Likely 20g packaging-material handoff.",
+      "implementationAction": "SEED_PENDING_VALIDATION_DISABLED"
+    },
+    {
+      "connectionId": "CONN-020",
+      "sourcePpm": "PPM-024",
+      "sourceOutputKey": "rollCode",
+      "sourceFieldLabel": "Roll Code",
+      "targetPpm": "PPM-016",
+      "targetInputKey": "plainFoilRollCode",
+      "targetFieldLabel": "Plain Foil Roll Code",
+      "status": "PENDING_VALIDATION",
+      "requiresApprovalBeforeUse": true,
+      "notes": "Likely 100g packaging-material handoff.",
+      "implementationAction": "SEED_PENDING_VALIDATION_DISABLED"
+    },
+    {
+      "connectionId": "CONN-021",
+      "sourcePpm": "PPM-015",
+      "sourceOutputKey": "consumeBeforeCode",
+      "sourceFieldLabel": "Consume Before Code",
+      "targetPpm": "PPM-017",
+      "targetInputKey": "consumeBeforeCode",
+      "targetFieldLabel": "Consume Before Code",
+      "status": "PENDING_VALIDATION",
+      "requiresApprovalBeforeUse": true,
+      "notes": "20g applicability must be confirmed.",
+      "implementationAction": "SEED_PENDING_VALIDATION_DISABLED"
+    },
+    {
+      "connectionId": "CONN-022",
+      "sourcePpm": "PPM-016",
+      "sourceOutputKey": "consumeBeforeCode",
+      "sourceFieldLabel": "Consume Before Code",
+      "targetPpm": "PPM-017",
+      "targetInputKey": "consumeBeforeCode",
+      "targetFieldLabel": "Consume Before Code",
+      "status": "PENDING_VALIDATION",
+      "requiresApprovalBeforeUse": true,
+      "notes": "100g route likely; confirm exact packaging flow.",
+      "implementationAction": "SEED_PENDING_VALIDATION_DISABLED"
+    },
+    {
+      "connectionId": "CONN-023",
+      "sourcePpm": "PPM-017",
+      "sourceOutputKey": "consumeBeforeCode",
+      "sourceFieldLabel": "Consume Before Code",
+      "targetPpm": "PPM-018",
+      "targetInputKey": "consumeBeforeCode",
+      "targetFieldLabel": "Consume Before Code",
+      "status": "PENDING_VALIDATION",
+      "requiresApprovalBeforeUse": true,
+      "notes": "Do not map Packing Code to PPM-018 unless a target field is approved.",
+      "implementationAction": "SEED_PENDING_VALIDATION_DISABLED"
+    },
+    {
+      "connectionId": "CONN-026",
+      "sourcePpm": "PPM-004",
+      "sourceOutputKey": "sortingCode",
+      "sourceFieldLabel": "Sorting Code",
+      "targetPpm": "PPM-007",
+      "targetInputKey": "finalSortingCode",
+      "targetFieldLabel": "Final Sorting Code",
+      "status": "ACTIVE",
+      "requiresApprovalBeforeUse": false,
+      "notes": "PPM-007 selects the exact PPM-004 Sorting Code source entry; PPM-005 and PPM-006 are bypassed.",
+      "implementationAction": "SEED_ACTIVE"
+    },
+    {
+      "connectionId": "CONN-027",
+      "sourcePpm": "PPM-003",
+      "sourceOutputKey": "code",
+      "sourceFieldLabel": "Code",
+      "targetPpm": "PPM-020",
+      "targetInputKey": "eggyolkCode",
+      "targetFieldLabel": "Eggyolk Code",
+      "status": "PENDING_VALIDATION",
+      "requiresApprovalBeforeUse": true,
+      "notes": "Use selector/scan.",
+      "implementationAction": "SEED_PENDING_VALIDATION_DISABLED"
+    },
+    {
+      "connectionId": "CONN-028",
+      "sourcePpm": "PPM-010",
+      "sourceOutputKey": "sugarCode",
+      "sourceFieldLabel": "Sugar Code",
+      "targetPpm": "PPM-020",
+      "targetInputKey": "sugarCode",
+      "targetFieldLabel": "Sugar Code",
+      "status": "PENDING_VALIDATION",
+      "requiresApprovalBeforeUse": true,
+      "notes": "Cross-area trace; permissions must not imply edit access.",
+      "implementationAction": "SEED_PENDING_VALIDATION_DISABLED"
+    }
+  ],
+  "blockedConnections": [
+    {
+      "connectionId": "CONN-011",
+      "sourcePpm": "PPM-011",
+      "sourceOutputKey": "meringueCode",
+      "sourceFieldLabel": "Meringue Code",
+      "targetPpm": "POLICY-1.11.1",
+      "targetInputKey": "meringueCode",
+      "targetFieldLabel": "Meringue Code",
+      "status": "PENDING_VALIDATION",
+      "requiresApprovalBeforeUse": true,
+      "notes": "Do not connect PPM-011 directly to PPM-012 until the missing Mixing process is resolved.",
+      "implementationAction": "BLOCKED_NO_DIGITAL_FORM_OR_PSEUDO_PROCESS"
+    },
+    {
+      "connectionId": "CONN-012",
+      "sourcePpm": "PPM-009",
+      "sourceOutputKey": "grindingCode",
+      "sourceFieldLabel": "Grinding Code",
+      "targetPpm": "POLICY-1.11.1",
+      "targetInputKey": "groundPeanutsCode",
+      "targetFieldLabel": "Ground Peanuts Code",
+      "status": "PENDING_VALIDATION",
+      "requiresApprovalBeforeUse": true,
+      "notes": "Likely second input to the missing Mixing process.",
+      "implementationAction": "BLOCKED_NO_DIGITAL_FORM_OR_PSEUDO_PROCESS"
+    },
+    {
+      "connectionId": "CONN-013",
+      "sourcePpm": "POLICY-1.11.1",
+      "sourceOutputKey": "batchCode",
+      "sourceFieldLabel": "Batch Code",
+      "targetPpm": "PPM-012",
+      "targetInputKey": "mixingCode",
+      "targetFieldLabel": "Mixing Code",
+      "status": "PENDING_VALIDATION",
+      "requiresApprovalBeforeUse": true,
+      "notes": "Authoritative bridge is missing from received 25-form pack.",
+      "implementationAction": "BLOCKED_NO_DIGITAL_FORM_OR_PSEUDO_PROCESS"
+    },
+    {
+      "connectionId": "CONN-024",
+      "sourcePpm": "PPM-026",
+      "sourceOutputKey": "receivingRecordSackNoSupplierDeliveryDate",
+      "sourceFieldLabel": "Receiving record / Sack No. / Supplier / Delivery Date",
+      "targetPpm": "PPM-010",
+      "targetInputKey": "sugarSourceReferenceSugarCodeComponents",
+      "targetFieldLabel": "Sugar source reference / Sugar Code components",
+      "status": "PENDING_VALIDATION",
+      "requiresApprovalBeforeUse": true,
+      "notes": "Prefer record-level source link rather than inventing a PPM-026 code.",
+      "implementationAction": "BLOCKED_PENDING_RECEIVING_ALLOCATION_MODEL"
+    },
+    {
+      "connectionId": "CONN-025",
+      "sourcePpm": "PPM-021",
+      "sourceOutputKey": "receivingRecordSackNoSupplierDeliveryDate",
+      "sourceFieldLabel": "Receiving record / Sack No. / Supplier / Delivery Date",
+      "targetPpm": "PPM-004",
+      "targetInputKey": "rawSortingSourceReferenceSortingCodeComponents",
+      "targetFieldLabel": "Raw sorting source reference / Sorting Code components",
+      "status": "PENDING_VALIDATION",
+      "requiresApprovalBeforeUse": true,
+      "notes": "Prefer record-level source link rather than inventing a receiving code.",
+      "implementationAction": "BLOCKED_PENDING_RECEIVING_ALLOCATION_MODEL"
+    },
+    {
+      "connectionId": "CONN-029",
+      "sourcePpm": "PPM-003",
+      "sourceOutputKey": "code",
+      "sourceFieldLabel": "Code",
+      "targetPpm": "POLICY-1.27",
+      "targetInputKey": "eggyolkCode",
+      "targetFieldLabel": "Eggyolk Code",
+      "status": "PENDING_VALIDATION",
+      "requiresApprovalBeforeUse": true,
+      "notes": "Policy-only branch.",
+      "implementationAction": "BLOCKED_NO_DIGITAL_FORM_OR_PSEUDO_PROCESS"
+    },
+    {
+      "connectionId": "CONN-030",
+      "sourcePpm": "PPM-010",
+      "sourceOutputKey": "sugarCode",
+      "sourceFieldLabel": "Sugar Code",
+      "targetPpm": "POLICY-1.27",
+      "targetInputKey": "sugarCode",
+      "targetFieldLabel": "Sugar Code",
+      "status": "PENDING_VALIDATION",
+      "requiresApprovalBeforeUse": true,
+      "notes": "Policy-only branch.",
+      "implementationAction": "BLOCKED_NO_DIGITAL_FORM_OR_PSEUDO_PROCESS"
+    }
+  ],
+  "notes": [
+    "Trace engine is generic across all PPMs: seed every real-form matrix connection with its status and do not hard-code only the current peanut route.",
+    "PPM-005 and PPM-006 are RESERVED and must not be operationally selectable by default.",
+    "Only ACTIVE connections are selectable by downstream Personnel.",
+    "Policy-only pseudo processes are not seeded as PpmForm records.",
+    "Template definitionJson must be populated from controlled source forms; do not invent missing fields.",
+    "Role dashboards are calculated server-side from normalized indexed workflow/record data; no routine dashboard scans of revision JSON.",
+    "System settings are seeded with default red theme, SYSTEM appearance and 2-year ARCHIVE_ONLY retention.",
+    "Notifications, secure sessions, user appearance preference and system maintenance job history are part of the canonical implementation schema."
+  ],
+  "systemSettings": [
+    {
+      "key": "retention.years",
+      "valueType": "INTEGER",
+      "description": "Default operational data retention/archive eligibility in years.",
+      "valueJson": 2
+    },
+    {
+      "key": "retention.mode",
+      "valueType": "STRING",
+      "description": "Archive-first retention. Destructive purge disabled by default.",
+      "valueJson": "ARCHIVE_ONLY"
+    },
+    {
+      "key": "theme.accent",
+      "valueType": "STRING",
+      "description": "Default centralized application accent/theme.",
+      "valueJson": "RED"
+    },
+    {
+      "key": "appearance.default",
+      "valueType": "STRING",
+      "description": "Default appearance mode: SYSTEM, LIGHT or DARK.",
+      "valueJson": "SYSTEM"
+    },
+    {
+      "key": "dashboard.cacheTtlSeconds",
+      "valueType": "INTEGER",
+      "description": "Short-lived role-dashboard aggregate cache TTL.",
+      "valueJson": 30
+    },
+    {
+      "key": "pagination.defaultLimit",
+      "valueType": "INTEGER",
+      "description": "Default bounded list limit.",
+      "valueJson": 25
+    },
+    {
+      "key": "pagination.maxLimit",
+      "valueType": "INTEGER",
+      "description": "Maximum server-enforced list limit.",
+      "valueJson": 100
+    },
+    {
+      "key": "offline.enabled",
+      "valueJson": true,
+      "valueType": "BOOLEAN",
+      "description": "Enable bounded offline-first data entry on registered devices."
+    },
+    {
+      "key": "offline.maxAccessHours",
+      "valueJson": 24,
+      "valueType": "INTEGER",
+      "description": "Maximum offline access window after a successful server authorization snapshot; revalidation required after expiry."
+    },
+    {
+      "key": "offline.maxCachedRecordDays",
+      "valueJson": 7,
+      "valueType": "INTEGER",
+      "description": "Default authorized operational record cache horizon per device; does not affect server retention."
+    },
+    {
+      "key": "sync.batchSize",
+      "valueJson": 50,
+      "valueType": "INTEGER",
+      "description": "Maximum mutations processed per bounded sync push batch."
+    },
+    {
+      "key": "sync.autoOnReconnect",
+      "valueJson": true,
+      "valueType": "BOOLEAN",
+      "description": "Automatically attempt foreground synchronization after API connectivity is confirmed."
+    },
+    {
+      "key": "sync.criticalApprovalsRequireOnline",
+      "valueJson": true,
+      "valueType": "BOOLEAN",
+      "description": "Require live server validation for FSQA/Supervisor/Plant Manager official workflow transitions."
+    },
+    {
+      "key": "sync.localQueueDeleteAfterAck",
+      "valueJson": true,
+      "valueType": "BOOLEAN",
+      "description": "Queue compaction may remove a mutation only after its committed server ACK is durably stored locally."
+    },
+    {
+      "key": "sync.safeFieldAutoMerge",
+      "valueJson": true,
+      "valueType": "BOOLEAN",
+      "description": "Permit deterministic non-overlapping field merge only when domain/trace/workflow rules prove it safe; otherwise create conflict."
+    }
+  ]
+}

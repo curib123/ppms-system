@@ -1,0 +1,825 @@
+// PPMS final implementation-ready Prisma schema
+// PostgreSQL + Prisma
+// Storage decision: no PpmFieldValue EAV table.
+// Controlled form structure = PpmTemplateVersion.definitionJson
+// Complete immutable filled form snapshot = PpmRecordRevision.dataJson
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ADMIN
+  PERSONNEL
+  FSQA
+  SUPERVISOR
+  PLANT_MANAGER
+}
+
+enum AccountStatus {
+  ACTIVE
+  INACTIVE
+  LOCKED
+}
+
+enum AreaStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum PpmStatus {
+  ACTIVE
+  INACTIVE
+  RESERVED
+}
+
+enum PpmRecordStatus {
+  ACTIVE
+  SUBMITTED
+  FSQA_APPROVED
+  SUPERVISOR_APPROVED
+  RETURNED_TO_FSQA
+  CLOSED
+}
+
+enum RevisionStatus {
+  DRAFT
+  SUBMITTED
+  CORRECTED
+  APPROVED
+  SUPERSEDED
+  CLOSED
+}
+
+enum ReviewStep {
+  FSQA_REVIEW
+  SUPERVISOR_REVIEW
+  PLANT_MANAGER_REVIEW
+}
+
+enum WorkflowActionType {
+  CREATE_RECORD
+  SUBMIT
+  CORRECT
+  APPROVE
+  RETURN
+  CLOSE
+}
+
+enum ActivationStatus {
+  ACTIVE
+  RESERVED
+  PENDING_VALIDATION
+  DISABLED
+}
+
+enum TraceCodeSourceType {
+  SYSTEM_GENERATED
+  UPSTREAM_LOOKUP
+  MANUAL_EXTERNAL
+  SCAN_EXTERNAL
+  PENDING_RULE
+}
+
+enum TraceOutputStatus {
+  PUBLISHED
+  LINKED_DOWNSTREAM
+  SUPERSEDED
+  DISABLED
+}
+
+enum CodeResetPeriod {
+  NONE
+  DAILY
+  MONTHLY
+  YEARLY
+}
+
+enum RevalidationStatus {
+  OPEN
+  RESOLVED
+}
+
+enum RevalidationItemStatus {
+  OPEN
+  REVIEWED
+  RESOLVED
+}
+
+enum AppearanceMode {
+  SYSTEM
+  LIGHT
+  DARK
+}
+
+enum NotificationType {
+  WORKFLOW
+  CORRECTION
+  REVALIDATION
+  SYSTEM
+  SECURITY
+  BACKUP
+  SYNC
+}
+
+enum NotificationSeverity {
+  INFO
+  SUCCESS
+  WARNING
+  ERROR
+  CRITICAL
+}
+
+enum SystemJobType {
+  BACKUP
+  RESTORE
+  RETENTION_ARCHIVE
+  CACHE_MAINTENANCE
+}
+
+enum SystemJobStatus {
+  QUEUED
+  RUNNING
+  SUCCEEDED
+  FAILED
+  CANCELLED
+}
+
+enum SyncOperationType {
+  CREATE_DRAFT
+  UPDATE_DRAFT
+  QUEUE_SUBMIT
+  LOCAL_TOMBSTONE
+  ATTACHMENT_UPLOAD_COMPLETE
+  CONFLICT_RESOLUTION
+}
+
+enum SyncMutationStatus {
+  APPLIED
+  DUPLICATE
+  CONFLICT
+  REJECTED
+}
+
+enum SyncConflictStatus {
+  OPEN
+  RESOLVED
+  DISMISSED
+}
+
+enum SyncResolutionType {
+  KEEP_SERVER
+  APPLY_LOCAL_AS_NEW_REVISION
+  MANUAL_MERGE
+}
+
+enum AuditAction {
+  LOGIN
+  LOGIN_FAILED
+  LOGIN_LOCKED
+  LOGOUT
+  PASSWORD_CHANGED
+  SESSION_ROTATED
+  SESSION_REVOKED
+  CREATE
+  UPDATE
+  ARCHIVE
+  SUBMIT
+  PUBLISH_CODE
+  SELECT_UPSTREAM_CODE
+  CREATE_TRACE_LINK
+  CORRECT_REVISION
+  APPROVE
+  RETURN
+  CLOSE
+  CONFIG_CHANGE
+  SETTINGS_CHANGE
+  THEME_CHANGE
+  RETENTION_RUN
+  BACKUP_CREATED
+  BACKUP_FAILED
+  RESTORE_STARTED
+  RESTORE_COMPLETED
+  RESTORE_FAILED
+  PERMISSION_CHANGE
+  REVALIDATION_CREATED
+  REVALIDATION_RESOLVED
+  DEVICE_REGISTERED
+  DEVICE_REVOKED
+  SYNC_APPLIED
+  SYNC_REJECTED
+  SYNC_CONFLICT_CREATED
+  SYNC_CONFLICT_RESOLVED
+}
+
+model User {
+  id            String        @id @default(cuid())
+  employeeNo    String?       @unique
+  email         String        @unique
+  username      String        @unique
+  displayName   String
+  passwordHash  String
+  role          UserRole
+  accountStatus AccountStatus @default(ACTIVE)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  areaAssignments       UserAreaAssignment[]
+  ppmAssignments        PersonnelPpmAssignment[]
+  recordsCreated        PpmRecord[]              @relation("RecordCreatedBy")
+  revisionsCreated      PpmRecordRevision[]      @relation("RevisionCreatedBy")
+  traceOutputsCreated   PpmTraceOutput[]         @relation("TraceOutputCreatedBy")
+  traceLinksSelected    PpmTraceLink[]           @relation("TraceLinkSelectedBy")
+  workflowEvents        WorkflowEvent[]          @relation("WorkflowEventBy")
+  auditLogs             AuditLog[]               @relation("AuditActor")
+  resolvedRevalidations TraceRevalidation[]      @relation("RevalidationResolvedBy")
+  sessions              AuthSession[]
+  preference            UserPreference?
+  notifications         Notification[]           @relation("NotificationRecipient")
+  settingsUpdated       SystemSetting[]          @relation("SystemSettingUpdatedBy")
+  systemJobsRequested   SystemJobRun[]           @relation("SystemJobRequestedBy")
+  clientDevices         ClientDevice[]
+  syncMutationReceipts  SyncMutationReceipt[]    @relation("SyncMutationUser")
+  syncConflictsResolved SyncConflict[]           @relation("SyncConflictResolvedBy")
+
+  @@index([role])
+  @@index([accountStatus])
+}
+
+model ProductionArea {
+  id          String     @id @default(cuid())
+  code        String     @unique
+  name        String
+  description String?
+  status      AreaStatus @default(ACTIVE)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  ppmAssignments  AreaPpmAssignment[]
+  userAssignments UserAreaAssignment[]
+
+  @@index([status])
+}
+
+model PpmForm {
+  id          String    @id @default(cuid())
+  ppmCode     String    @unique
+  title       String
+  status      PpmStatus @default(ACTIVE)
+  sortOrder   Int?
+  description String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  areaAssignments      AreaPpmAssignment[]
+  versions             PpmTemplateVersion[]
+  personnelAssignments PersonnelPpmAssignment[]
+  sourceConnections    PpmTraceConnection[]     @relation("TraceSourcePpm")
+  targetConnections    PpmTraceConnection[]     @relation("TraceTargetPpm")
+
+  @@index([status])
+}
+
+model AreaPpmAssignment {
+  id            String    @id @default(cuid())
+  areaId        String
+  ppmFormId     String
+  isActive      Boolean   @default(true)
+  effectiveFrom DateTime  @default(now())
+  effectiveTo   DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  area    ProductionArea @relation(fields: [areaId], references: [id], onDelete: Restrict)
+  ppmForm PpmForm        @relation(fields: [ppmFormId], references: [id], onDelete: Restrict)
+  records PpmRecord[]
+
+  @@index([areaId, isActive])
+  @@index([ppmFormId, isActive])
+}
+
+model UserAreaAssignment {
+  id        String   @id @default(cuid())
+  userId    String
+  areaId    String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User           @relation(fields: [userId], references: [id], onDelete: Restrict)
+  area ProductionArea @relation(fields: [areaId], references: [id], onDelete: Restrict)
+
+  @@unique([userId, areaId])
+  @@index([areaId, isActive])
+  @@index([userId, isActive])
+}
+
+model PersonnelPpmAssignment {
+  id        String   @id @default(cuid())
+  userId    String
+  ppmFormId String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Restrict)
+  ppmForm PpmForm @relation(fields: [ppmFormId], references: [id], onDelete: Restrict)
+
+  @@unique([userId, ppmFormId])
+  @@index([ppmFormId, isActive])
+  @@index([userId, isActive])
+}
+
+model PpmTemplateVersion {
+  id             String    @id @default(cuid())
+  ppmFormId      String
+  versionNo      Int
+  versionLabel   String?
+  effectiveFrom  DateTime?
+  effectiveTo    DateTime?
+  isActive       Boolean   @default(false)
+  publishedAt    DateTime?
+  sourceFileName String?
+  sourceFileHash String?
+  documentNumber String?
+  revisionNumber String?
+  seriesNumber   String?
+  pageNumber     String?
+  definitionJson Json
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  ppmForm   PpmForm         @relation(fields: [ppmFormId], references: [id], onDelete: Restrict)
+  records   PpmRecord[]
+  codeRules TraceCodeRule[]
+
+  @@unique([ppmFormId, versionNo])
+  @@index([ppmFormId, isActive])
+  @@index([effectiveFrom, effectiveTo])
+}
+
+model PpmRecord {
+  id                  String          @id @default(cuid())
+  areaPpmAssignmentId String
+  templateVersionId   String
+  recordCode          String?         @unique
+  productionDate      DateTime
+  dailyKey            String?         @unique
+  shiftCode           String?
+  batchNo             String?
+  lotNo               String?
+  status              PpmRecordStatus @default(ACTIVE)
+  currentRevisionNo   Int             @default(1)
+  createdById         String
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+  submittedAt         DateTime?
+  closedAt            DateTime?
+  archivedAt          DateTime?
+
+  areaPpmAssignment    AreaPpmAssignment     @relation(fields: [areaPpmAssignmentId], references: [id], onDelete: Restrict)
+  templateVersion      PpmTemplateVersion    @relation(fields: [templateVersionId], references: [id], onDelete: Restrict)
+  createdBy            User                  @relation("RecordCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  revisions            PpmRecordRevision[]
+  traceOutputs         PpmTraceOutput[]
+  workflowEvents       WorkflowEvent[]
+  auditLogs            AuditLog[]
+  syncMutationReceipts SyncMutationReceipt[]
+  syncConflicts        SyncConflict[]
+
+  @@index([areaPpmAssignmentId, productionDate])
+  @@index([areaPpmAssignmentId, status, productionDate, id])
+  @@index([templateVersionId])
+  @@index([updatedAt, id])
+  @@index([status, productionDate, id])
+  @@index([createdById, status, createdAt, id])
+  @@index([productionDate, id])
+  @@index([archivedAt, closedAt, id])
+  @@index([batchNo])
+  @@index([lotNo])
+}
+
+model PpmRecordRevision {
+  id               String         @id @default(cuid())
+  recordId         String
+  revisionNo       Int
+  status           RevisionStatus @default(DRAFT)
+  dataJson         Json
+  dataHash         String?
+  createdById      String
+  createdAt        DateTime       @default(now())
+  submittedAt      DateTime?
+  approvedAt       DateTime?
+  correctionReason String?
+  impactCheckJson  Json?
+  isTraceCritical  Boolean        @default(false)
+
+  record               PpmRecord           @relation(fields: [recordId], references: [id], onDelete: Restrict)
+  createdBy            User                @relation("RevisionCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  traceOutputs         PpmTraceOutput[]
+  downstreamTraceLinks PpmTraceLink[]      @relation("DownstreamRevision")
+  workflowEvents       WorkflowEvent[]
+  changesAsOld         RevisionChange[]    @relation("RevisionChangeOld")
+  changesAsNew         RevisionChange[]    @relation("RevisionChangeNew")
+  revalidationTriggers TraceRevalidation[] @relation("RevalidationTriggerRevision")
+
+  @@unique([recordId, revisionNo])
+  @@index([recordId, status])
+  @@index([createdById])
+}
+
+model RevisionChange {
+  id              String   @id @default(cuid())
+  oldRevisionId   String?
+  newRevisionId   String
+  fieldPath       String
+  beforeValueJson Json?
+  afterValueJson  Json?
+  reason          String
+  isTraceCritical Boolean  @default(false)
+  createdAt       DateTime @default(now())
+
+  oldRevision PpmRecordRevision? @relation("RevisionChangeOld", fields: [oldRevisionId], references: [id], onDelete: Restrict)
+  newRevision PpmRecordRevision  @relation("RevisionChangeNew", fields: [newRevisionId], references: [id], onDelete: Restrict)
+
+  @@index([newRevisionId])
+  @@index([isTraceCritical])
+}
+
+model TraceCodeRule {
+  id                         String              @id @default(cuid())
+  templateVersionId          String
+  outputKey                  String
+  outputLabel                String
+  status                     ActivationStatus    @default(PENDING_VALIDATION)
+  sourceType                 TraceCodeSourceType
+  formulaTemplate            String?
+  resetPeriod                CodeResetPeriod     @default(NONE)
+  sequencePadding            Int?
+  requiresUniqueBusinessCode Boolean             @default(false)
+  configurationJson          Json?
+  createdAt                  DateTime            @default(now())
+  updatedAt                  DateTime            @updatedAt
+
+  templateVersion PpmTemplateVersion @relation(fields: [templateVersionId], references: [id], onDelete: Restrict)
+  sequences       CodeSequence[]
+  outputs         PpmTraceOutput[]
+
+  @@unique([templateVersionId, outputKey])
+  @@index([status])
+}
+
+model CodeSequence {
+  id           String   @id @default(cuid())
+  codeRuleId   String
+  periodKey    String
+  currentValue Int      @default(0)
+  updatedAt    DateTime @updatedAt
+
+  codeRule TraceCodeRule @relation(fields: [codeRuleId], references: [id], onDelete: Restrict)
+
+  @@unique([codeRuleId, periodKey])
+}
+
+model PpmTraceConnection {
+  id                        String           @id @default(cuid())
+  sourcePpmFormId           String
+  sourceOutputKey           String
+  targetPpmFormId           String
+  targetInputKey            String
+  connectionName            String
+  status                    ActivationStatus @default(PENDING_VALIDATION)
+  requiresApprovalBeforeUse Boolean          @default(false)
+  notes                     String?
+  createdAt                 DateTime         @default(now())
+  updatedAt                 DateTime         @updatedAt
+
+  sourcePpmForm PpmForm        @relation("TraceSourcePpm", fields: [sourcePpmFormId], references: [id], onDelete: Restrict)
+  targetPpmForm PpmForm        @relation("TraceTargetPpm", fields: [targetPpmFormId], references: [id], onDelete: Restrict)
+  traceLinks    PpmTraceLink[]
+
+  @@unique([sourcePpmFormId, sourceOutputKey, targetPpmFormId, targetInputKey])
+  @@index([sourcePpmFormId, status])
+  @@index([targetPpmFormId, status])
+  @@index([targetPpmFormId, targetInputKey, status])
+  @@index([status, updatedAt, id])
+}
+
+model PpmTraceOutput {
+  id                 String            @id @default(cuid())
+  recordId           String
+  revisionId         String
+  codeRuleId         String?
+  outputKey          String
+  sourcePath         String            @default("$")
+  outputCode         String
+  outputType         String?
+  quantity           Decimal?          @db.Decimal(18, 6)
+  unit               String?
+  status             TraceOutputStatus @default(PUBLISHED)
+  createdById        String
+  publishedAt        DateTime          @default(now())
+  sourceSnapshotJson Json?
+
+  record          PpmRecord         @relation(fields: [recordId], references: [id], onDelete: Restrict)
+  revision        PpmRecordRevision @relation(fields: [revisionId], references: [id], onDelete: Restrict)
+  codeRule        TraceCodeRule?    @relation(fields: [codeRuleId], references: [id], onDelete: SetNull)
+  createdBy       User              @relation("TraceOutputCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  downstreamLinks PpmTraceLink[]
+
+  @@unique([revisionId, outputKey, sourcePath])
+  @@index([recordId, publishedAt, id])
+  @@index([outputCode])
+  @@index([outputKey, outputCode, status])
+  @@index([status, publishedAt, id])
+}
+
+model PpmTraceLink {
+  id                   String   @id @default(cuid())
+  connectionId         String
+  sourceTraceOutputId  String
+  downstreamRevisionId String
+  downstreamInputKey   String
+  selectedById         String
+  selectedAt           DateTime @default(now())
+  isActive             Boolean  @default(true)
+  notes                String?
+
+  connection         PpmTraceConnection      @relation(fields: [connectionId], references: [id], onDelete: Restrict)
+  sourceTraceOutput  PpmTraceOutput          @relation(fields: [sourceTraceOutputId], references: [id], onDelete: Restrict)
+  downstreamRevision PpmRecordRevision       @relation("DownstreamRevision", fields: [downstreamRevisionId], references: [id], onDelete: Restrict)
+  selectedBy         User                    @relation("TraceLinkSelectedBy", fields: [selectedById], references: [id], onDelete: Restrict)
+  revalidationItems  TraceRevalidationItem[]
+
+  @@unique([connectionId, sourceTraceOutputId, downstreamRevisionId, downstreamInputKey])
+  @@index([sourceTraceOutputId, selectedAt, id])
+  @@index([downstreamRevisionId, selectedAt, id])
+  @@index([connectionId, isActive, selectedAt, id])
+  @@index([isActive])
+}
+
+model WorkflowEvent {
+  id         String             @id @default(cuid())
+  recordId   String
+  revisionId String?
+  step       ReviewStep?
+  action     WorkflowActionType
+  actorId    String
+  reason     String?
+  comments   String?
+  createdAt  DateTime           @default(now())
+
+  record   PpmRecord          @relation(fields: [recordId], references: [id], onDelete: Restrict)
+  revision PpmRecordRevision? @relation(fields: [revisionId], references: [id], onDelete: Restrict)
+  actor    User               @relation("WorkflowEventBy", fields: [actorId], references: [id], onDelete: Restrict)
+
+  @@index([recordId, createdAt, id])
+  @@index([revisionId])
+  @@index([step, action, createdAt, id])
+  @@index([actorId, createdAt, id])
+}
+
+model TraceRevalidation {
+  id                String             @id @default(cuid())
+  triggerRevisionId String
+  reason            String
+  status            RevalidationStatus @default(OPEN)
+  createdAt         DateTime           @default(now())
+  resolvedAt        DateTime?
+  resolvedById      String?
+  resolutionNotes   String?
+
+  triggerRevision PpmRecordRevision       @relation("RevalidationTriggerRevision", fields: [triggerRevisionId], references: [id], onDelete: Restrict)
+  resolvedBy      User?                   @relation("RevalidationResolvedBy", fields: [resolvedById], references: [id], onDelete: SetNull)
+  items           TraceRevalidationItem[]
+
+  @@index([triggerRevisionId])
+  @@index([status, createdAt, id])
+}
+
+model TraceRevalidationItem {
+  id             String                 @id @default(cuid())
+  revalidationId String
+  traceLinkId    String
+  status         RevalidationItemStatus @default(OPEN)
+  notes          String?
+  resolvedAt     DateTime?
+
+  revalidation TraceRevalidation @relation(fields: [revalidationId], references: [id], onDelete: Restrict)
+  traceLink    PpmTraceLink      @relation(fields: [traceLinkId], references: [id], onDelete: Restrict)
+
+  @@unique([revalidationId, traceLinkId])
+  @@index([status])
+}
+
+model AuditLog {
+  id               String      @id @default(cuid())
+  actorId          String?
+  recordId         String?
+  action           AuditAction
+  entityType       String
+  entityId         String?
+  message          String
+  beforeJson       Json?
+  afterJson        Json?
+  ipAddress        String?
+  userAgent        String?
+  correlationId    String?
+  clientDeviceId   String?
+  clientMutationId String?
+  createdAt        DateTime    @default(now())
+
+  actor        User?         @relation("AuditActor", fields: [actorId], references: [id], onDelete: SetNull)
+  record       PpmRecord?    @relation(fields: [recordId], references: [id], onDelete: SetNull)
+  clientDevice ClientDevice? @relation(fields: [clientDeviceId], references: [id], onDelete: SetNull)
+
+  @@index([actorId, createdAt, id])
+  @@index([recordId, createdAt, id])
+  @@index([action, createdAt, id])
+  @@index([entityType, entityId])
+  @@index([correlationId])
+  @@index([clientMutationId])
+  @@index([clientDeviceId, createdAt, id])
+  @@index([createdAt, id])
+}
+
+model ClientDevice {
+  id                     String    @id @default(cuid())
+  userId                 String
+  deviceUuid             String
+  displayName            String?
+  platform               String?
+  registeredAt           DateTime  @default(now())
+  lastSeenAt             DateTime  @default(now())
+  offlineAccessIssuedAt  DateTime?
+  offlineAccessExpiresAt DateTime?
+  revokedAt              DateTime?
+
+  user      User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  mutations SyncMutationReceipt[]
+  auditLogs AuditLog[]
+
+  @@unique([userId, deviceUuid])
+  @@index([userId, revokedAt, lastSeenAt])
+  @@index([offlineAccessExpiresAt])
+}
+
+model SyncMutationReceipt {
+  id               String             @id @default(cuid())
+  clientMutationId String             @unique
+  deviceId         String
+  userId           String
+  recordId         String?
+  operationType    SyncOperationType
+  baseRevisionNo   Int?
+  resultRevisionNo Int?
+  status           SyncMutationStatus
+  payloadHash      String?
+  resultJson       Json?
+  correlationId    String?
+  receivedAt       DateTime           @default(now())
+  appliedAt        DateTime?
+
+  device   ClientDevice  @relation(fields: [deviceId], references: [id], onDelete: Restrict)
+  user     User          @relation("SyncMutationUser", fields: [userId], references: [id], onDelete: Restrict)
+  record   PpmRecord?    @relation(fields: [recordId], references: [id], onDelete: SetNull)
+  conflict SyncConflict?
+
+  @@index([deviceId, receivedAt, id])
+  @@index([userId, receivedAt, id])
+  @@index([recordId, receivedAt, id])
+  @@index([status, receivedAt, id])
+  @@index([correlationId])
+}
+
+model SyncConflict {
+  id                String              @id @default(cuid())
+  mutationReceiptId String              @unique
+  recordId          String
+  baseRevisionNo    Int
+  serverRevisionNo  Int
+  localPatchJson    Json
+  localPayloadHash  String?
+  changedPathsJson  Json?
+  isTraceCritical   Boolean             @default(false)
+  status            SyncConflictStatus  @default(OPEN)
+  resolutionType    SyncResolutionType?
+  resolutionJson    Json?
+  resolvedById      String?
+  createdAt         DateTime            @default(now())
+  resolvedAt        DateTime?
+
+  mutationReceipt SyncMutationReceipt @relation(fields: [mutationReceiptId], references: [id], onDelete: Restrict)
+  record          PpmRecord           @relation(fields: [recordId], references: [id], onDelete: Restrict)
+  resolvedBy      User?               @relation("SyncConflictResolvedBy", fields: [resolvedById], references: [id], onDelete: SetNull)
+
+  @@index([recordId, status, createdAt, id])
+  @@index([status, createdAt, id])
+  @@index([resolvedById, resolvedAt])
+}
+
+model AuthSession {
+  id               String    @id @default(cuid())
+  userId           String
+  refreshTokenHash String    @unique
+  createdAt        DateTime  @default(now())
+  lastSeenAt       DateTime  @default(now())
+  rotatedAt        DateTime?
+  expiresAt        DateTime
+  idleExpiresAt    DateTime?
+  revokedAt        DateTime?
+  ipAddress        String?
+  userAgent        String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, revokedAt, expiresAt])
+  @@index([expiresAt])
+}
+
+model AuthLoginDefense {
+  id             String    @id @default(cuid())
+  identifierHash String    @unique
+  failureCount   Int       @default(0)
+  lastFailedAt   DateTime  @default(now())
+  lockedUntil    DateTime?
+
+  @@index([lockedUntil])
+  @@index([lastFailedAt])
+}
+
+model UserPreference {
+  id              String         @id @default(cuid())
+  userId          String         @unique
+  appearanceMode  AppearanceMode @default(SYSTEM)
+  listViewMode    String         @default("TABLE")
+  preferencesJson Json?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model SystemSetting {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  valueJson   Json
+  valueType   String
+  description String?
+  isSensitive Boolean  @default(false)
+  updatedById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  updatedBy User? @relation("SystemSettingUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  @@index([updatedAt])
+}
+
+model Notification {
+  id          String               @id @default(cuid())
+  recipientId String
+  type        NotificationType
+  severity    NotificationSeverity @default(INFO)
+  title       String
+  message     String
+  entityType  String?
+  entityId    String?
+  dedupeKey   String?              @unique
+  readAt      DateTime?
+  archivedAt  DateTime?
+  createdAt   DateTime             @default(now())
+
+  recipient User @relation("NotificationRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
+
+  @@index([recipientId, readAt, createdAt, id])
+  @@index([recipientId, archivedAt, createdAt, id])
+  @@index([type, createdAt, id])
+}
+
+model SystemJobRun {
+  id               String          @id @default(cuid())
+  jobType          SystemJobType
+  status           SystemJobStatus @default(QUEUED)
+  requestedById    String?
+  startedAt        DateTime?
+  completedAt      DateTime?
+  artifactName     String?
+  artifactChecksum String?
+  correlationId    String?
+  detailsJson      Json?
+  errorCode        String?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  requestedBy User? @relation("SystemJobRequestedBy", fields: [requestedById], references: [id], onDelete: SetNull)
+
+  @@index([jobType, status, createdAt, id])
+  @@index([status, createdAt, id])
+  @@index([correlationId])
+}
