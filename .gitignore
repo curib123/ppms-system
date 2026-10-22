@@ -1,0 +1,16 @@
+/application/config/local.php
+/application/cache/*
+!/application/cache/index.html
+!/application/cache/.htaccess
+/application/logs/*
+!/application/logs/index.html
+!/application/logs/.htaccess
+/application/sessions/*
+!/application/sessions/index.html
+/vendor/
+/.env
+/.env.*
+!/.env.example
+*.log
+/.idea/
+/.vscode/
