@@ -7,7 +7,11 @@ $query_builder = TRUE;
 
 // CI3's PDO PostgreSQL driver quotes the existing mixed-case Prisma identifiers.
 $db['default'] = array(
-    'dsn' => '',
+    'dsn' => 'pgsql:host='.ppms_config('DB_HOST', '127.0.0.1')
+        .';port='.ppms_config('DB_PORT', '5432')
+        .';dbname='.ppms_config('DB_DATABASE', 'ppms_ci3')
+        .';sslmode='.ppms_config('DB_SSLMODE', 'prefer')
+        .';connect_timeout=5',
     'hostname' => ppms_config('DB_HOST', '127.0.0.1'),
     'port' => ppms_config('DB_PORT', '5432'),
     'username' => ppms_config('DB_USERNAME', 'ppms'),
