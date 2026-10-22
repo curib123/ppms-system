@@ -37,8 +37,8 @@ class Setup extends CI_Controller
         try {
             echo json_encode($this->ppms_database->$command(), JSON_UNESCAPED_SLASHES).PHP_EOL;
         } catch (Throwable $error) {
-            // PDO exception strings can include connection details; don't print them.
-            $message = $error instanceof PDOException
+            // MySQLi exception strings can include connection details; don't print them.
+            $message = $error instanceof mysqli_sql_exception
                 ? 'Database operation failed. Check schema compatibility and database permissions.'
                 : $error->getMessage();
             fwrite(STDERR, $message.PHP_EOL);

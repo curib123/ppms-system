@@ -6,9 +6,8 @@ return array(
     'APP_BASE_URL' => 'http://localhost:8085/',
     'APP_ENCRYPTION_KEY' => '', // Generate with: php -r "echo bin2hex(random_bytes(32)), PHP_EOL;"
     'DB_HOST' => '127.0.0.1',
-    'DB_PORT' => '55432',
+    'DB_PORT' => '3306',
     'DB_DATABASE' => 'ppms_ci3',
-    'DB_USERNAME' => 'ppms',
+    'DB_USERNAME' => 'root',
     'DB_PASSWORD' => '',
-    'DB_SSLMODE' => 'prefer',
 );

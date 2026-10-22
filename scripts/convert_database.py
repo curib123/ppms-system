@@ -28,13 +28,28 @@ def index_column(value):
     return match.group(1), (' ' + match.group(2)) if match.group(2) else ''
 
 
+def canonical_json(value):
+    if isinstance(value, dict):
+        return {key: canonical_json(child) for key, child in value.items()}
+    if isinstance(value, list):
+        return [canonical_json(child) for child in value]
+    if isinstance(value, str):
+        return '~string:' + value
+    if isinstance(value, bool) or value is None:
+        return value
+    # PHP and Python emit different JSON exponent spellings. Normalize numbers
+    # explicitly, keeping tagged strings distinct from numeric JSON values.
+    number = format(value, '.17g') if isinstance(value, float) else str(value)
+    return '~number:' + re.sub(r'e\+?(-?)0*(\d+)', r'e\1\2', number)
+
+
 def canonical(row, types):
     result = {}
     for key, value in row.items():
         if value is None:
             result[key] = None
         elif types[key] == 'json':
-            result[key] = json.loads(value)
+            result[key] = canonical_json(json.loads(value))
         elif types[key] == 'datetime':
             date, _, fraction = value.partition('.')
             result[key] = date + '.' + (fraction + '000')[:3]

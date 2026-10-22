@@ -4,7 +4,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>PPMS · System setup</title>
+    <title>PPMS Â· System setup</title>
     <style>
         * { box-sizing: border-box; }
         body { margin: 0; background: #f4f7fb; color: #172940; font: 16px/1.6 system-ui, sans-serif; }
@@ -27,7 +27,7 @@
 <body>
 <main>
     <h1>PPMS</h1>
-    <p class="muted">CodeIgniter 3 · PostgreSQL</p>
+    <p class="muted">CodeIgniter 3 Â· MySQL / MariaDB</p>
     <section class="panel" aria-labelledby="setup-heading">
         <h2 id="setup-heading">System setup</h2>
         <p class="status"><?= $connected ? 'Database connected' : 'Database setup needed' ?></p>
@@ -38,7 +38,7 @@
                 <?php endforeach; ?>
             </dl>
         <?php else: ?>
-            <p>Configure the PostgreSQL connection using the README. For a new, empty database, run <code>php index.php setup install</code> from the project folder.</p>
+            <p>Configure the MySQL / MariaDB connection using the README. For a new, empty database, run <code>php index.php setup install</code> from the project folder.</p>
         <?php endif; ?>
     </section>
     <?php if ($connected): ?>

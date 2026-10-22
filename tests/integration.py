@@ -1,7 +1,7 @@
-"""End-to-end setup checks using a disposable database in a local PostgreSQL container.
+"""End-to-end setup checks using a disposable database in the local MySQL/MariaDB server.
 
 Set DB_PASSWORD for the local test database role, then run:
-python tests/integration.py --php-extension pdo_pgsql
+python tests/integration.py
 """
 import argparse
 import hashlib
@@ -9,6 +9,7 @@ import json
 import os
 from pathlib import Path
 import socket
+import shutil
 import subprocess
 import tempfile
 import time
@@ -24,21 +25,25 @@ OPTIONS, TEST_ARGS = PARSER.parse_known_args()
 PHP = [OPTIONS.php]
 for extension in OPTIONS.php_extension:
     PHP += ['-d', 'extension=' + extension]
-CONTAINER = os.environ.get('PPMS_TEST_CONTAINER', 'ppms-postgres-1')
-USER = os.environ.get('DB_USERNAME', 'ppms')
+USER = os.environ.get('DB_USERNAME', 'root')
 DATABASE = 'ppms_ci3_test_' + str(os.getpid())
 ENV = dict(os.environ, DB_DATABASE=DATABASE, DB_HOST='127.0.0.1',
-           DB_PORT=os.environ.get('DB_PORT', '55432'), DB_USERNAME=USER,
-           CI_ENV='testing')
+           DB_PORT=os.environ.get('DB_PORT', '3306'), DB_USERNAME=USER,
+           DB_PASSWORD=os.environ.get('DB_PASSWORD', ''), CI_ENV='testing')
 
 
-def docker(*args):
-    return subprocess.check_output(['docker', 'exec', CONTAINER, *args], text=True)
+def query(statement, database=DATABASE):
+    return subprocess.run(PHP + ['tests/database.php'], cwd=ROOT, env=ENV,
+                          input=json.dumps({'database': database, 'sql': statement}),
+                          text=True, capture_output=True, timeout=15)
 
 
-def sql(query):
-    return docker('psql', '-X', '-U', USER, '-d', DATABASE,
-                  '-v', 'ON_ERROR_STOP=1', '-At', '-c', query).strip()
+def sql(statement, database=DATABASE):
+    result = query(statement, database)
+    if result.returncode:
+        raise AssertionError(result.stderr)
+    rows = json.loads(result.stdout)
+    return rows[0][0] if rows else ''
 
 
 def cli(*args, env=ENV):
@@ -58,8 +63,8 @@ def request(path, base):
 class SetupIntegration(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        docker('createdb', '-U', USER, DATABASE)
-        cls.addClassCleanup(lambda: docker('dropdb', '-U', USER, DATABASE))
+        sql('CREATE DATABASE `' + DATABASE + '` CHARACTER SET utf8mb4 COLLATE utf8mb4_bin', None)
+        cls.addClassCleanup(lambda: sql('DROP DATABASE `' + DATABASE + '`', None))
 
     def test_01_install_and_verify_canonical_database(self):
         result = cli('setup', 'install')
@@ -68,24 +73,24 @@ class SetupIntegration(unittest.TestCase):
         result = cli('setup', 'verify')
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertEqual(json.loads(result.stdout)['tables'], 28)
-        self.assertEqual(sql('SELECT count(*) FROM public."User"'), '0')
+        self.assertEqual(sql('SELECT count(*) FROM `User`'), '0')
 
     def test_02_second_install_refuses_without_changing_data(self):
-        before = sql('SELECT md5(jsonb_agg(to_jsonb(t) ORDER BY id)::text) FROM public."PpmTemplateVersion" t')
+        before = sql('SELECT SHA2(GROUP_CONCAT(id ORDER BY id),256) FROM `PpmTemplateVersion`')
         result = cli('setup', 'install')
         self.assertNotEqual(result.returncode, 0)
         self.assertIn('empty', result.stderr.lower())
-        self.assertEqual(before, sql('SELECT md5(jsonb_agg(to_jsonb(t) ORDER BY id)::text) FROM public."PpmTemplateVersion" t'))
+        self.assertEqual(before, sql('SELECT SHA2(GROUP_CONCAT(id ORDER BY id),256) FROM `PpmTemplateVersion`'))
 
     def test_03_verify_detects_modified_default_data(self):
-        original = sql('SELECT title FROM public."PpmForm" WHERE "ppmCode" = \'PPM-001\'')
+        original = sql('SELECT title FROM `PpmForm` WHERE `ppmCode` = \'PPM-001\'')
         try:
-            sql('UPDATE public."PpmForm" SET title = \'Changed\' WHERE "ppmCode" = \'PPM-001\'')
+            sql('UPDATE `PpmForm` SET title = \'Changed\' WHERE `ppmCode` = \'PPM-001\'')
             result = cli('setup', 'verify')
             self.assertNotEqual(result.returncode, 0)
             self.assertIn('PpmForm', result.stderr)
         finally:
-            sql('UPDATE public."PpmForm" SET title = \'' + original.replace("'", "''") + '\' WHERE "ppmCode" = \'PPM-001\'')
+            sql('UPDATE `PpmForm` SET title = \'' + original.replace("'", "''") + '\' WHERE `ppmCode` = \'PPM-001\'')
 
     def test_04_connection_failure_has_nonzero_exit_and_no_password(self):
         result = cli('setup', 'check', env=dict(ENV, DB_PORT='1', DB_PASSWORD='must-not-be-disclosed'))
@@ -104,6 +109,41 @@ class SetupIntegration(unittest.TestCase):
         for name, digest in manifest['sha256'].items():
             with self.subTest(file=name):
                 self.assertEqual(hashlib.sha256((ROOT / 'database' / name).read_bytes()).hexdigest(), digest)
+
+    def test_08_constraints_reject_invalid_data(self):
+        statements = [
+            "UPDATE `AreaPpmAssignment` SET `isActive`=2 LIMIT 1",
+            "UPDATE `PpmTemplateVersion` SET `definitionJson`='invalid-json' LIMIT 1",
+            "INSERT INTO `PpmTemplateVersion` (`id`,`ppmFormId`,`versionNo`,`definitionJson`,`createdAt`,`updatedAt`) VALUES ('orphan','missing',1,'{}',NOW(3),NOW(3))",
+            "INSERT INTO `PpmForm` (`id`,`ppmCode`,`title`,`createdAt`,`updatedAt`) VALUES ('duplicate','PPM-001','Duplicate',NOW(3),NOW(3))",
+            "UPDATE `PpmForm` SET `ppmCode`=REPEAT('x',192) LIMIT 1",
+        ]
+        for statement in statements:
+            with self.subTest(statement=statement):
+                self.assertNotEqual(query(statement).returncode, 0)
+        self.assertEqual(cli('setup', 'verify').returncode, 0)
+
+    def test_09_failed_seed_cleans_only_new_tables_and_can_retry(self):
+        target = DATABASE + '_failure'
+        sql('CREATE DATABASE `' + target + '` CHARACTER SET utf8mb4 COLLATE utf8mb4_bin', None)
+        try:
+            with tempfile.TemporaryDirectory() as directory:
+                copy = Path(directory) / 'app'
+                shutil.copytree(ROOT, copy, ignore=shutil.ignore_patterns('.git', '*.log', '__pycache__', 'local.php'))
+                seed = copy / 'database/default_data.sql'
+                seed.write_text(seed.read_text() + '\nINSERT INTO `missing_table` VALUES (1);\n', encoding='utf-8')
+                manifest = copy / 'database/manifest.json'
+                content = json.loads(manifest.read_text())
+                content['sha256']['default_data.sql'] = hashlib.sha256(seed.read_bytes()).hexdigest()
+                manifest.write_text(json.dumps(content), encoding='utf-8')
+                result = subprocess.run(PHP + ['index.php', 'setup', 'install'], cwd=copy,
+                                        env=dict(ENV, DB_DATABASE=target), capture_output=True, text=True, timeout=30)
+                self.assertNotEqual(result.returncode, 0, result.stdout)
+                self.assertEqual(sql('SELECT count(*) FROM information_schema.tables WHERE table_schema=DATABASE()', target), '0')
+                result = cli('setup', 'install', env=dict(ENV, DB_DATABASE=target))
+                self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        finally:
+            sql('DROP DATABASE `' + target + '`', None)
 
     def check_server(self, env, healthy):
         with socket.socket() as sock:
