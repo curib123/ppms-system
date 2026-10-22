@@ -1,135 +1,129 @@
-# PPMS — CodeIgniter 3
+# PPMS - CodeIgniter 3 / MySQLi
 
-CodeIgniter **3.1.13** application structure with the existing PPMS PostgreSQL
-schema and canonical default data. This is the PHP foundation for PPMS: setup,
-database configuration, a read-only form register, and a health endpoint.
-The NestJS/Angular application's authentication and business workflows have
-not been ported.
+CodeIgniter **3.1.13** with the native **MySQLi** driver, the converted PPMS
+schema, and the original default data. Includes guarded database setup, a
+read-only PPM form register, and a health endpoint. Authentication and the
+NestJS/Angular business workflows are outside this foundation.
 
 ## Requirements
 
-- PHP with PDO and `pdo_pgsql`; verified with PHP **8.0.30**.
-- PostgreSQL **17+**, with an existing database role and an empty database for
-  installation. Existing PPMS databases can be connected without installation.
-- Apache with `mod_rewrite`, or PHP's built-in server for local development.
-- No Composer or Node.js install is needed to run the app.
+- PHP with `mysqli`; verified with XAMPP PHP **8.0.30**.
+- **MySQL 8.0.16+** or **MariaDB 10.4+**; verified with XAMPP MariaDB **10.4.32**.
+- Apache with `mod_rewrite`, or PHP's development server for local use.
+- No PostgreSQL, PDO PostgreSQL extension, Composer, or Node.js is required.
 
-## Local setup on Windows
+## Windows / XAMPP setup
 
-From this repository folder:
+Start MySQL in XAMPP, then run from the repository folder:
 
 ```powershell
 Copy-Item application/config/local.example.php application/config/local.php
 php -r "echo bin2hex(random_bytes(32)), PHP_EOL;"
 ```
 
-Edit `application/config/local.php`: set `DB_PASSWORD` to your PostgreSQL role's
-password and paste the generated value into `APP_ENCRYPTION_KEY`. Check the
-host, port, database name, and base URL. This local file is ignored by Git.
-The example uses the sibling PPMS Docker PostgreSQL port **55432**, database
-**ppms_ci3**, role **ppms**, and web port **8085**. For a normal PostgreSQL
-installation, use port **5432**. Environment variables with the same names
-override the local file; an explicitly empty environment value also overrides it.
+Edit the ignored `application/config/local.php`: paste the generated value into
+`APP_ENCRYPTION_KEY` and set the MySQL credentials. Defaults are host
+`127.0.0.1`, port **3306**, database **ppms_ci3**, user **root**, and an empty
+password for a default local XAMPP installation. Use your configured password
+when one is required. Environment variables with the same names override the
+local file, including explicitly empty environment values.
 
-Create the database using your PostgreSQL administration tools. With the
-existing local PPMS Docker container:
+Create a fresh database using phpMyAdmin or the MySQL client:
 
 ```powershell
-docker exec ppms-postgres-1 createdb -U ppms ppms_ci3
+& C:\xampp\mysql\bin\mysql.exe --user=root --execute="CREATE DATABASE ppms_ci3 CHARACTER SET utf8mb4 COLLATE utf8mb4_bin"
 ```
 
-Install and check the schema and default data:
+Add `--password` if your MySQL account requires a password. Install and verify:
 
 ```powershell
 .\scripts\php.ps1 index.php setup check
 .\scripts\php.ps1 index.php setup install
 .\scripts\php.ps1 index.php setup verify
-```
-
-The PowerShell wrapper enables the installed `pdo_pgsql` extension for that
-process when necessary. It does not edit your global PHP configuration. If
-PowerShell script execution is restricted, use:
-
-```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/php.ps1 index.php setup check
-```
-
-Start the local development server:
-
-```powershell
 .\scripts\php.ps1 -S 127.0.0.1:8085 -t public public/router.php
 ```
 
-Open **http://localhost:8085/**. The setup page reports the database connection
-and lists the PPM forms. **http://localhost:8085/health** returns HTTP 200 with
-`{"status":"ok","database":"connected"}` when the reference tables can be read;
-an unavailable or uninitialized database returns HTTP 503.
+If script execution is restricted, run the wrapper with
+`powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/php.ps1 ...`.
+The wrapper enables the installed `mysqli` extension for that process if
+needed, without changing global PHP configuration. If already enabled, plain
+`php index.php setup install` and `php -S 127.0.0.1:8085 -t public public/router.php`
+work as well.
 
-For PHP with `pdo_pgsql` already enabled, the equivalent commands are
-`php index.php setup install`, `php index.php setup verify`, and
-`php -S 127.0.0.1:8085 -t public public/router.php`.
+Open **http://localhost:8085/**. The register lists all 26 default PPM forms.
+**http://localhost:8085/health** returns HTTP 200 with
+`{"status":"ok","database":"connected"}` when the reference tables can be read,
+or HTTP 503 when the database is unavailable or uninitialized.
 
-## Connect to existing PPMS data
+The installer is CLI only and refuses a populated database. MySQL/MariaDB DDL
+implicitly commits, so the installer uses an advisory lock, seeds inside a
+transaction, and removes only its known new tables if installation fails after
+the empty-database check. Normal web startup never imports or modifies data.
 
-Set `DB_DATABASE` and the credentials to the existing database, then run only
-`setup check` and start the server. **Skip `setup install` and the SQL imports.**
-The status page and model read the original quoted PPMS table/column names;
-normal startup does not change data. `setup verify` compares an exact fresh
-seed snapshot, so it is intended for newly initialized databases.
+## Data and conversion
 
-The fresh defaults include 7 production areas, 26 forms, 26 area assignments,
-26 templates, 26 trace-code rules, 56 trace connections, and 15 system settings.
-The five roles remain PostgreSQL enum values. No default login is created and
-no live account passwords, records, or sessions are copied. See
-[database/README.md](database/README.md) for import details and provenance.
+The 28 application tables retain their original PPMS names and default values:
+7 areas, 26 forms, 26 area assignments, 26 templates, 26 trace-code rules,
+56 trace connections, and 15 settings. Roles are native ENUM values. No login
+accounts, sessions, passwords, or production records are included in the seeds.
+
+JSONB becomes JSON, timestamps become DATETIME(3), booleans have 0/1 checks,
+and foreign keys retain their delete/update actions. Indexed/defaulted text
+columns become VARCHAR(191); other text remains TEXT. The nonunique retention
+partial index becomes a covering index. Full details and original PostgreSQL
+artifacts are in [database/README.md](database/README.md).
+
+To use an existing **converted MySQL/MariaDB** database, configure its credentials,
+run only `setup check`, and start the server. Skip installation and SQL imports.
+`setup verify` compares the exact original default snapshot and is intended for
+fresh installations, before operational data is added.
 
 ## Structure
 
 ```text
-application/
-  config/         CI3 settings, PostgreSQL connection, local configuration
-  controllers/    Welcome, Health, and CLI-only Setup
-  models/         Read-only PPMS reference model
-  libraries/      Transactional database installation and verification
-  views/          Setup status and original CI3 error views
-  cache/          Runtime cache (ignored)
-  logs/           Runtime logs (ignored)
-  sessions/       Runtime sessions (ignored)
-database/
-  schema.sql      Existing tables, enums, constraints, and indexes
-  default_data.sql
-  manifest.json   Provenance, source hashes, and complete seed fingerprints
-  source/         Original Prisma schema, migrations, and canonical seed inputs
-public/           Web document root, front controller, development router
-scripts/          Windows PHP launcher
-system/           Unmodified CodeIgniter 3.1.13 framework
-tests/            End-to-end checks using a disposable PostgreSQL database
-index.php         CLI entry point
+application/config/       CI3 settings and local MySQLi credentials
+application/controllers/  Welcome, Health, CLI-only Setup
+application/models/       Read-only PPMS reference model
+application/libraries/    Guarded database installer and baseline verification
+application/views/        Setup page and CI3 error views
+database/schema.sql       MySQL/MariaDB tables, enums, indexes, and constraints
+database/default_data.sql Converted original default rows
+database/manifest.json    Provenance, hashes, row counts, and column types
+database/source/          Archived original PostgreSQL/Prisma artifacts
+public/                   Web document root
+scripts/                  PHP launcher and reproducible SQL converter
+system/                   Unmodified CodeIgniter 3.1.13 framework
+tests/                    Integration checks using a disposable MySQL database
+index.php                 CLI entry point
 ```
 
-For Apache/XAMPP, configure a virtual host whose `DocumentRoot` is this
-repository's **public/** directory and enable `AllowOverride All` there.
-Do not serve the repository root. Only `application/cache`, `application/logs`,
-and `application/sessions` need to be writable by PHP. Set `APP_BASE_URL` to
-the actual URL, and use `DB_SSLMODE=require` when your server requires TLS.
-The application defaults to the production error environment; set `CI_ENV`
-to `development` locally if detailed debugging is needed.
+For Apache/XAMPP, set the virtual host's `DocumentRoot` to **public/** and enable
+`AllowOverride All`. Only `application/cache`, `application/logs`, and
+`application/sessions` need PHP write access. Configure `APP_BASE_URL` for the
+actual address. Production error handling is the default; use
+`CI_ENV=development` locally when debugging. Remote MySQL TLS options can be
+configured through CI3's `encrypt` connection setting.
 
-## Verification
-
-The integration suite uses Python's standard library, PHP, and the existing
-PostgreSQL Docker container. Configure the local credentials, or set
-`DB_PASSWORD` in the process environment, then run:
+## Verification and regeneration
 
 ```powershell
-python tests/integration.py --php-extension pdo_pgsql
+python tests/integration.py
+python scripts/convert_database.py
 ```
 
-Omit `--php-extension pdo_pgsql` if PHP already enables that extension.
-Optional `PPMS_TEST_CONTAINER`, `DB_USERNAME`, and `DB_PORT` environment
-variables select the test container and connection. The suite creates and
-removes its own `ppms_ci3_test_<process-id>` database. It checks installation,
-refusal to overwrite data, default-data drift, connection failures, rendered
-forms, HTTP health responses, private-file protection, and source integrity.
+The integration tests use Python's standard library and PHP's MySQLi extension.
+No Docker or Python MySQL package is required. `DB_HOST`, `DB_PORT`,
+`DB_USERNAME`, and `DB_PASSWORD` select the server; defaults are local port
+3306, root, and no password. The test account must be able to create and drop
+its disposable `ppms_ci3_test_<process-id>` databases. The tests never target
+the configured application database.
 
+Checks cover installation, refusal to overwrite data, exact seed verification,
+modified defaults, invalid JSON, duplicate codes, foreign keys, boolean checks,
+key-length limits, failed-install cleanup/retry, rendered forms, health
+responses, and private-file protection. `--php` selects another PHP executable;
+`--php-extension mysqli` can enable an installed extension for the test process.
+
+The converter rebuilds SQL and fingerprints deterministically from the archived
+source without any database connection. It does not export live data.
 Framework source and licensing: [FRAMEWORK.md](FRAMEWORK.md), [LICENSE](LICENSE).

@@ -27,7 +27,7 @@ for extension in OPTIONS.php_extension:
     PHP += ['-d', 'extension=' + extension]
 USER = os.environ.get('DB_USERNAME', 'root')
 DATABASE = 'ppms_ci3_test_' + str(os.getpid())
-ENV = dict(os.environ, DB_DATABASE=DATABASE, DB_HOST='127.0.0.1',
+ENV = dict(os.environ, DB_DATABASE=DATABASE, DB_HOST=os.environ.get('DB_HOST', '127.0.0.1'),
            DB_PORT=os.environ.get('DB_PORT', '3306'), DB_USERNAME=USER,
            DB_PASSWORD=os.environ.get('DB_PASSWORD', ''), CI_ENV='testing')
 
