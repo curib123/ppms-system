@@ -117,6 +117,21 @@ class Ppms_device_service
         }
         return $this->auth->user($id);
     }
+    public function revoke($actor, $id, $input)
+    {
+        $this->auth->admin($actor);
+        $reason = Ppms_values::text($input, 'reason', 2000);
+        $initial = $this->store->row('SELECT ppmFormId FROM PpmFormDeviceLease WHERE deviceId=?', array($id));
+        return $this->store->transaction(function () use ($actor, $id, $initial, $reason) {
+            if ($initial) { $this->store->lockForm($initial['ppmFormId']); }
+            $device = $this->store->row('SELECT id FROM ClientDevice WHERE id=? FOR UPDATE', array($id));
+            if (!$device) { throw new Ppms_problem('DEVICE_NOT_FOUND', 404); }
+            $this->store->execute('UPDATE ClientDevice SET revokedAt=UTC_TIMESTAMP(3),offlineAccessExpiresAt=UTC_TIMESTAMP(3) WHERE id=?', array($id));
+            $this->store->execute('UPDATE PpmFormDeviceLease SET revokedAt=UTC_TIMESTAMP(3),leaseVersion=leaseVersion+1,updatedAt=UTC_TIMESTAMP(3) WHERE deviceId=? AND revokedAt IS NULL', array($id));
+            $this->store->audit($actor, 'DEVICE_REVOKED', 'ClientDevice', $id, array('reason' => $reason), array('deviceId' => $id, 'ppmFormId' => $initial['ppmFormId'] ?? NULL));
+            return array('id' => $id, 'status' => 'REVOKED');
+        });
+    }
     public function sign($claims)
     {
         $key = ppms_config('APP_ENCRYPTION_KEY');

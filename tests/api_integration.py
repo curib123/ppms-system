@@ -384,6 +384,51 @@ class PpmApiIntegration(unittest.TestCase):
             second.terminate()
             second.wait(timeout=5)
 
+    def test_14_new_records_reject_stale_templates_and_authorship_spoofing(self):
+        old = self.mutation('CREATE_DRAFT', 'stale-template', data={})
+        self.assertEqual(self.batch([old])['results'][0]['error'], 'TEMPLATE_STALE_OR_UNPUBLISHED')
+        # Existing records still use their exact historical definition.
+        edit = self.mutation('UPDATE_DRAFT', 'record-a', base=3,
+                             data={'supplier': 'Pinned', 'temperature': 70, 'accepted': False})
+        self.assertEqual(self.batch([edit])['results'][0]['revisionNo'], 4)
+        forged = self.mutation('UPDATE_DRAFT', 'record-a', base=4, data={})
+        forged['userId'] = 'test-bob'
+        self.assertEqual(self.batch([forged])['results'][0]['error'], 'AUTHOR_PROOF_MISMATCH')
+        forged['authorProof'] += 'x'
+        self.assertEqual(self.batch([forged])['results'][0]['error'], 'INVALID_PROOF')
+        unauthored = self.mutation('UPDATE_DRAFT', 'record-a', base=4, data={})
+        del unauthored['authorProof']
+        self.assertEqual(self.batch([unauthored])['results'][0]['error'], 'AUTHOR_PROOF_REQUIRED')
+        self.assertEqual(sql("SELECT currentRevisionNo FROM PpmRecord WHERE id='record-a'"), '4')
+
+    def test_15_configured_forms_reuse_the_same_tables_and_services(self):
+        area = sql('SELECT id FROM ProductionArea LIMIT 1')
+        created = self.api('POST', '/forms', {'ppmCode': 'TEST-PPM-027', 'title': 'Configured inspection', 'areaId': area})
+        self.assertEqual(created['ppmCode'], 'TEST-PPM-027')
+        self.api('POST', '/forms', {'ppmCode': 'TEST-PPM-027', 'title': 'Duplicate', 'areaId': area}, expected=409)
+        self.api('POST', '/forms', {'ppmCode': 'TEST-PPM-028', 'title': 'Forbidden', 'areaId': area}, user='bob', expected=403)
+        listed = self.api('GET', '/forms', user='alice')
+        self.assertNotIn(created['id'], [row['id'] for row in listed['items']])
+        self.api('PUT', '/forms/' + created['id'] + '/access/test-alice', {'canView': True})
+        self.assertIn(created['id'], [row['id'] for row in self.api('GET', '/forms', user='alice')['items']])
+        self.api('PUT', '/forms/' + created['id'] + '/areas/' + area, {'effectiveFrom': '2026-10-23'}, expected=409)
+        self.assertEqual(sql("SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=DATABASE() AND table_name LIKE 'TEST-PPM-%'"), '0')
+
+    def test_20_revocation_and_reconciled_device_transfer(self):
+        edit = self.mutation('UPDATE_DRAFT', 'record-a', base=4, data={})
+        self.api('PUT', '/forms/' + self.form + '/access/test-alice', {'canView': True})
+        self.assertEqual(self.batch([edit])['results'][0]['error'], 'FORM_PERMISSION_DENIED')
+        replacement = self.api('POST', '/devices', {'deviceUuid': 'test-replacement', 'displayName': 'Replacement'})
+        self.api('PUT', '/forms/' + self.form + '/lease', {'deviceId': replacement['id'], 'expectedLeaseVersion': 1}, expected=409)
+        lease = self.api('PUT', '/forms/' + self.form + '/lease', {'deviceId': replacement['id'], 'expectedLeaseVersion': 1,
+                        'reconciled': True, 'reason': 'All pending local changes reconciled'})
+        self.assertEqual(lease['leaseVersion'], 2)
+        self.batch([edit], expected=403)
+        self.api('POST', '/devices/' + replacement['id'] + '/revoke', {'reason': 'Device retired'})
+        self.api('POST', '/sync/grants', {'ppmFormId': self.form, 'deviceId': replacement['id'], 'leaseVersion': 2}, user='bob', expected=403)
+        self.api('POST', '/auth/logout', {}, user='bob')
+        self.api('GET', '/me', user='bob', expected=401)
+
 
 if __name__ == '__main__':
     unittest.main(verbosity=2)

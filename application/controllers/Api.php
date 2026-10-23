@@ -42,6 +42,20 @@ class Api extends CI_Controller
         if ($method === 'POST' && $path === 'auth/logout') { return $this->ppms_auth_service->logout($actor); }
         $this->load->library('ppms_device_service');
         if ($method === 'POST' && $path === 'devices') { return $this->ppms_device_service->register($actor, $input); }
+        if ($method === 'POST' && preg_match('#^devices/([^/]+)/revoke$#D', $path, $match)) {
+            return $this->ppms_device_service->revoke($actor, $match[1], $input);
+        }
+        $this->load->library('ppms_form_service');
+        if ($path === 'forms') {
+            if ($method === 'GET') { return $this->ppms_form_service->listing($actor); }
+            if ($method === 'POST') { return $this->ppms_form_service->create($actor, $input); }
+        }
+        if ($method === 'GET' && $path === 'areas') {
+            return array('items' => $this->ppms_store->rows('SELECT id,code,name FROM ProductionArea WHERE status=\'ACTIVE\' ORDER BY code'));
+        }
+        if ($method === 'PUT' && preg_match('#^forms/([^/]+)/areas/([^/]+)$#D', $path, $match)) {
+            return $this->ppms_form_service->assignArea($actor, $match[1], $match[2], $input);
+        }
         if ($method === 'PUT' && preg_match('#^forms/([^/]+)/lease$#D', $path, $match)) {
             return $this->ppms_device_service->assignLease($actor, $match[1], $input);
         }
