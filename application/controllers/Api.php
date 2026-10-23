@@ -77,6 +77,10 @@ class Api extends CI_Controller
         if ($method === 'POST' && preg_match('#^records/([^/]+)/corrections$#D', $path, $match)) {
             return $this->ppms_record_service->correct($actor, $match[1], $input);
         }
+        $this->load->library('ppms_pull_service');
+        if ($method === 'POST' && $path === 'sync/bootstrap') { return $this->ppms_pull_service->bootstrap($actor, $input); }
+        if ($method === 'POST' && $path === 'sync/pull') { return $this->ppms_pull_service->pull($actor, $input); }
+        if ($method === 'POST' && $path === 'sync/ack') { return $this->ppms_pull_service->acknowledge($actor, $input); }
         throw new Ppms_problem('ENDPOINT_NOT_FOUND', 404);
     }
 

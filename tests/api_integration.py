@@ -286,6 +286,30 @@ class PpmApiIntegration(unittest.TestCase):
                   'baseRevisionNo': 1, 'userId': 'test-bob', 'authorProof': self.downstream_proof}
         self.assertEqual(self.downstream_batch([submit])['results'][0]['error'], 'TRACE_OUTPUT_INELIGIBLE')
 
+    def test_11_selective_pull_advances_only_after_signed_acknowledgment(self):
+        context = {'ppmFormId': self.other_form, 'deviceId': self.downstream_device, 'leaseVersion': 1}
+        snapshot = self.api('POST', '/sync/bootstrap', context, user='bob')
+        self.assertEqual(snapshot['ppmFormId'], self.other_form)
+        self.assertTrue(all(row['ppmFormId'] == self.other_form for row in snapshot['templates']))
+        self.assertTrue(all(row['record']['ppmFormId'] == self.other_form for row in snapshot['records']))
+        self.assertEqual(snapshot['sources'][0]['sourcePpmFormId'], self.form)
+        self.assertEqual(snapshot['sources'][0]['outputs'], [])  # retired source is ineligible
+        pull = self.api('POST', '/sync/pull', dict(context, sourcePpmFormId=self.form, afterSequence='0', limit=100), user='bob')
+        self.assertGreater(int(pull['nextSequence']), 0)
+        self.assertTrue(all(row['eventType'].startswith('TRACE_OUTPUT_') for row in pull['events']))
+        self.assertIn('TRACE_OUTPUT_RETIRED', [row['eventType'] for row in pull['events']])
+        self.assertEqual(sql('SELECT COUNT(*) FROM SyncPullCursor'), '0')
+        self.api('POST', '/sync/ack', dict(context, cursorToken=pull['cursorToken'] + 'x'), user='bob', expected=403)
+        acknowledged = self.api('POST', '/sync/ack', dict(context, cursorToken=pull['cursorToken']), user='bob')
+        self.assertEqual(acknowledged['lastEventSequence'], pull['nextSequence'])
+        self.assertEqual(self.api('POST', '/sync/ack', dict(context, cursorToken=pull['cursorToken']), user='bob'), acknowledged)
+        self.api('POST', '/sync/pull', dict(context, sourcePpmFormId=self.forms['PPM-003']['id']), user='bob', expected=403)
+        self.api('PUT', '/forms/' + self.other_form + '/access/test-alice', {'canView': True})
+        shared = self.api('POST', '/sync/pull', dict(context, sourcePpmFormId=self.form), user='alice')
+        self.assertEqual(shared['nextSequence'], pull['nextSequence'])
+        self.assertEqual(shared['events'], [])
+        self.assertEqual(sql('SELECT COUNT(*) FROM SyncPullCursor'), '1')
+
 
 if __name__ == '__main__':
     unittest.main(verbosity=2)
