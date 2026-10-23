@@ -51,6 +51,11 @@ class Ppms_store_model extends CI_Model
             throw $error;
         }
     }
+    public function mutationSavepoint($rollback = FALSE)
+    {
+        // MariaDB 10.4 does not support SAVEPOINT in the prepared protocol.
+        $this->connection->query($rollback ? 'ROLLBACK TO SAVEPOINT mutation_work' : 'SAVEPOINT mutation_work');
+    }
     public function lockForm($formId)
     {
         $form = $this->row('SELECT * FROM PpmForm WHERE id=? FOR UPDATE', array($formId));

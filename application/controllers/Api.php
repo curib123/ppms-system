@@ -60,6 +60,11 @@ class Api extends CI_Controller
         if ($method === 'POST' && preg_match('#^templates/([^/]+)/publish$#D', $path, $match)) {
             return $this->ppms_template_service->publish($actor, $match[1]);
         }
+        $this->load->library('ppms_sync_service');
+        if ($method === 'POST' && $path === 'sync/batches') { return $this->ppms_sync_service->push($actor, $input); }
+        if ($method === 'GET' && preg_match('#^records/([^/]+)$#D', $path, $match)) {
+            return $this->ppms_record_service->view($actor, $match[1]);
+        }
         throw new Ppms_problem('ENDPOINT_NOT_FOUND', 404);
     }
 

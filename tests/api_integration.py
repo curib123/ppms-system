@@ -126,6 +126,73 @@ class PpmApiIntegration(unittest.TestCase):
         self.assertIn(self.template, [row['id'] for row in versions['items']])
         self.api('GET', '/forms/' + self.form + '/templates', user='outsider', expected=403)
 
+    def batch(self, mutations, batch_id=None, user='bob', expected=200):
+        return self.api('POST', '/sync/batches', {
+            'id': batch_id or secrets.token_hex(16), 'ppmFormId': self.form,
+            'deviceId': self.device, 'leaseVersion': 1, 'businessDate': '2026-10-23',
+            'mutations': mutations}, user=user, expected=expected)
+
+    def mutation(self, operation, record, user='alice', base=0, data=None, mutation_id=None):
+        result = {'clientMutationId': mutation_id or secrets.token_hex(16), 'operationType': operation,
+                  'userId': 'test-' + user, 'recordId': record, 'baseRevisionNo': base,
+                  'authorProof': getattr(self, user + '_proof')}
+        if operation == 'CREATE_DRAFT':
+            result.update(templateVersionId=self.template,
+                          areaPpmAssignmentId=self.forms['PPM-001']['areaPpmAssignmentId'],
+                          productionDate='2026-10-23')
+        if data is not None:
+            result['dataJson'] = data
+        return result
+
+    def test_04_daily_batch_preserves_each_author_and_retries(self):
+        mutations = [self.mutation('CREATE_DRAFT', 'record-a', data={'supplier': 'A', 'temperature': 0, 'accepted': False}),
+                     self.mutation('CREATE_DRAFT', 'record-b', user='bob', data={})]
+        type(self).create_mutations = mutations
+        batch_id = secrets.token_hex(16)
+        first = self.batch(mutations, batch_id)
+        self.assertEqual(first['status'], 'ACCEPTED')
+        self.assertEqual(first['acceptedCount'], 2)
+        self.assertEqual(self.batch(mutations, batch_id), first)
+        duplicate = self.batch(mutations)
+        self.assertEqual(duplicate['acceptedCount'], 2)
+        self.assertEqual(sql('SELECT COUNT(*) FROM PpmRecordRevision'), '2')
+        self.assertEqual(sql("SELECT createdById FROM PpmRecordRevision WHERE recordId='record-a'"), 'test-alice')
+        self.assertEqual(sql("SELECT createdById FROM PpmRecordRevision WHERE recordId='record-b'"), 'test-bob')
+        self.assertEqual(sql("SELECT userId FROM SyncMutationReceipt WHERE recordId='record-a'"), 'test-alice')
+        self.assertEqual(sql("SELECT COUNT(*) FROM AuditLog WHERE recordId='record-a' AND actorId='test-alice' AND batchId IS NOT NULL"), '1')
+        changed = dict(mutations[0], dataJson={'supplier': 'Tampered'})
+        rejected = self.batch([changed])
+        self.assertEqual(rejected['results'][0]['error'], 'MUTATION_ID_REUSED')
+        self.api('GET', '/records/record-a', user='outsider', expected=403)
+
+    def test_05_one_conflict_does_not_block_other_records(self):
+        updated = self.batch([self.mutation('UPDATE_DRAFT', 'record-a', base=1,
+                                          data={'supplier': 'A', 'temperature': 82.5, 'accepted': True})])
+        self.assertEqual(updated['results'][0]['revisionNo'], 2)
+        result = self.batch([
+            self.mutation('UPDATE_DRAFT', 'record-a', base=1, data={'supplier': 'Stale'}),
+            self.mutation('UPDATE_DRAFT', 'record-b', user='bob', base=1,
+                          data={'supplier': 'B', 'temperature': 50, 'accepted': True}),
+            self.mutation('UPDATE_DRAFT', 'record-b', base=2, data={'temperature': 'bad'})])
+        self.assertEqual(result['status'], 'PARTIAL')
+        self.assertEqual((result['acceptedCount'], result['conflictCount'], result['rejectedCount']), (1, 1, 1))
+        type(self).conflict = result['results'][0]['conflictId']
+        self.assertEqual(sql("SELECT currentRevisionNo FROM PpmRecord WHERE id='record-a'"), '2')
+        self.assertEqual(sql("SELECT COUNT(*) FROM PpmRecordRevision WHERE recordId='record-b'"), '2')
+        self.assertEqual(self.api('GET', '/records/record-a', user='bob')['revision']['dataJson']['temperature'], 82.5)
+
+    def test_06_submission_validates_pinned_template_and_lifecycle(self):
+        bad = self.batch([self.mutation('CREATE_DRAFT', 'incomplete', data={}),
+                          self.mutation('QUEUE_SUBMIT', 'incomplete', base=1)])
+        self.assertEqual(bad['results'][1]['status'], 'REJECTED')
+        submitted = self.batch([self.mutation('QUEUE_SUBMIT', 'record-b', user='bob', base=2)])
+        self.assertEqual(submitted['results'][0]['status'], 'APPLIED')
+        self.assertEqual(self.api('GET', '/records/record-b', user='bob')['record']['status'], 'SUBMITTED')
+        forbidden = self.batch([self.mutation('UPDATE_DRAFT', 'record-b', user='bob', base=3,
+                                            data={'supplier': 'Overwrite submitted'})])
+        self.assertEqual(forbidden['results'][0]['error'], 'RECORD_NOT_EDITABLE')
+        self.assertEqual(sql("SELECT COUNT(*) FROM WorkflowEvent WHERE recordId='record-b'"), '1')
+
 
 if __name__ == '__main__':
     unittest.main(verbosity=2)

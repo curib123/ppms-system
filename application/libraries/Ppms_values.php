@@ -20,7 +20,10 @@ class Ppms_values
             foreach ($properties as $key => $child) { $result->$key = self::canonical($child); }
             return $result;
         }
-        if (is_array($value)) { return array_map(array(__CLASS__, 'canonical'), $value); }
+        if (is_array($value)) {
+            if ($value && array_keys($value) !== range(0, count($value) - 1)) { return self::canonical((object) $value); }
+            return array_map(array(__CLASS__, 'canonical'), $value);
+        }
         return $value;
     }
     public static function hash($value) { return hash('sha256', self::json(self::canonical($value))); }
