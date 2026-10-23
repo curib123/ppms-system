@@ -41,14 +41,20 @@ class Ppms_store_model extends CI_Model
     }
     public function transaction(callable $work)
     {
-        $this->connection->begin_transaction();
-        try {
-            $result = $work();
-            $this->connection->commit();
-            return $result;
-        } catch (Throwable $error) {
-            $this->connection->rollback();
-            throw $error;
+        for ($attempt = 0; ; $attempt++) {
+            $this->connection->begin_transaction();
+            try {
+                $result = $work();
+                $this->connection->commit();
+                return $result;
+            } catch (Throwable $error) {
+                $this->connection->rollback();
+                if ($error instanceof mysqli_sql_exception && in_array((int) $error->getCode(), array(1205,1213), TRUE) && $attempt < 2) {
+                    usleep(25000 * ($attempt + 1));
+                    continue;
+                }
+                throw $error;
+            }
         }
     }
     public function mutationSavepoint($rollback = FALSE)

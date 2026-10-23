@@ -89,7 +89,7 @@ class Ppms_trace_service
             return $row;
         });
     }
-    public function link($actor, $form, $revisionId, $data, $definition, $selections, $previousRevisionId, $context)
+    public function link($actor, $form, $revisionId, $data, $definition, $selections, $previousRevisionId, $context, $write = TRUE)
     {
         if (!is_array($selections) || count($selections) > 1000) { throw new Ppms_problem('INVALID_TRACE_SELECTIONS'); }
         $connections = $this->store->rows('SELECT * FROM PpmTraceConnection WHERE targetPpmFormId=? AND status=\'ACTIVE\' ORDER BY id', array($form));
@@ -127,10 +127,12 @@ class Ppms_trace_service
                 FROM PpmTraceOutput o JOIN PpmRecord r ON r.id=o.recordId JOIN PpmTemplateVersion t ON t.id=r.templateVersionId
                 JOIN PpmForm f ON f.id=t.ppmFormId WHERE o.id=? FOR UPDATE', array(Ppms_values::text($selection, 'sourceTraceOutputId')));
             if (!$output || !in_array($output['status'], array('PUBLISHED','LINKED_DOWNSTREAM'), TRUE) || $output['archivedAt'] || $output['formStatus'] !== 'ACTIVE'
+                || $output['recordId'] === ($context['recordId'] ?? NULL) || $this->hasPendingImpact($output['recordId'])
                 || $output['ppmFormId'] !== $connection['sourcePpmFormId'] || $output['outputKey'] !== $connection['sourceOutputKey']
                 || $output['outputCode'] !== $value || ((int) $connection['requiresApprovalBeforeUse'] && !in_array($output['recordStatus'], array('FSQA_APPROVED','SUPERVISOR_APPROVED','CLOSED'), TRUE))) {
                 throw new Ppms_problem('TRACE_OUTPUT_INELIGIBLE');
             }
+            if (!$write) { continue; }
             $id = Ppms_values::id();
             $this->store->insert('PpmTraceLink', array('id' => $id, 'connectionId' => $connection['id'], 'sourceTraceOutputId' => $output['id'],
                 'downstreamRevisionId' => $revisionId, 'downstreamInputKey' => $path, 'selectedById' => $actor['id']));
@@ -149,7 +151,12 @@ class Ppms_trace_service
             $record = $this->store->row('SELECT * FROM PpmRecord WHERE id=?', array($recordId)) + $initial;
             if ($record['currentRevisionNo'] !== Ppms_values::integer($input, 'baseRevisionNo', 1)) { throw new Ppms_problem('REVISION_CHANGED', 409); }
             if ($record['archivedAt'] || !in_array($record['status'], array('SUBMITTED','FSQA_APPROVED','SUPERVISOR_APPROVED','CLOSED'), TRUE)) { throw new Ppms_problem('RECORD_NOT_PUBLISHABLE', 409); }
+            if ($this->hasPendingImpact($recordId)) { throw new Ppms_problem('REVALIDATION_REQUIRED', 409); }
             $revision = $this->store->row('SELECT * FROM PpmRecordRevision WHERE recordId=? AND revisionNo=?', array($recordId, $record['currentRevisionNo']));
+            $definition = $this->store->row('SELECT definitionJson FROM PpmTemplateVersion WHERE id=?', array($record['templateVersionId']))['definitionJson'];
+            $this->validator->payload($definition, $revision['dataJson'], TRUE);
+            $this->link($actor, $record['ppmFormId'], $revision['id'], $revision['dataJson'], $definition, array(), $revision['id'],
+                array('recordId' => $recordId), FALSE);
             $existing = $this->store->rows('SELECT * FROM PpmTraceOutput WHERE revisionId=? ORDER BY outputKey,sourcePath', array($revision['id']));
             if ($existing) { return array('outputs' => $existing); }
             $rules = $this->store->rows('SELECT * FROM TraceCodeRule WHERE templateVersionId=? AND status=\'ACTIVE\' ORDER BY outputKey', array($record['templateVersionId']));
@@ -165,6 +172,7 @@ class Ppms_trace_service
         if ($rule['sourceType'] === 'PENDING_RULE') { throw new Ppms_problem('TRACE_RULE_NOT_PUBLISHABLE'); }
         $pattern = $config->outputPath ?? $rule['outputKey'];
         $paths = strpos($pattern, '[]') === FALSE && $rule['sourceType'] === 'SYSTEM_GENERATED' ? array('$') : $this->paths($revision['dataJson'], $pattern);
+        if (!$paths) { throw new Ppms_problem('TRACE_RULE_OUTPUT_MISSING'); }
         foreach ($paths as $path) {
             $sequence = NULL;
             $bindings = $config->bindings ?? new stdClass();
@@ -200,9 +208,10 @@ class Ppms_trace_service
             $code = trim($code);
             if ($code === '' || mb_strlen($code) > 191) { throw new Ppms_problem('TRACE_CODE_INVALID'); }
             if ((int) $rule['requiresUniqueBusinessCode'] && $this->store->row('SELECT o.id FROM PpmTraceOutput o JOIN PpmRecord r ON r.id=o.recordId JOIN PpmTemplateVersion t ON t.id=r.templateVersionId
-                WHERE t.ppmFormId=? AND o.outputKey=? AND o.outputCode=? AND o.recordId<>? LIMIT 1', array($record['ppmFormId'], $rule['outputKey'], $code, $record['id']))) { throw new Ppms_problem('TRACE_CODE_ALREADY_USED', 409); }
+                WHERE t.ppmFormId=? AND o.outputKey=? AND o.outputCode=? AND (o.recordId<>? OR (o.revisionId=? AND o.sourcePath<>?)) LIMIT 1',
+                array($record['ppmFormId'], $rule['outputKey'], $code, $record['id'], $revision['id'], $path))) { throw new Ppms_problem('TRACE_CODE_ALREADY_USED', 409); }
             $quantity = isset($config->quantityPath) ? $this->read($revision['dataJson'], $this->aligned($config->quantityPath, $path)) : NULL;
-            if ($quantity !== NULL && ((!is_int($quantity) && !is_float($quantity)) || !is_finite((float) $quantity) || $quantity < 0)) { throw new Ppms_problem('INVALID_TRACE_QUANTITY'); }
+            if (isset($config->quantityPath) && ((!is_int($quantity) && !is_float($quantity)) || !is_finite((float) $quantity) || $quantity < 0)) { throw new Ppms_problem('INVALID_TRACE_QUANTITY'); }
             $unit = isset($config->unitPath) ? $this->render($this->read($revision['dataJson'], $this->aligned($config->unitPath, $path)), 'RAW') : ($config->unit ?? NULL);
             $id = Ppms_values::id();
             $this->store->insert('PpmTraceOutput', array('id' => $id, 'recordId' => $record['id'], 'revisionId' => $revision['id'], 'codeRuleId' => $rule['id'],
@@ -216,23 +225,45 @@ class Ppms_trace_service
     }
     public function retire($actor, $record, $newRevisionId, $reason, $context)
     {
-        $outputs = $this->store->rows('SELECT * FROM PpmTraceOutput WHERE recordId=? AND status IN (\'PUBLISHED\',\'LINKED_DOWNSTREAM\') FOR UPDATE', array($record['id']));
-        $affected = array();
-        foreach ($outputs as $output) {
-            $this->store->execute('UPDATE PpmTraceOutput SET status=\'SUPERSEDED\' WHERE id=?', array($output['id']));
-            $output['status'] = 'SUPERSEDED';
-            $this->store->event($record['ppmFormId'], 'TRACE_OUTPUT_RETIRED', $this->outputView($output), $record['id'], $output['revisionId'], $output['outputKey']);
-            $links = $this->store->rows('SELECT l.id FROM PpmTraceLink l JOIN PpmRecordRevision v ON v.id=l.downstreamRevisionId
-                JOIN PpmRecord r ON r.id=v.recordId AND r.currentRevisionNo=v.revisionNo WHERE l.sourceTraceOutputId=? AND l.isActive=1', array($output['id']));
-            $affected = array_merge($affected, array_column($links, 'id'));
+        $queue = array($record);
+        $visited = array();
+        $rootHadOutputs = FALSE;
+        while ($queue) {
+            $current = array_shift($queue);
+            if (isset($visited[$current['id']])) { continue; }
+            $visited[$current['id']] = TRUE;
+            // Every form's feed sequence is allocated while holding its form lock.
+            // InnoDB deadlocks from competing dependency traversals are retried.
+            $this->store->lockForm($current['ppmFormId']);
+            $outputs = $this->store->rows('SELECT * FROM PpmTraceOutput WHERE recordId=? AND status IN (\'PUBLISHED\',\'LINKED_DOWNSTREAM\') FOR UPDATE', array($current['id']));
+            if ($current['id'] === $record['id']) { $rootHadOutputs = (bool) $outputs; }
+            $affected = array();
+            foreach ($outputs as $output) {
+                $this->store->execute('UPDATE PpmTraceOutput SET status=\'SUPERSEDED\' WHERE id=?', array($output['id']));
+                $output['status'] = 'SUPERSEDED';
+                $this->store->event($current['ppmFormId'], 'TRACE_OUTPUT_RETIRED', $this->outputView($output), $current['id'], $output['revisionId'], $output['outputKey']);
+                // Locking reads see links committed by a transaction we waited for.
+                $links = $this->store->rows('SELECT l.id,r.id AS recordId,a.ppmFormId FROM PpmTraceLink l JOIN PpmRecordRevision v ON v.id=l.downstreamRevisionId
+                    JOIN PpmRecord r ON r.id=v.recordId AND r.currentRevisionNo=v.revisionNo JOIN AreaPpmAssignment a ON a.id=r.areaPpmAssignmentId
+                    WHERE l.sourceTraceOutputId=? AND l.isActive=1 FOR UPDATE', array($output['id']));
+                foreach ($links as $link) {
+                    $affected[] = $link['id'];
+                    if (!isset($visited[$link['recordId']])) { $queue[] = array('id' => $link['recordId'], 'ppmFormId' => $link['ppmFormId']); }
+                }
+            }
+            if ($affected) {
+                $id = Ppms_values::id();
+                $this->store->insert('TraceRevalidation', array('id' => $id, 'triggerRevisionId' => $newRevisionId, 'reason' => $reason));
+                foreach (array_unique($affected) as $link) { $this->store->insert('TraceRevalidationItem', array('id' => Ppms_values::id(), 'revalidationId' => $id, 'traceLinkId' => $link)); }
+                $this->store->audit($actor, 'REVALIDATION_CREATED', 'TraceRevalidation', $id, array('affectedLinks' => count($affected), 'reason' => $reason), $context);
+            }
         }
-        if ($affected) {
-            $id = Ppms_values::id();
-            $this->store->insert('TraceRevalidation', array('id' => $id, 'triggerRevisionId' => $newRevisionId, 'reason' => $reason));
-            foreach (array_unique($affected) as $link) { $this->store->insert('TraceRevalidationItem', array('id' => Ppms_values::id(), 'revalidationId' => $id, 'traceLinkId' => $link)); }
-            $this->store->audit($actor, 'REVALIDATION_CREATED', 'TraceRevalidation', $id, array('affectedLinks' => count($affected), 'reason' => $reason), $context);
-        }
-        return (bool) $outputs;
+        return $rootHadOutputs;
+    }
+    public function hasPendingImpact($recordId)
+    {
+        return (bool) $this->store->row('SELECT i.id FROM TraceRevalidationItem i JOIN PpmTraceLink l ON l.id=i.traceLinkId
+            JOIN PpmRecordRevision v ON v.id=l.downstreamRevisionId WHERE v.recordId=? AND i.status<>\'RESOLVED\' LIMIT 1', array($recordId));
     }
     public function outputView($row)
     {

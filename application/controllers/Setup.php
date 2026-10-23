@@ -34,9 +34,9 @@ class Setup extends CI_Controller
 
     public function migrate()
     {
-        $this->load->library('ppms_migrations');
+        $this->load->library('ppms_schema_upgrades');
         try {
-            echo json_encode($this->ppms_migrations->migrate()).PHP_EOL;
+            echo json_encode($this->ppms_schema_upgrades->migrate()).PHP_EOL;
         } catch (Throwable $error) {
             fwrite(STDERR, ($error instanceof mysqli_sql_exception
                 ? 'Database migration failed. Check schema compatibility and database permissions.'

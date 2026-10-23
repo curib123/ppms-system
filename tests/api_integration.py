@@ -49,16 +49,22 @@ class PpmApiIntegration(unittest.TestCase):
             except OSError:
                 time.sleep(0.1)
         cls.tokens = {}
+        cls.device_tokens = {}
 
     @classmethod
     def stop_server(cls):
         cls.server.terminate()
         cls.server.wait(timeout=5)
 
-    def api(self, method, path, data=None, user='admin', expected=200):
+    def api(self, method, path, data=None, user='admin', expected=200, device_auth=True):
         headers = {'Content-Type': 'application/json'}
         if user in self.tokens:
             headers['Authorization'] = 'Bearer ' + self.tokens[user]
+        if data and 'deviceId' in data:
+            if device_auth is True and data['deviceId'] in self.device_tokens:
+                headers['X-PPMS-Device-Token'] = self.device_tokens[data['deviceId']]
+            elif isinstance(device_auth, str):
+                headers['X-PPMS-Device-Token'] = device_auth
         request = Request(self.base + path, data=None if data is None else json.dumps(data).encode(),
                           headers=headers, method=method)
         try:
@@ -69,7 +75,10 @@ class PpmApiIntegration(unittest.TestCase):
             body = response.read().decode()
             self.assertEqual(response.status, expected, body)
             self.assertEqual(response.headers['Cache-Control'], 'no-store')
-            return json.loads(body)
+            result = json.loads(body)
+            if path == '/devices' and 'deviceToken' in result:
+                self.device_tokens[result['id']] = result['deviceToken']
+            return result
 
     def login(self, user):
         result = self.api('POST', '/auth/login', {'username': user, 'password': self.password}, user=None)
@@ -331,7 +340,10 @@ class PpmApiIntegration(unittest.TestCase):
         self.assertEqual(approved['record']['status'], 'FSQA_APPROVED')
         change['clientMutationId'] = secrets.token_hex(16)
         self.assertEqual(self.downstream_batch([change])['results'][0]['revisionNo'], 2)
-        item = sql('SELECT id FROM TraceRevalidationItem LIMIT 1')
+        impacts = self.api('GET', '/forms/' + self.other_form + '/revalidations', user='bob')['items']
+        self.assertEqual(len(impacts), 1)
+        item = impacts[0]['id']
+        self.assertEqual(self.api('GET', '/records/downstream-lot', user='bob')['revalidations'][0]['id'], item)
         context = {'deviceId': self.downstream_device, 'leaseVersion': 1, 'baseRevisionNo': 2,
                    'decision': 'REPLACED_SOURCE', 'notes': 'Selected and validated replacement lot'}
         self.api('POST', '/revalidations/items/' + item + '/resolve', context, user='bob', expected=403)
@@ -404,6 +416,7 @@ class PpmApiIntegration(unittest.TestCase):
     def test_15_configured_forms_reuse_the_same_tables_and_services(self):
         area = sql('SELECT id FROM ProductionArea LIMIT 1')
         created = self.api('POST', '/forms', {'ppmCode': 'TEST-PPM-027', 'title': 'Configured inspection', 'areaId': area})
+        type(self).configured_form = created['id']
         self.assertEqual(created['ppmCode'], 'TEST-PPM-027')
         self.api('POST', '/forms', {'ppmCode': 'TEST-PPM-027', 'title': 'Duplicate', 'areaId': area}, expected=409)
         self.api('POST', '/forms', {'ppmCode': 'TEST-PPM-028', 'title': 'Forbidden', 'areaId': area}, user='bob', expected=403)
@@ -413,6 +426,163 @@ class PpmApiIntegration(unittest.TestCase):
         self.assertIn(created['id'], [row['id'] for row in self.api('GET', '/forms', user='alice')['items']])
         self.api('PUT', '/forms/' + created['id'] + '/areas/' + area, {'effectiveFrom': '2026-10-23'}, expected=409)
         self.assertEqual(sql("SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=DATABASE() AND table_name LIKE 'TEST-PPM-%'"), '0')
+
+    def test_16_retries_ignore_json_key_order_and_expired_proofs_fail(self):
+        duplicate = dict(self.create_mutations[0])
+        duplicate['dataJson'] = {'accepted': False, 'temperature': 0, 'supplier': 'A'}
+        self.assertEqual(self.batch([duplicate])['results'][0]['status'], 'APPLIED')
+        import base64
+        import hashlib
+        import hmac
+        claims = {'kind': 'author', 'userId': 'test-alice', 'ppmFormId': self.form,
+                  'deviceId': self.device, 'leaseVersion': 1, 'issuedAt': 1, 'expiresAt': 2}
+        payload = base64.urlsafe_b64encode(json.dumps(claims).encode()).decode().rstrip('=')
+        proof = payload + '.' + hmac.new(self.env['APP_ENCRYPTION_KEY'].encode(), payload.encode(), hashlib.sha256).hexdigest()
+        expired = self.mutation('UPDATE_DRAFT', 'record-a', base=4, data={})
+        expired['authorProof'] = proof
+        self.assertEqual(self.batch([expired])['results'][0]['error'], 'PROOF_EXPIRED_OR_INVALID')
+
+    def test_17_public_device_ids_do_not_authorize_a_second_device(self):
+        context = {'deviceId': self.device, 'ppmFormId': self.form, 'leaseVersion': 1}
+        self.api('POST', '/sync/grants', context, user='alice', expected=403, device_auth=False)
+        self.api('POST', '/sync/grants', context, user='alice', expected=403, device_auth='f' * 64)
+        write = self.mutation('UPDATE_DRAFT', 'record-a', user='bob', base=4, data={})
+        del write['authorProof']  # individual session alone is not device possession
+        self.api('POST', '/sync/batches', dict(context, id=secrets.token_hex(16), mutations=[write]),
+                 user='bob', expected=403, device_auth=False)
+        token = self.device_tokens[self.device]
+        self.assertNotIn(token, sql('SELECT GROUP_CONCAT(tokenHash) FROM ClientDeviceCredential'))
+        self.assertEqual(sql("SELECT currentRevisionNo FROM PpmRecord WHERE id='record-a'"), '4')
+
+    def test_18_unique_trace_rules_reject_duplicate_repeatable_rows(self):
+        form = self.configured_form
+        definition = {'fields': [{'key': 'entries', 'label': 'Entries', 'type': 'repeatable',
+                      'fields': [{'key': 'code', 'label': 'Code', 'type': 'text', 'required': True}]}]}
+        template = self.api('POST', '/forms/' + form + '/templates', {'definitionJson': definition})
+        self.api('PUT', '/templates/' + template['id'] + '/rules', {'rules': [{
+            'outputKey': 'lotCode', 'outputLabel': 'Lot', 'sourceType': 'MANUAL_EXTERNAL', 'status': 'ACTIVE',
+            'requiresUniqueBusinessCode': True, 'configurationJson': {'outputPath': 'entries[].code'}}]})
+        self.api('POST', '/templates/' + template['id'] + '/publish', {})
+        device = self.api('POST', '/devices', {'deviceUuid': 'test-configurable-device', 'displayName': 'Configured device'})
+        type(self).configured_device = device['id']
+        self.api('PUT', '/forms/' + form + '/lease', {'deviceId': device['id'], 'expectedLeaseVersion': 0})
+        assignment = sql("SELECT id FROM AreaPpmAssignment WHERE ppmFormId='" + form + "' LIMIT 1")
+        create = {'clientMutationId': secrets.token_hex(16), 'operationType': 'CREATE_DRAFT', 'recordId': 'unique-rows',
+                  'userId': 'test-admin', 'baseRevisionNo': 0, 'templateVersionId': template['id'],
+                  'areaPpmAssignmentId': assignment, 'productionDate': '2026-10-23', 'dataJson': {'entries': [{'code': 'DUP'}, {'code': 'DUP'}]}}
+        submit = {'clientMutationId': secrets.token_hex(16), 'operationType': 'QUEUE_SUBMIT', 'recordId': 'unique-rows',
+                  'userId': 'test-admin', 'baseRevisionNo': 1}
+        result = self.api('POST', '/sync/batches', {'id': secrets.token_hex(16), 'ppmFormId': form,
+                          'deviceId': device['id'], 'leaseVersion': 1, 'mutations': [create, submit]})
+        self.assertEqual(result['acceptedCount'], 2)
+        self.api('POST', '/records/unique-rows/publish', {'deviceId': device['id'], 'leaseVersion': 1, 'baseRevisionNo': 2}, expected=409)
+        self.assertEqual(sql("SELECT COUNT(*) FROM PpmTraceOutput WHERE recordId='unique-rows'"), '0')
+
+    def test_19_upstream_impacts_invalidate_the_complete_downstream_chain(self):
+        target = self.api('POST', '/forms/' + self.other_form + '/templates', {'definitionJson': {
+            'fields': [{'key': 'sourceLot', 'label': 'Source lot', 'type': 'trace-code', 'required': True}]}})
+        self.api('PUT', '/templates/' + target['id'] + '/rules', {'rules': [{
+            'outputKey': 'bCode', 'outputLabel': 'B output', 'sourceType': 'SYSTEM_GENERATED', 'status': 'ACTIVE',
+            'formulaTemplate': 'B-{{record.id}}', 'configurationJson': {}}]})
+        self.api('POST', '/templates/' + target['id'] + '/publish', {})
+        source = self.api('GET', '/records/source-lot')['record']
+        source_output = sql("SELECT id FROM PpmTraceOutput WHERE recordId='source-lot' AND status='LINKED_DOWNSTREAM' LIMIT 1")
+        source_code = sql("SELECT outputCode FROM PpmTraceOutput WHERE id='" + source_output + "'")
+        create_b = {'clientMutationId': secrets.token_hex(16), 'operationType': 'CREATE_DRAFT', 'recordId': 'chain-b',
+                    'userId': 'test-bob', 'authorProof': self.downstream_proof, 'baseRevisionNo': 0,
+                    'templateVersionId': target['id'], 'areaPpmAssignmentId': self.forms['PPM-002']['areaPpmAssignmentId'],
+                    'productionDate': '2026-10-23', 'dataJson': {'sourceLot': source_code},
+                    'traceSelections': [{'connectionId': self.connection, 'sourceTraceOutputId': source_output, 'inputPath': 'sourceLot'}]}
+        submit_b = {'clientMutationId': secrets.token_hex(16), 'operationType': 'QUEUE_SUBMIT', 'recordId': 'chain-b',
+                    'userId': 'test-bob', 'authorProof': self.downstream_proof, 'baseRevisionNo': 1}
+        self.assertEqual(self.downstream_batch([create_b, submit_b])['acceptedCount'], 2)
+        output_b = self.api('POST', '/records/chain-b/publish', {'deviceId': self.downstream_device, 'leaseVersion': 1, 'baseRevisionNo': 2})['outputs'][0]
+        form_c = self.configured_form
+        template_c = self.api('POST', '/forms/' + form_c + '/templates', {'definitionJson': {
+            'fields': [{'key': 'fromB', 'label': 'B source', 'type': 'trace-code', 'required': True}]}})
+        self.api('PUT', '/templates/' + template_c['id'] + '/rules', {'rules': [{
+            'outputKey': 'cCode', 'outputLabel': 'C output', 'sourceType': 'SYSTEM_GENERATED', 'status': 'ACTIVE',
+            'formulaTemplate': 'C-{{record.id}}', 'configurationJson': {}}]})
+        self.api('POST', '/templates/' + template_c['id'] + '/publish', {})
+        connection = self.api('PUT', '/forms/' + form_c + '/connections', {'sourcePpmFormId': self.other_form,
+                             'sourceOutputKey': 'bCode', 'targetInputKey': 'fromB', 'connectionName': 'B to C',
+                             'status': 'ACTIVE', 'requiresApprovalBeforeUse': False})
+        create_c = dict(create_b, clientMutationId=secrets.token_hex(16), recordId='chain-c', userId='test-admin',
+                        templateVersionId=template_c['id'], areaPpmAssignmentId=sql("SELECT id FROM AreaPpmAssignment WHERE ppmFormId='" + form_c + "' LIMIT 1"),
+                        dataJson={'fromB': output_b['outputCode']}, traceSelections=[{'connectionId': connection['id'], 'sourceTraceOutputId': output_b['id'], 'inputPath': 'fromB'}])
+        del create_c['authorProof']
+        submit_c = dict(submit_b, clientMutationId=secrets.token_hex(16), recordId='chain-c', userId='test-admin')
+        del submit_c['authorProof']
+        self.api('POST', '/sync/batches', {'id': secrets.token_hex(16), 'ppmFormId': form_c, 'deviceId': self.configured_device,
+                 'leaseVersion': 1, 'mutations': [create_c, submit_c]})
+        output_c = self.api('POST', '/records/chain-c/publish', {'deviceId': self.configured_device, 'leaseVersion': 1, 'baseRevisionNo': 2})['outputs'][0]
+        self.api('POST', '/records/source-lot/corrections', {'deviceId': self.device, 'leaseVersion': 1,
+                 'baseRevisionNo': source['currentRevisionNo'], 'reason': 'Critical upstream correction',
+                 'dataJson': {'supplier': 'Changed source', 'temperature': 92, 'accepted': True}}, user='alice')
+        for output in (output_b, output_c):
+            self.assertEqual(sql("SELECT status FROM PpmTraceOutput WHERE id='" + output['id'] + "'"), 'SUPERSEDED')
+        self.api('POST', '/records/chain-b/publish', {'deviceId': self.downstream_device, 'leaseVersion': 1, 'baseRevisionNo': 2}, expected=409)
+        impacts = self.api('GET', '/forms/' + form_c + '/revalidations')['items']
+        self.assertEqual(impacts[0]['recordId'], 'chain-c')
+        pull = self.api('POST', '/sync/pull', {'ppmFormId': form_c, 'deviceId': self.configured_device, 'leaseVersion': 1,
+                       'sourcePpmFormId': self.other_form, 'afterSequence': '0'})
+        self.assertIn(output_b['id'], [event['payloadJson']['id'] for event in pull['events'] if event['eventType'] == 'TRACE_OUTPUT_RETIRED'])
+
+    def test_18a_mutation_identity_is_serialized_across_forms(self):
+        identity = secrets.token_hex(16)
+        template = sql("SELECT id FROM PpmTemplateVersion WHERE ppmFormId='" + self.configured_form + "' AND isActive=1")
+        assignment = sql("SELECT id FROM AreaPpmAssignment WHERE ppmFormId='" + self.configured_form + "' LIMIT 1")
+        body_a = {'id': secrets.token_hex(16), 'ppmFormId': self.form, 'deviceId': self.device, 'leaseVersion': 1,
+                  'mutations': [{'clientMutationId': identity, 'operationType': 'UPDATE_DRAFT', 'recordId': 'record-a',
+                                 'userId': 'test-admin', 'baseRevisionNo': 4, 'dataJson': {'supplier': 'Concurrent', 'temperature': 70, 'accepted': False}}]}
+        body_b = {'id': secrets.token_hex(16), 'ppmFormId': self.configured_form, 'deviceId': self.configured_device, 'leaseVersion': 1,
+                  'mutations': [{'clientMutationId': identity, 'operationType': 'CREATE_DRAFT', 'recordId': 'concurrent-other',
+                                 'userId': 'test-admin', 'baseRevisionNo': 0, 'templateVersionId': template,
+                                 'areaPpmAssignmentId': assignment, 'productionDate': '2026-10-23', 'dataJson': {'entries': []}}]}
+        with socket.socket() as sock:
+            sock.bind(('127.0.0.1', 0))
+            port = sock.getsockname()[1]
+        second = subprocess.Popen(PHP + ['-S', '127.0.0.1:' + str(port), '-t', 'public', 'public/router.php'],
+                                  cwd=ROOT, env=self.env, stdout=self.log, stderr=self.log)
+        lock = None
+        try:
+            for _ in range(50):
+                try:
+                    with socket.create_connection(('127.0.0.1', port), timeout=0.1):
+                        break
+                except OSError:
+                    time.sleep(0.1)
+            lock = subprocess.Popen(PHP + ['tests/hold_form_lock.php', identity, 'mutation'], cwd=ROOT, env=self.env,
+                                    stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            self.assertEqual(lock.stdout.readline().strip(), 'READY')
+            def push(base, body):
+                request = Request(base + '/sync/batches', data=json.dumps(body).encode(), method='POST',
+                                  headers={'Content-Type': 'application/json', 'Authorization': 'Bearer ' + self.tokens['admin'],
+                                           'X-PPMS-Device-Token': self.device_tokens[body['deviceId']]})
+                try:
+                    response = urlopen(request, timeout=20)
+                except HTTPError as error:
+                    response = error
+                with response:
+                    return response.status, json.loads(response.read())
+            with ThreadPoolExecutor(max_workers=2) as pool:
+                futures = [pool.submit(push, self.base, body_a),
+                           pool.submit(push, 'http://127.0.0.1:' + str(port) + '/api/v1', body_b)]
+                deadline = time.monotonic() + 8
+                while time.monotonic() < deadline:
+                    if int(sql('SELECT COUNT(*) FROM information_schema.INNODB_LOCK_WAITS')) >= 1:
+                        break
+                    time.sleep(0.05)
+                lock.communicate('\n', timeout=5)
+                results = [future.result() for future in futures]
+            self.assertEqual([result[0] for result in results], [200, 200], results)
+            self.assertEqual(sorted(result[1]['results'][0]['status'] for result in results), ['APPLIED', 'REJECTED'])
+            self.assertEqual(sql("SELECT COUNT(*) FROM SyncMutationReceipt WHERE clientMutationId='" + identity + "'"), '1')
+        finally:
+            if lock is not None and lock.poll() is None:
+                lock.communicate('\n', timeout=5)
+            second.terminate()
+            second.wait(timeout=5)
 
     def test_20_revocation_and_reconciled_device_transfer(self):
         edit = self.mutation('UPDATE_DRAFT', 'record-a', base=4, data={})

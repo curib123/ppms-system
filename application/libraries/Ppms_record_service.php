@@ -29,7 +29,17 @@ class Ppms_record_service
         $this->auth->access($actor, $record['ppmFormId']);
         return array('record' => $record, 'revision' => $this->revision($record),
             'revisions' => $this->store->rows('SELECT * FROM PpmRecordRevision WHERE recordId=? ORDER BY revisionNo', array($id)),
-            'traceLinks' => $this->store->rows('SELECT l.* FROM PpmTraceLink l JOIN PpmRecordRevision v ON v.id=l.downstreamRevisionId WHERE v.recordId=? ORDER BY v.revisionNo,l.id', array($id)));
+            'traceLinks' => $this->store->rows('SELECT l.* FROM PpmTraceLink l JOIN PpmRecordRevision v ON v.id=l.downstreamRevisionId WHERE v.recordId=? ORDER BY v.revisionNo,l.id', array($id)),
+            'revalidations' => $this->revalidations($actor, $record['ppmFormId'], $id)['items']);
+    }
+    public function revalidations($actor, $form, $recordId = NULL)
+    {
+        $this->auth->access($actor, $form);
+        return array('items' => $this->store->rows('SELECT i.*,v.recordId,l.downstreamInputKey,l.sourceTraceOutputId,
+            h.triggerRevisionId,h.reason,h.status AS revalidationStatus,h.createdAt AS triggeredAt
+            FROM TraceRevalidationItem i JOIN TraceRevalidation h ON h.id=i.revalidationId JOIN PpmTraceLink l ON l.id=i.traceLinkId
+            JOIN PpmRecordRevision v ON v.id=l.downstreamRevisionId JOIN PpmRecord r ON r.id=v.recordId
+            JOIN AreaPpmAssignment a ON a.id=r.areaPpmAssignmentId WHERE a.ppmFormId=? AND (? IS NULL OR r.id=?) ORDER BY h.createdAt,i.id', array($form, $recordId, $recordId)));
     }
     public function revision($record)
     {

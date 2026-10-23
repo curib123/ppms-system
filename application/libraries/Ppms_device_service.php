@@ -6,6 +6,7 @@ class Ppms_device_service
 {
     private $store;
     private $auth;
+    private $credentials = array();
     public function __construct()
     {
         $ci =& get_instance();
@@ -26,8 +27,10 @@ class Ppms_device_service
             }
             $id = Ppms_values::id();
             $this->store->insert('ClientDevice', array('id' => $id, 'userId' => $actor['id'], 'deviceUuid' => $uuid, 'displayName' => $name));
+            $token = bin2hex(random_bytes(32));
+            $this->store->insert('ClientDeviceCredential', array('deviceId' => $id, 'tokenHash' => hash('sha256', $token), 'updatedAt' => Ppms_values::now()));
             $this->store->audit($actor, 'DEVICE_REGISTERED', 'ClientDevice', $id);
-            return array('id' => $id, 'deviceUuid' => $uuid);
+            return array('id' => $id, 'deviceUuid' => $uuid, 'deviceToken' => $token);
         });
     }
     public function assignUser($actor, $form, $userId, $input)
@@ -80,10 +83,33 @@ class Ppms_device_service
     }
     public function lease($form, $deviceId, $version)
     {
+        $token = $this->credentials[$deviceId] ?? NULL;
+        if (!is_string($token) || !preg_match('/^[a-f0-9]{64}$/D', $token)) { throw new Ppms_problem('DEVICE_AUTHENTICATION_REQUIRED', 403); }
         $lease = $this->store->row('SELECT l.* FROM PpmFormDeviceLease l JOIN ClientDevice d ON d.id=l.deviceId
-            WHERE l.ppmFormId=? AND l.deviceId=? AND l.revokedAt IS NULL AND d.revokedAt IS NULL', array($form, $deviceId));
+            JOIN ClientDeviceCredential c ON c.deviceId=d.id WHERE l.ppmFormId=? AND l.deviceId=? AND c.tokenHash=?
+            AND l.revokedAt IS NULL AND d.revokedAt IS NULL', array($form, $deviceId, hash('sha256', $token)));
         if (!$lease || $lease['leaseVersion'] !== $version) { throw new Ppms_problem('DEVICE_LEASE_INVALID', 403); }
         return $lease;
+    }
+    public function credential($deviceId, $token)
+    {
+        if (is_string($deviceId)) { $this->credentials[$deviceId] = $token; }
+    }
+    public function rotateCredential($actor, $deviceId, $input)
+    {
+        $this->auth->admin($actor);
+        $reason = Ppms_values::text($input, 'reason', 2000);
+        $initial = $this->store->row('SELECT ppmFormId FROM PpmFormDeviceLease WHERE deviceId=?', array($deviceId));
+        return $this->store->transaction(function () use ($actor, $deviceId, $reason, $initial) {
+            if ($initial) { $this->store->lockForm($initial['ppmFormId']); }
+            if (!$this->store->row('SELECT id FROM ClientDevice WHERE id=? AND revokedAt IS NULL FOR UPDATE', array($deviceId))) { throw new Ppms_problem('DEVICE_UNAVAILABLE', 403); }
+            $token = bin2hex(random_bytes(32));
+            $this->store->execute('INSERT INTO ClientDeviceCredential (deviceId,tokenHash,updatedAt) VALUES (?,?,UTC_TIMESTAMP(3))
+                ON DUPLICATE KEY UPDATE tokenHash=VALUES(tokenHash),updatedAt=UTC_TIMESTAMP(3)', array($deviceId, hash('sha256', $token)));
+            $this->store->execute('UPDATE PpmFormDeviceLease SET leaseVersion=leaseVersion+1,updatedAt=UTC_TIMESTAMP(3) WHERE deviceId=?', array($deviceId));
+            $this->store->audit($actor, 'CONFIG_CHANGE', 'ClientDeviceCredential', $deviceId, array('reason' => $reason), array('deviceId' => $deviceId, 'ppmFormId' => $initial['ppmFormId'] ?? NULL));
+            return array('id' => $deviceId, 'deviceToken' => $token);
+        });
     }
     public function grant($actor, $input)
     {

@@ -137,12 +137,16 @@ class Ppms_pull_service
     {
         if ($target === $source) {
             return $this->store->rows('SELECT o.* FROM PpmTraceOutput o JOIN PpmRecord r ON r.id=o.recordId JOIN PpmTemplateVersion t ON t.id=r.templateVersionId
-                WHERE t.ppmFormId=? AND o.status IN (\'PUBLISHED\',\'LINKED_DOWNSTREAM\') AND r.archivedAt IS NULL ORDER BY o.id', array($source));
+                WHERE t.ppmFormId=? AND o.status IN (\'PUBLISHED\',\'LINKED_DOWNSTREAM\') AND r.archivedAt IS NULL
+                AND NOT EXISTS (SELECT 1 FROM TraceRevalidationItem i JOIN PpmTraceLink l ON l.id=i.traceLinkId JOIN PpmRecordRevision v ON v.id=l.downstreamRevisionId
+                    WHERE v.recordId=r.id AND i.status<>\'RESOLVED\') ORDER BY o.id', array($source));
         }
         return $this->store->rows('SELECT DISTINCT o.* FROM PpmTraceOutput o JOIN PpmRecord r ON r.id=o.recordId JOIN PpmTemplateVersion t ON t.id=r.templateVersionId
             JOIN PpmTraceConnection c ON c.sourcePpmFormId=t.ppmFormId AND c.sourceOutputKey=o.outputKey
             WHERE c.targetPpmFormId=? AND c.sourcePpmFormId=? AND c.status=\'ACTIVE\' AND o.status IN (\'PUBLISHED\',\'LINKED_DOWNSTREAM\') AND r.archivedAt IS NULL
-            AND (c.requiresApprovalBeforeUse=0 OR r.status IN (\'FSQA_APPROVED\',\'SUPERVISOR_APPROVED\',\'CLOSED\')) ORDER BY o.id', array($target, $source));
+            AND (c.requiresApprovalBeforeUse=0 OR r.status IN (\'FSQA_APPROVED\',\'SUPERVISOR_APPROVED\',\'CLOSED\'))
+            AND NOT EXISTS (SELECT 1 FROM TraceRevalidationItem i JOIN PpmTraceLink l ON l.id=i.traceLinkId JOIN PpmRecordRevision v ON v.id=l.downstreamRevisionId
+                WHERE v.recordId=r.id AND i.status<>\'RESOLVED\') ORDER BY o.id', array($target, $source));
     }
     private function cursorToken($context, $source, $sequence)
     {

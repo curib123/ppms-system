@@ -41,9 +41,15 @@ class Api extends CI_Controller
         if ($method === 'GET' && $path === 'me') { return $this->ppms_auth_service->publicUser($actor); }
         if ($method === 'POST' && $path === 'auth/logout') { return $this->ppms_auth_service->logout($actor); }
         $this->load->library('ppms_device_service');
+        if (isset($input['deviceId'])) {
+            $this->ppms_device_service->credential($input['deviceId'], $this->input->get_request_header('X-PPMS-Device-Token'));
+        }
         if ($method === 'POST' && $path === 'devices') { return $this->ppms_device_service->register($actor, $input); }
         if ($method === 'POST' && preg_match('#^devices/([^/]+)/revoke$#D', $path, $match)) {
             return $this->ppms_device_service->revoke($actor, $match[1], $input);
+        }
+        if ($method === 'POST' && preg_match('#^devices/([^/]+)/credentials$#D', $path, $match)) {
+            return $this->ppms_device_service->rotateCredential($actor, $match[1], $input);
         }
         $this->load->library('ppms_form_service');
         if ($path === 'forms') {
@@ -78,6 +84,9 @@ class Api extends CI_Controller
         if ($method === 'POST' && $path === 'sync/batches') { return $this->ppms_sync_service->push($actor, $input); }
         if ($method === 'GET' && preg_match('#^records/([^/]+)$#D', $path, $match)) {
             return $this->ppms_record_service->view($actor, $match[1]);
+        }
+        if ($method === 'GET' && preg_match('#^forms/([^/]+)/revalidations$#D', $path, $match)) {
+            return $this->ppms_record_service->revalidations($actor, $match[1]);
         }
         if ($method === 'PUT' && preg_match('#^templates/([^/]+)/rules$#D', $path, $match)) {
             return $this->ppms_trace_service->rules($actor, $match[1], $input);

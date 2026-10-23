@@ -75,14 +75,23 @@ class Ppms_sync_service
     }
     private function process($uploader, $form, $device, $version, $batchId, $mutation)
     {
+        $clientId = NULL;
+        $mutationLock = NULL;
+        $locked = FALSE;
         try {
             $clientId = Ppms_values::text($mutation, 'clientMutationId');
             $recordId = Ppms_values::text($mutation, 'recordId');
             $operation = Ppms_values::text($mutation, 'operationType');
             if (!in_array($operation, array('CREATE_DRAFT','UPDATE_DRAFT','QUEUE_SUBMIT','CONFLICT_RESOLUTION'), TRUE)) { throw new Ppms_problem('UNSUPPORTED_MUTATION'); }
             Ppms_values::integer($mutation, 'baseRevisionNo', 0, 2147483647);
+            // Receipt identity is global, so different form locks cannot protect
+            // two simultaneous uses of the same mutation ID by themselves.
+            $mutationLock = 'ppms-mutation-'.substr(hash('sha256', $clientId), 0, 40);
+            $locked = (int) $this->store->row('SELECT GET_LOCK(?,10) AS acquired', array($mutationLock))['acquired'] === 1;
+            if (!$locked) { throw new RuntimeException('Mutation processing is busy; retry the batch.'); }
             return $this->store->transaction(function () use ($uploader, $form, $device, $version, $batchId, $mutation, $clientId, $recordId, $operation) {
                 $this->store->lockForm($form);
+                $this->auth->access($uploader, $form);
                 $this->devices->lease($form, $device, $version);
                 $actor = $this->devices->author($uploader, $mutation, $form, $device, $version);
                 $this->auth->access($actor, $form, $operation === 'CREATE_DRAFT' ? 'canCreate' : 'canEdit');
@@ -117,8 +126,13 @@ class Ppms_sync_service
                 return $result;
             });
         } catch (Ppms_problem $error) {
+            $this->store->audit($uploader, 'SYNC_REJECTED', 'SyncMutationReceipt', $clientId ?? $batchId,
+                array('error' => $error->getMessage()), array('ppmFormId' => $form, 'deviceId' => $device,
+                    'batchId' => $batchId, 'clientMutationId' => $clientId));
             return array('status' => 'REJECTED', 'clientMutationId' => $mutation['clientMutationId'] ?? NULL,
                 'error' => $error->getMessage(), 'details' => (object) $error->details);
+        } finally {
+            if ($locked) { $this->store->row('SELECT RELEASE_LOCK(?) AS released', array($mutationLock)); }
         }
     }
 }

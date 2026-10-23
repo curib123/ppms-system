@@ -21,13 +21,14 @@ class MigrationIntegration(unittest.TestCase):
             result = cli('setup', 'migrate')
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
             self.assertEqual(json.loads(result.stdout)['status'], 'migrated')
-        self.assertEqual(sql('SELECT COUNT(*) FROM PpmsSchemaMigration'), '1')
+        self.assertEqual(sql('SELECT COUNT(*) FROM PpmsSchemaMigration'), '2')
         self.assertEqual(cli('setup', 'verify').returncode, 0)
         self.assertEqual(sql('SELECT COUNT(*) FROM PpmForm'), '26')
         self.assertEqual(sql('SELECT COUNT(*) FROM PpmFormDeviceLease'), '0')
         self.assertEqual(sql('SELECT COUNT(*) FROM SyncDailyBatch'), '0')
         self.assertEqual(sql('SELECT COUNT(*) FROM SyncChangeEvent'), '0')
         self.assertEqual(sql('SELECT COUNT(*) FROM SyncPullCursor'), '0')
+        self.assertEqual(sql('SELECT COUNT(*) FROM ClientDeviceCredential'), '0')
 
     def test_02_database_rejects_two_active_versions(self):
         result = query("INSERT INTO PpmTemplateVersion (id,ppmFormId,versionNo,isActive,definitionJson,updatedAt) "
