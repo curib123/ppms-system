@@ -1,6 +1,9 @@
 """Upgrade a canonical install without replacing its reference data."""
 import json
 import unittest
+import secrets
+import subprocess
+from integration import ENV, PHP, ROOT
 from integration import DATABASE, cli, query, sql
 
 
@@ -29,6 +32,19 @@ class MigrationIntegration(unittest.TestCase):
     def test_02_database_rejects_two_active_versions(self):
         result = query("INSERT INTO PpmTemplateVersion (id,ppmFormId,versionNo,isActive,definitionJson,updatedAt) "
                        "SELECT 'duplicate-active',ppmFormId,999,1,'{}',NOW(3) FROM PpmTemplateVersion WHERE isActive=1 LIMIT 1")
+        self.assertNotEqual(result.returncode, 0)
+
+    def test_03_cli_provisions_accounts_without_exposing_passwords(self):
+        password = secrets.token_urlsafe(24)
+        account = json.dumps({'username': 'first.admin', 'role': 'ADMIN', 'email': 'first@example.test',
+                              'displayName': 'First admin', 'password': password})
+        result = subprocess.run(PHP + ['index.php', 'accounts', 'create'],
+                                cwd=ROOT, env=ENV, input=account, capture_output=True, text=True, timeout=10)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertNotIn(password, result.stdout + result.stderr)
+        self.assertEqual(sql('SELECT role FROM User LIMIT 1'), 'ADMIN')
+        result = subprocess.run(PHP + ['index.php', 'accounts', 'create'],
+                                cwd=ROOT, env=ENV, input=account, capture_output=True, text=True, timeout=10)
         self.assertNotEqual(result.returncode, 0)
 
 

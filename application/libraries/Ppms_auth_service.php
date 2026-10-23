@@ -14,7 +14,8 @@ class Ppms_auth_service
     public function login($input, $ip)
     {
         $username = Ppms_values::text($input, 'username');
-        $password = Ppms_values::text($input, 'password', 1024);
+        $password = $input['password'] ?? NULL;
+        if (!is_string($password) || $password === '' || strlen($password) > 1024) { throw new Ppms_problem('INVALID_CREDENTIALS', 401); }
         $key = hash('sha256', strtolower($username).'|'.$ip);
         $result = $this->store->transaction(function () use ($username, $password, $key) {
             $this->store->execute('INSERT IGNORE INTO AuthLoginDefense (id,identifierHash,failureCount) VALUES (?,?,0)', array(Ppms_values::id(), $key));
