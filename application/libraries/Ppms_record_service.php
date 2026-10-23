@@ -40,6 +40,7 @@ class Ppms_record_service
         $id = $mutation['recordId'];
         $base = $mutation['baseRevisionNo'];
         $this->auth->access($actor, $form, $operation === 'CREATE_DRAFT' ? 'canCreate' : 'canEdit');
+        if ($operation === 'CONFLICT_RESOLUTION') { return $this->resolve($actor, $form, $mutation, $context); }
         if ($operation === 'CREATE_DRAFT') {
             if ($base !== 0) { throw new Ppms_problem('NEW_RECORD_BASE_MUST_BE_ZERO'); }
             if ($this->store->row('SELECT id FROM PpmRecord WHERE id=?', array($id))) { throw new Ppms_problem('RECORD_ALREADY_EXISTS', 409); }
@@ -114,6 +115,37 @@ class Ppms_record_service
         $context['recordId'] = $record['id'];
         $this->store->audit($actor, 'SYNC_CONFLICT_CREATED', 'SyncConflict', $conflictId, $result, $context);
         return $result;
+    }
+    private function resolve($actor, $form, $mutation, $context)
+    {
+        $record = $this->find($mutation['recordId']);
+        if ($record['ppmFormId'] !== $form) { throw new Ppms_problem('RECORD_FORM_MISMATCH', 403); }
+        if ($mutation['baseRevisionNo'] !== $record['currentRevisionNo']) { throw new Ppms_problem('RESOLUTION_BASE_CHANGED', 409); }
+        $id = Ppms_values::text($mutation, 'conflictId');
+        $reason = Ppms_values::text($mutation, 'reason', 2000);
+        $type = Ppms_values::text($mutation, 'resolutionType');
+        if (!in_array($type, array('KEEP_SERVER','APPLY_LOCAL_AS_NEW_REVISION','MANUAL_MERGE'), TRUE)) { throw new Ppms_problem('INVALID_RESOLUTION_TYPE'); }
+        $conflict = $this->store->row('SELECT * FROM SyncConflict WHERE id=? AND recordId=? FOR UPDATE', array($id, $record['id']));
+        if (!$conflict || $conflict['status'] !== 'OPEN') { throw new Ppms_problem('CONFLICT_NOT_OPEN', 409); }
+        if ($type === 'KEEP_SERVER') {
+            $result = array('status' => 'APPLIED', 'recordId' => $record['id'], 'revisionId' => $this->revision($record)['id'], 'revisionNo' => $record['currentRevisionNo']);
+        } else {
+            // Reuse the normal command path: status, pinned schema and trace rules all apply.
+            $command = (array) $conflict['localPatchJson'];
+            if ($type === 'MANUAL_MERGE') {
+                $command['operationType'] = 'UPDATE_DRAFT';
+                $command['dataJson'] = $mutation['dataJson'] ?? NULL;
+                $command['traceSelections'] = $mutation['traceSelections'] ?? array();
+            }
+            $command['baseRevisionNo'] = $record['currentRevisionNo'];
+            $result = $this->apply($actor, $form, $command, $context);
+            $this->store->execute('UPDATE PpmRecordRevision SET correctionReason=? WHERE id=?', array($reason, $result['revisionId']));
+        }
+        $this->store->execute('UPDATE SyncConflict SET status=\'RESOLVED\',resolutionType=?,resolutionJson=?,resolvedById=?,resolvedAt=UTC_TIMESTAMP(3) WHERE id=?',
+            array($type, Ppms_values::json(array('reason' => $reason, 'result' => $result)), $actor['id'], $id));
+        $context['recordId'] = $record['id'];
+        $this->store->audit($actor, 'SYNC_CONFLICT_RESOLVED', 'SyncConflict', $id, array('resolutionType' => $type, 'reason' => $reason), $context);
+        return $result + array('conflictId' => $id, 'resolutionType' => $type);
     }
     public function changes($before, $after, $path = '')
     {

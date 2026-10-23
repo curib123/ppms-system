@@ -193,6 +193,26 @@ class PpmApiIntegration(unittest.TestCase):
         self.assertEqual(forbidden['results'][0]['error'], 'RECORD_NOT_EDITABLE')
         self.assertEqual(sql("SELECT COUNT(*) FROM WorkflowEvent WHERE recordId='record-b'"), '1')
 
+    def test_07_conflict_resolution_is_explicit_and_revision_checked(self):
+        resolution = self.mutation('CONFLICT_RESOLUTION', 'record-a', base=2)
+        resolution.update(conflictId=self.conflict, resolutionType='KEEP_SERVER', reason='Keep reviewed server data')
+        kept = self.batch([resolution])
+        self.assertEqual(kept['results'][0]['status'], 'APPLIED')
+        self.assertEqual(sql("SELECT currentRevisionNo FROM PpmRecord WHERE id='record-a'"), '2')
+        self.assertEqual(sql("SELECT resolutionType FROM SyncConflict WHERE id='" + self.conflict + "'"), 'KEEP_SERVER')
+        stale = self.batch([self.mutation('UPDATE_DRAFT', 'record-a', base=1, data={'supplier': 'Local'})])
+        conflict = stale['results'][0]['conflictId']
+        merge = self.mutation('CONFLICT_RESOLUTION', 'record-a', base=1,
+                              data={'supplier': 'Merged', 'temperature': 82.5, 'accepted': True})
+        merge.update(conflictId=conflict, resolutionType='MANUAL_MERGE', reason='Review both edits')
+        self.assertEqual(self.batch([merge])['results'][0]['error'], 'RESOLUTION_BASE_CHANGED')
+        merge['baseRevisionNo'] = 2
+        merge['clientMutationId'] = secrets.token_hex(16)
+        resolved = self.batch([merge])
+        self.assertEqual(resolved['results'][0]['revisionNo'], 3)
+        self.assertEqual(sql("SELECT COUNT(*) FROM PpmRecordRevision WHERE recordId='record-a'"), '3')
+        self.assertEqual(sql("SELECT status FROM SyncConflict WHERE id='" + conflict + "'"), 'RESOLVED')
+
 
 if __name__ == '__main__':
     unittest.main(verbosity=2)
