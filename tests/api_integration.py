@@ -101,6 +101,31 @@ class PpmApiIntegration(unittest.TestCase):
         self.api('PUT', '/forms/' + self.other_form + '/lease', {'deviceId': self.device, 'expectedLeaseVersion': 0}, expected=409)
         self.api('PUT', '/forms/' + self.form + '/access/test-outsider', {'canView': True}, user='alice', expected=403)
 
+    def test_03_dynamic_templates_publish_immutably(self):
+        definition = {'fields': [
+            {'key': 'supplier', 'label': 'Supplier', 'type': 'text', 'required': True},
+            {'key': 'temperature', 'label': 'Temperature', 'type': 'number', 'required': True,
+             'validation': {'min': 0, 'max': 100}},
+            {'key': 'accepted', 'label': 'Accepted', 'type': 'boolean', 'required': True},
+            {'key': 'entries', 'label': 'Readings', 'type': 'repeatable', 'maxRows': 10,
+             'fields': [{'key': 'value', 'label': 'Reading', 'type': 'integer', 'required': True}]}
+        ]}
+        template = self.api('POST', '/forms/' + self.form + '/templates', {'definitionJson': definition})
+        type(self).template = template['id']
+        self.assertEqual(template['definitionJson'], definition)
+        published = self.api('POST', '/templates/' + self.template + '/publish', {})
+        self.assertTrue(published['isActive'])
+        self.api('PATCH', '/templates/' + self.template,
+                 {'definitionJson': definition, 'expectedDefinitionHash': template['definitionHash']}, expected=409)
+        self.api('POST', '/templates/' + self.template + '/publish', {}, expected=409)
+        self.assertEqual(sql("SELECT COUNT(*) FROM PpmTemplateVersion WHERE ppmFormId='" + self.form + "' AND isActive=1"), '1')
+        self.api('POST', '/forms/' + self.form + '/templates',
+                 {'definitionJson': {'fields': [{'key': 'bad', 'label': 'Bad', 'type': 'executable'}]}}, expected=422)
+        self.api('POST', '/forms/' + self.form + '/templates', {'definitionJson': definition}, user='alice', expected=403)
+        versions = self.api('GET', '/forms/' + self.form + '/templates', user='bob')
+        self.assertIn(self.template, [row['id'] for row in versions['items']])
+        self.api('GET', '/forms/' + self.form + '/templates', user='outsider', expected=403)
+
 
 if __name__ == '__main__':
     unittest.main(verbosity=2)

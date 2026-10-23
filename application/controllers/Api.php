@@ -49,6 +49,17 @@ class Api extends CI_Controller
             return $this->ppms_device_service->assignUser($actor, $match[1], $match[2], $input);
         }
         if ($method === 'POST' && $path === 'sync/grants') { return $this->ppms_device_service->grant($actor, $input); }
+        $this->load->library('ppms_template_service');
+        if (preg_match('#^forms/([^/]+)/templates$#D', $path, $match)) {
+            if ($method === 'GET') { return $this->ppms_template_service->versions($actor, $match[1]); }
+            if ($method === 'POST') { return $this->ppms_template_service->create($actor, $match[1], $input); }
+        }
+        if ($method === 'PATCH' && preg_match('#^templates/([^/]+)$#D', $path, $match)) {
+            return $this->ppms_template_service->update($actor, $match[1], $input);
+        }
+        if ($method === 'POST' && preg_match('#^templates/([^/]+)/publish$#D', $path, $match)) {
+            return $this->ppms_template_service->publish($actor, $match[1]);
+        }
         throw new Ppms_problem('ENDPOINT_NOT_FOUND', 404);
     }
 
