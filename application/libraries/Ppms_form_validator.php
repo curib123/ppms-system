@@ -8,6 +8,7 @@ class Ppms_form_validator
     public function fields($definition)
     {
         Ppms_values::object($definition);
+        if ((isset($definition->schemaVersion) && $definition->schemaVersion !== 1) || (isset($definition->fields) && isset($definition->sections))) { throw new Ppms_problem('INVALID_TEMPLATE_SHAPE'); }
         if (isset($definition->fields) && !isset($definition->sections)) { return $definition->fields; }
         if (!isset($definition->sections) || !is_array($definition->sections) || !$definition->sections || count($definition->sections) > 100) {
             throw new Ppms_problem('TEMPLATE_FIELDS_REQUIRED');
@@ -49,7 +50,7 @@ class Ppms_form_validator
                 foreach (array('minRows', 'maxRows') as $bound) {
                     if (isset($field->$bound) && (!is_int($field->$bound) || $field->$bound < 0 || $field->$bound > 1000)) { throw new Ppms_problem('INVALID_ROW_BOUND'); }
                 }
-                if (($field->minRows ?? 0) > ($field->maxRows ?? 100)) { throw new Ppms_problem('INVALID_ROW_BOUND'); }
+                if (($field->minRows ?? 0) > ($field->maxRows ?? 100) || ($field->maxRows ?? 100) < 1) { throw new Ppms_problem('INVALID_ROW_BOUND'); }
             }
             if (in_array($field->type, array('select','multiselect'), TRUE)) {
                 if (!isset($field->options) || !is_array($field->options) || !$field->options || count($field->options) > 500) { throw new Ppms_problem('SELECT_OPTIONS_REQUIRED'); }
@@ -75,6 +76,10 @@ class Ppms_form_validator
                 }
                 if (isset($rules->pattern) && (!is_string($rules->pattern) || strlen($rules->pattern) > 256 || @preg_match($this->pattern($rules->pattern), '') === FALSE)) { throw new Ppms_problem('INVALID_VALIDATION_PATTERN'); }
             }
+            if (property_exists($field, 'defaultValue')) {
+                if ($field->type === 'trace-code') { throw new Ppms_problem('TRACE_DEFAULT_PROHIBITED'); }
+                $this->validateData(array($field), (object) array($key => $field->defaultValue), FALSE, '', NULL);
+            }
         }
     }
     public function payload($definition, $data, $complete = FALSE, $previous = NULL)
@@ -94,8 +99,11 @@ class Ppms_form_validator
             $path = $prefix.$key;
             $value = $data->$key ?? NULL;
             if (($field->readOnly ?? FALSE) && $previous && Ppms_values::hash($value) !== Ppms_values::hash($previous->$key ?? NULL)) { $this->invalid($path, 'READ_ONLY_FIELD'); }
-            $empty = $value === NULL || $value === '' || $value === array();
+            if (($field->readOnly ?? FALSE) && !$previous && property_exists($data, $key)
+                && (!property_exists($field, 'defaultValue') || Ppms_values::hash($value) !== Ppms_values::hash($field->defaultValue))) { $this->invalid($path, 'READ_ONLY_FIELD'); }
+            $empty = $value === NULL || $value === '' || ($value === array() && in_array($field->type, array('repeatable','table','multiselect'), TRUE));
             if ($complete && ($field->required ?? FALSE) && $empty) { $this->invalid($path, 'REQUIRED_FIELD'); }
+            if ($complete && in_array($field->type, array('repeatable','table'), TRUE) && ($field->minRows ?? 0) > 0 && ($empty || (is_array($value) && count($value) < $field->minRows))) { $this->invalid($path, 'INVALID_ROW_COUNT'); }
             if ($empty) { continue; }
             if ($field->type === 'group') {
                 $this->validateData($field->fields, Ppms_values::object($value), $complete, $path.'.', $previous->$key ?? NULL);
