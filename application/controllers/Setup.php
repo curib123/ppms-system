@@ -14,7 +14,7 @@ class Setup extends CI_Controller
 
     public function index()
     {
-        echo "Usage: php index.php setup [check|install|verify]".PHP_EOL;
+        echo "Usage: php index.php setup [check|install|verify|migrate]".PHP_EOL;
     }
 
     public function check()
@@ -30,6 +30,19 @@ class Setup extends CI_Controller
     public function verify()
     {
         $this->run('verify');
+    }
+
+    public function migrate()
+    {
+        $this->load->library('ppms_schema_upgrades');
+        try {
+            echo json_encode($this->ppms_schema_upgrades->migrate()).PHP_EOL;
+        } catch (Throwable $error) {
+            fwrite(STDERR, ($error instanceof mysqli_sql_exception
+                ? 'Database migration failed. Check schema compatibility and database permissions.'
+                : $error->getMessage()).PHP_EOL);
+            exit(1);
+        }
     }
 
     private function run($command)

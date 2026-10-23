@@ -98,7 +98,8 @@ class Ppms_database
         $manifest = $this->manifest();
         $connection = $this->connection();
         foreach ($manifest['tableCounts'] as $table => $expected) {
-            $result = $connection->query('SELECT * FROM '.$this->identifier($table));
+            $columns = array_map(array($this, 'identifier'), array_keys($manifest['columnTypes'][$table]));
+            $result = $connection->query('SELECT '.implode(',', $columns).' FROM '.$this->identifier($table));
             $rows = array();
             while ($row = $result->fetch_assoc()) {
                 foreach ($manifest['columnTypes'][$table] as $column => $type) {
