@@ -310,6 +310,35 @@ class PpmApiIntegration(unittest.TestCase):
         self.assertEqual(shared['events'], [])
         self.assertEqual(sql('SELECT COUNT(*) FROM SyncPullCursor'), '1')
 
+    def test_12_approval_gate_and_downstream_revalidation(self):
+        submitted = self.batch([self.mutation('QUEUE_SUBMIT', 'source-lot', base=3)])
+        self.assertEqual(submitted['results'][0]['revisionNo'], 4)
+        published = self.api('POST', '/records/source-lot/publish', {'deviceId': self.device, 'leaseVersion': 1, 'baseRevisionNo': 4})
+        output = published['outputs'][0]
+        self.assertEqual(output['outputCode'], 'LOT-20261023-002')
+        self.api('PUT', '/forms/' + self.other_form + '/connections', {
+            'sourcePpmFormId': self.form, 'sourceOutputKey': 'lotCode', 'targetInputKey': 'sourceLot',
+            'connectionName': 'Lot dependency', 'status': 'ACTIVE', 'requiresApprovalBeforeUse': True})
+        change = {'clientMutationId': secrets.token_hex(16), 'operationType': 'UPDATE_DRAFT', 'recordId': 'downstream-lot',
+                  'baseRevisionNo': 1, 'userId': 'test-bob', 'authorProof': self.downstream_proof,
+                  'dataJson': {'sourceLot': output['outputCode']},
+                  'traceSelections': [{'connectionId': self.connection, 'sourceTraceOutputId': output['id'], 'inputPath': 'sourceLot'}]}
+        self.assertEqual(self.downstream_batch([change])['results'][0]['error'], 'TRACE_OUTPUT_INELIGIBLE')
+        review = {'deviceId': self.device, 'leaseVersion': 1, 'baseRevisionNo': 4, 'action': 'APPROVE', 'reason': 'FSQA checked source'}
+        self.api('POST', '/records/source-lot/review', review, user='alice', expected=403)
+        approved = self.api('POST', '/records/source-lot/review', review)
+        self.assertEqual(approved['record']['status'], 'FSQA_APPROVED')
+        change['clientMutationId'] = secrets.token_hex(16)
+        self.assertEqual(self.downstream_batch([change])['results'][0]['revisionNo'], 2)
+        item = sql('SELECT id FROM TraceRevalidationItem LIMIT 1')
+        context = {'deviceId': self.downstream_device, 'leaseVersion': 1, 'baseRevisionNo': 2,
+                   'decision': 'REPLACED_SOURCE', 'notes': 'Selected and validated replacement lot'}
+        self.api('POST', '/revalidations/items/' + item + '/resolve', context, user='bob', expected=403)
+        self.api('POST', '/revalidations/items/' + item + '/resolve', context)
+        self.assertEqual(sql('SELECT status FROM TraceRevalidation LIMIT 1'), 'RESOLVED')
+        self.assertEqual(sql('SELECT COUNT(*) FROM PpmTraceLink'), '2')
+        self.assertEqual(sql("SELECT currentRevisionNo FROM PpmRecord WHERE id='source-lot'"), '5')
+
 
 if __name__ == '__main__':
     unittest.main(verbosity=2)
