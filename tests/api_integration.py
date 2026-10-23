@@ -348,6 +348,7 @@ class PpmApiIntegration(unittest.TestCase):
                    'decision': 'REPLACED_SOURCE', 'notes': 'Selected and validated replacement lot'}
         self.api('POST', '/revalidations/items/' + item + '/resolve', context, user='bob', expected=403)
         self.api('POST', '/revalidations/items/' + item + '/resolve', context)
+        self.api('POST', '/revalidations/items/' + item + '/resolve', dict(context, notes='Overwrite prior disposition'), expected=409)
         self.assertEqual(sql('SELECT status FROM TraceRevalidation LIMIT 1'), 'RESOLVED')
         self.assertEqual(sql('SELECT COUNT(*) FROM PpmTraceLink'), '2')
         self.assertEqual(sql("SELECT currentRevisionNo FROM PpmRecord WHERE id='source-lot'"), '5')
@@ -441,6 +442,9 @@ class PpmApiIntegration(unittest.TestCase):
         expired = self.mutation('UPDATE_DRAFT', 'record-a', base=4, data={})
         expired['authorProof'] = proof
         self.assertEqual(self.batch([expired])['results'][0]['error'], 'PROOF_EXPIRED_OR_INVALID')
+        # An already committed operation remains a read of its original receipt.
+        duplicate['authorProof'] = proof
+        self.assertEqual(self.batch([duplicate])['results'][0]['status'], 'APPLIED')
 
     def test_17_public_device_ids_do_not_authorize_a_second_device(self):
         context = {'deviceId': self.device, 'ppmFormId': self.form, 'leaseVersion': 1}

@@ -93,15 +93,20 @@ class Ppms_sync_service
                 $this->store->lockForm($form);
                 $this->auth->access($uploader, $form);
                 $this->devices->lease($form, $device, $version);
-                $actor = $this->devices->author($uploader, $mutation, $form, $device, $version);
-                $this->auth->access($actor, $form, $operation === 'CREATE_DRAFT' ? 'canCreate' : 'canEdit');
-                unset($mutation['authorProof']);
-                $hash = Ppms_values::hash((object) $mutation);
+                $owner = Ppms_values::text($mutation, 'userId');
+                $logical = $mutation;
+                unset($logical['authorProof']);
+                $hash = Ppms_values::hash((object) $logical);
                 $existing = $this->store->row('SELECT * FROM SyncMutationReceipt WHERE clientMutationId=?', array($clientId));
                 if ($existing) {
-                    if ($existing['payloadHash'] !== $hash || $existing['userId'] !== $actor['id'] || $existing['deviceId'] !== $device || $existing['ppmFormId'] !== $form) { throw new Ppms_problem('MUTATION_ID_REUSED', 409); }
+                    if ($existing['payloadHash'] !== $hash || $existing['userId'] !== $owner || $existing['deviceId'] !== $device || $existing['ppmFormId'] !== $form) { throw new Ppms_problem('MUTATION_ID_REUSED', 409); }
                     return (array) $existing['resultJson'];
                 }
+                // Replaying a committed receipt is a read. Only new operations
+                // require an unexpired author grant and current write permission.
+                $actor = $this->devices->author($uploader, $mutation, $form, $device, $version);
+                $this->auth->access($actor, $form, $operation === 'CREATE_DRAFT' ? 'canCreate' : 'canEdit');
+                $mutation = $logical;
                 $receipt = Ppms_values::id();
                 $context = array('receiptId' => $receipt, 'deviceId' => $device, 'batchId' => $batchId,
                     'ppmFormId' => $form, 'clientMutationId' => $clientId, 'baseRevisionNo' => $mutation['baseRevisionNo']);

@@ -28,6 +28,7 @@ Create an empty database, configure `application/config/local.php`, then run:
 ```powershell
 php index.php setup install
 php index.php setup verify
+php index.php setup migrate
 ```
 
 The installer validates SQL hashes and serializes installation with a named
@@ -48,6 +49,15 @@ Manual imports do not have the installer's integrity checks or failure cleanup.
 To use an existing converted MySQL/MariaDB database, connect to it and skip
 imports. `setup check` is read-only; `setup verify` checks an exact fresh baseline,
 so it should run before operational data is added.
+
+`setup migrate` upgrades a converted database with the runtime backend schema:
+`PpmFormDeviceLease`, `SyncDailyBatch`, `SyncPullCursor`, `SyncChangeEvent`,
+`ClientDeviceCredential` and `PpmsSchemaMigration`. It reuses personnel
+assignments with operation flags, adds audit/receipt context and enforces one
+active template per form. Fresh migrated databases have 34 tables. The original
+schema, seed fingerprints and archived PostgreSQL migrations stay separate.
+See [the backend API guide](../docs/backend-api.md) for upgrade checksums,
+credential provisioning and synchronization contracts.
 
 ## Conversion decisions
 

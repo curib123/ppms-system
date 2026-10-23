@@ -45,7 +45,7 @@ def main():
                     raise RuntimeError('Temporary MariaDB did not become ready.')
                 env = dict(os.environ, DB_HOST='127.0.0.1', DB_PORT=str(port),
                            DB_USERNAME='root', DB_PASSWORD='')
-                for suite in (sys.argv[1:] or ['integration.py', 'api_integration.py']):
+                for suite in (sys.argv[1:] or ['integration.py', 'migrations.py', 'api_integration.py']):
                     result = subprocess.run([sys.executable, str(ROOT / 'tests' / suite)],
                                             cwd=ROOT, env=env, timeout=240)
                     if result.returncode:

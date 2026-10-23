@@ -103,6 +103,8 @@ class Ppms_workflow_service
             if (!in_array($role, array('ADMIN','FSQA','SUPERVISOR','PLANT_MANAGER'), TRUE)) { throw new Ppms_problem('REVALIDATION_REVIEWER_REQUIRED', 403); }
             $device = Ppms_values::text($input, 'deviceId');
             $this->devices->lease($form, $device, Ppms_values::integer($input, 'leaseVersion', 1));
+            $currentItem = $this->store->row('SELECT status FROM TraceRevalidationItem WHERE id=? FOR UPDATE', array($itemId));
+            if ($currentItem['status'] === 'RESOLVED') { throw new Ppms_problem('REVALIDATION_ALREADY_RESOLVED', 409); }
             $record = $this->records->find($item['recordId']);
             if ($record['currentRevisionNo'] !== Ppms_values::integer($input, 'baseRevisionNo', 1)) { throw new Ppms_problem('REVISION_CHANGED', 409); }
             if ($decision === 'ACCEPT_HISTORICAL') {

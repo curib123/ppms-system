@@ -33,7 +33,7 @@ class Ppms_auth_service
             $this->store->insert('AuthSession', array('id' => Ppms_values::id(), 'userId' => $user['id'],
                 'refreshTokenHash' => hash('sha256', $token), 'expiresAt' => $expires));
             $this->store->audit($user, 'LOGIN', 'User', $user['id']);
-            return array('token' => $token, 'expiresAt' => $expires.'Z', 'user' => $this->publicUser($user));
+            return array('token' => $token, 'expiresAt' => str_replace(' ', 'T', $expires).'Z', 'user' => $this->publicUser($user));
         });
         if (!$result) { throw new Ppms_problem('INVALID_CREDENTIALS', 401); }
         return $result;

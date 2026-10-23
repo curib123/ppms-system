@@ -1,9 +1,11 @@
 # PPMS - CodeIgniter 3 / MySQLi
 
 CodeIgniter **3.1.13** with the native **MySQLi** driver, the converted PPMS
-schema, and the original default data. Includes guarded database setup, a
-read-only PPM form register, and a health endpoint. Authentication and the
-NestJS/Angular business workflows are outside this foundation.
+schema, and the original default data. Includes guarded database setup,
+individual authentication, dynamic versioned templates, immutable records,
+shared-device daily synchronization, traceability and review APIs, the PPM form
+register, and a health endpoint. See [the backend API guide](docs/backend-api.md)
+for setup, requests and client synchronization responsibilities.
 
 ## Requirements
 
@@ -40,6 +42,7 @@ Add `--password` if your MySQL account requires a password. Install and verify:
 .\scripts\php.ps1 index.php setup check
 .\scripts\php.ps1 index.php setup install
 .\scripts\php.ps1 index.php setup verify
+.\scripts\php.ps1 index.php setup migrate
 .\scripts\php.ps1 -S 127.0.0.1:8085 -t public public/router.php
 ```
 
@@ -74,7 +77,7 @@ partial index becomes a covering index. Full details and original PostgreSQL
 artifacts are in [database/README.md](database/README.md).
 
 To use an existing **converted MySQL/MariaDB** database, configure its credentials,
-run only `setup check`, and start the server. Skip installation and SQL imports.
+run `setup check` and `setup migrate`, then start the server. Skip installation and SQL imports.
 `setup verify` compares the exact original default snapshot and is intended for
 fresh installations, before operational data is added.
 
@@ -82,14 +85,15 @@ fresh installations, before operational data is added.
 
 ```text
 application/config/       CI3 settings and local MySQLi credentials
-application/controllers/  Welcome, Health, CLI-only Setup
-application/models/       Read-only PPMS reference model
-application/libraries/    Guarded database installer and baseline verification
+application/controllers/  JSON API, register, health, CLI-only setup/accounts
+application/models/       Reference reads and bound MySQLi persistence model
+application/libraries/    Form/record/sync/trace/workflow services and migrations
 application/views/        Setup page and CI3 error views
 database/schema.sql       MySQL/MariaDB tables, enums, indexes, and constraints
 database/default_data.sql Converted original default rows
 database/manifest.json    Provenance, hashes, row counts, and column types
 database/source/          Archived original PostgreSQL/Prisma artifacts
+database/migrations/      Versioned MySQL runtime extensions
 public/                   Web document root
 scripts/                  PHP launcher and reproducible SQL converter
 system/                   Unmodified CodeIgniter 3.1.13 framework
@@ -108,6 +112,10 @@ configured through CI3's `encrypt` connection setting.
 
 ```powershell
 python tests/integration.py
+python tests/migrations.py
+python tests/api_integration.py
+php tests/validation.php
+python tests/run_with_mariadb.py
 python scripts/convert_database.py
 ```
 
