@@ -22,7 +22,10 @@ active-template constraint. They do not seed users or production data.
 
 Migration one replaces the unfinished user-owned writer design with
 `PpmFormDeviceLease`. If a legacy writer table exists, its leases are copied;
-the legacy table is preserved but unused. Version one's implementation is
+the legacy table is preserved but unused. A compatibility upgrade adds missing
+service fields to experimental daily-batch tables without removing their rows.
+Old batches remain historical; send new work with fresh batch IDs.
+Version one's implementation is
 sealed because its checksum includes its PHP runner. Later SQL migrations use
 independent checksums through `Ppms_schema_upgrades`. MySQL DDL implicitly
 commits, so migration steps must be restartable. Web startup never migrates.
@@ -220,8 +223,10 @@ proof. Tombstone/attachment operations are rejected until implemented.
 
 Repeated batch/mutation IDs return their original stored result when the owner
 and canonical payload match. JSON object-key order does not change identity.
-Reusing an ID with another owner, device or payload is rejected. Server revision
-numbers are authoritative. Conflicts persist the local command and server base;
+Reusing an ID with another owner, device or payload is rejected.
+An already committed receipt can be replayed after its author grant expires;
+this reads history and still requires current uploader access/device credentials.
+Server revision numbers are authoritative. Conflicts persist the local command and server base;
 resolution supports `KEEP_SERVER`, `APPLY_LOCAL_AS_NEW_REVISION`, and
 `MANUAL_MERGE`, using the same permission, template and lifecycle checks.
 
@@ -287,6 +292,7 @@ event. Returns preserve history and retire affected published outputs.
 `decision`: `REPLACED_SOURCE` requires a current eligible replacement link;
 `ACCEPT_HISTORICAL` requires a closed record. Only an authorized reviewer/admin
 can resolve an item. A parent resolves once all its items are resolved.
+Finalized impact dispositions cannot be overwritten.
 
 ## Selective pull protocol
 
@@ -333,3 +339,8 @@ select another compatible binary directory. No Windows service or configured
 application database is changed. To use a separately managed test server, run
 the three Python suites individually with `DB_HOST`, `DB_PORT`, `DB_USERNAME`,
 and `DB_PASSWORD`; each creates and drops only its disposable test database.
+
+Verified on 2026-10-23 with PHP 8.0.30 and disposable MariaDB 10.4.32:
+35 Python test cases passed, including concurrent publication, cross-form
+mutation-ID reuse, legacy batch upgrades and three-form trace invalidation.
+Application PHP syntax checks and the standalone field-validation checks passed.
