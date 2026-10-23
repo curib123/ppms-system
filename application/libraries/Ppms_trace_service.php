@@ -23,10 +23,10 @@ class Ppms_trace_service
         $this->auth->admin($actor);
         $rules = $input['rules'] ?? NULL;
         if (!is_array($rules) || count($rules) > 100) { throw new Ppms_problem('INVALID_TRACE_RULES'); }
-        return $this->store->transaction(function () use ($actor, $templateId, $rules) {
-            $template = $this->store->row('SELECT * FROM PpmTemplateVersion WHERE id=?', array($templateId));
-            if (!$template) { throw new Ppms_problem('TEMPLATE_NOT_FOUND', 404); }
-            $this->store->lockForm($template['ppmFormId']);
+        $initial = $this->store->row('SELECT ppmFormId FROM PpmTemplateVersion WHERE id=?', array($templateId));
+        if (!$initial) { throw new Ppms_problem('TEMPLATE_NOT_FOUND', 404); }
+        return $this->store->transaction(function () use ($actor, $templateId, $rules, $initial) {
+            $this->store->lockForm($initial['ppmFormId']);
             $template = $this->store->row('SELECT * FROM PpmTemplateVersion WHERE id=?', array($templateId));
             if ($template['publishedAt']) { throw new Ppms_problem('PUBLISHED_TEMPLATE_IMMUTABLE', 409); }
             $this->store->execute('DELETE FROM TraceCodeRule WHERE templateVersionId=?', array($templateId));
@@ -140,13 +140,13 @@ class Ppms_trace_service
     }
     public function publish($actor, $recordId, $input)
     {
-        return $this->store->transaction(function () use ($actor, $recordId, $input) {
-            $record = $this->store->row('SELECT r.*,t.ppmFormId FROM PpmRecord r JOIN PpmTemplateVersion t ON t.id=r.templateVersionId WHERE r.id=?', array($recordId));
-            if (!$record) { throw new Ppms_problem('RECORD_NOT_FOUND', 404); }
-            $this->store->lockForm($record['ppmFormId']);
-            $this->auth->access($actor, $record['ppmFormId'], 'canPublish');
-            $this->devices->lease($record['ppmFormId'], Ppms_values::text($input, 'deviceId'), Ppms_values::integer($input, 'leaseVersion', 1));
-            $record = $this->store->row('SELECT * FROM PpmRecord WHERE id=?', array($recordId)) + array('ppmFormId' => $record['ppmFormId']);
+        $initial = $this->store->row('SELECT t.ppmFormId FROM PpmRecord r JOIN PpmTemplateVersion t ON t.id=r.templateVersionId WHERE r.id=?', array($recordId));
+        if (!$initial) { throw new Ppms_problem('RECORD_NOT_FOUND', 404); }
+        return $this->store->transaction(function () use ($actor, $recordId, $input, $initial) {
+            $this->store->lockForm($initial['ppmFormId']);
+            $this->auth->access($actor, $initial['ppmFormId'], 'canPublish');
+            $this->devices->lease($initial['ppmFormId'], Ppms_values::text($input, 'deviceId'), Ppms_values::integer($input, 'leaseVersion', 1));
+            $record = $this->store->row('SELECT * FROM PpmRecord WHERE id=?', array($recordId)) + $initial;
             if ($record['currentRevisionNo'] !== Ppms_values::integer($input, 'baseRevisionNo', 1)) { throw new Ppms_problem('REVISION_CHANGED', 409); }
             if ($record['archivedAt'] || !in_array($record['status'], array('SUBMITTED','FSQA_APPROVED','SUPERVISOR_APPROVED','CLOSED'), TRUE)) { throw new Ppms_problem('RECORD_NOT_PUBLISHABLE', 409); }
             $revision = $this->store->row('SELECT * FROM PpmRecordRevision WHERE recordId=? AND revisionNo=?', array($recordId, $record['currentRevisionNo']));

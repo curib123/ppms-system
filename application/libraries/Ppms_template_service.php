@@ -40,9 +40,9 @@ class Ppms_template_service
     {
         $this->auth->admin($actor);
         $definition = $this->validator->definition($input['definitionJson'] ?? NULL);
-        return $this->store->transaction(function () use ($actor, $id, $input, $definition) {
-            $old = $this->find($id);
-            $this->store->lockForm($old['ppmFormId']);
+        $form = $this->find($id)['ppmFormId'];
+        return $this->store->transaction(function () use ($actor, $id, $input, $definition, $form) {
+            $this->store->lockForm($form);
             $old = $this->find($id);
             if ($old['publishedAt']) { throw new Ppms_problem('PUBLISHED_TEMPLATE_IMMUTABLE', 409); }
             if (($input['expectedDefinitionHash'] ?? NULL) !== Ppms_values::hash($old['definitionJson'])) { throw new Ppms_problem('TEMPLATE_CHANGED', 409); }
@@ -54,9 +54,9 @@ class Ppms_template_service
     public function publish($actor, $id)
     {
         $this->auth->admin($actor);
-        return $this->store->transaction(function () use ($actor, $id) {
-            $template = $this->find($id);
-            $this->store->lockForm($template['ppmFormId']);
+        $form = $this->find($id)['ppmFormId'];
+        return $this->store->transaction(function () use ($actor, $id, $form) {
+            $this->store->lockForm($form);
             $template = $this->find($id);
             if ($template['publishedAt']) { throw new Ppms_problem('PUBLISHED_TEMPLATE_IMMUTABLE', 409); }
             $this->validator->definition($template['definitionJson']);

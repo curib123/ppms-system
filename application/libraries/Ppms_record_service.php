@@ -114,12 +114,12 @@ class Ppms_record_service
     }
     public function correct($actor, $id, $input)
     {
-        return $this->store->transaction(function () use ($actor, $id, $input) {
-            $record = $this->find($id);
-            $this->store->lockForm($record['ppmFormId']);
+        $form = $this->find($id)['ppmFormId'];
+        return $this->store->transaction(function () use ($actor, $id, $input, $form) {
+            $this->store->lockForm($form);
             $ci =& get_instance();
             $deviceId = Ppms_values::text($input, 'deviceId');
-            $ci->ppms_device_service->lease($record['ppmFormId'], $deviceId, Ppms_values::integer($input, 'leaseVersion', 1));
+            $ci->ppms_device_service->lease($form, $deviceId, Ppms_values::integer($input, 'leaseVersion', 1));
             $reason = Ppms_values::text($input, 'reason', 2000);
             $base = Ppms_values::integer($input, 'baseRevisionNo', 1);
             $record = $this->find($id);

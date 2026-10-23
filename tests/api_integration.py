@@ -7,6 +7,7 @@ import subprocess
 import tempfile
 import time
 import unittest
+from concurrent.futures import ThreadPoolExecutor
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
@@ -338,6 +339,50 @@ class PpmApiIntegration(unittest.TestCase):
         self.assertEqual(sql('SELECT status FROM TraceRevalidation LIMIT 1'), 'RESOLVED')
         self.assertEqual(sql('SELECT COUNT(*) FROM PpmTraceLink'), '2')
         self.assertEqual(sql("SELECT currentRevisionNo FROM PpmRecord WHERE id='source-lot'"), '5')
+
+    def test_13_concurrent_publication_reads_after_the_form_lock(self):
+        draft = self.api('POST', '/forms/' + self.form + '/templates', {'definitionJson': self.definition})
+        with socket.socket() as sock:
+            sock.bind(('127.0.0.1', 0))
+            port = sock.getsockname()[1]
+        second = subprocess.Popen(PHP + ['-S', '127.0.0.1:' + str(port), '-t', 'public', 'public/router.php'],
+                                  cwd=ROOT, env=self.env, stdout=self.log, stderr=self.log)
+        lock = None
+        try:
+            for _ in range(50):
+                try:
+                    with socket.create_connection(('127.0.0.1', port), timeout=0.1):
+                        break
+                except OSError:
+                    time.sleep(0.1)
+            lock = subprocess.Popen(PHP + ['tests/hold_form_lock.php', self.form], cwd=ROOT, env=self.env,
+                                    stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            self.assertEqual(lock.stdout.readline().strip(), 'READY')
+            def publish(base):
+                request = Request(base + '/templates/' + draft['id'] + '/publish', data=b'{}', method='POST',
+                                  headers={'Content-Type': 'application/json', 'Authorization': 'Bearer ' + self.tokens['admin']})
+                try:
+                    response = urlopen(request, timeout=20)
+                except HTTPError as error:
+                    response = error
+                with response:
+                    return response.status, json.loads(response.read())
+            with ThreadPoolExecutor(max_workers=2) as pool:
+                futures = [pool.submit(publish, base) for base in (self.base, 'http://127.0.0.1:' + str(port) + '/api/v1')]
+                deadline = time.monotonic() + 8
+                while time.monotonic() < deadline:
+                    if int(sql('SELECT COUNT(*) FROM information_schema.INNODB_LOCK_WAITS')) >= 2:
+                        break
+                    time.sleep(0.05)
+                lock.communicate('\n', timeout=5)
+                results = [future.result() for future in futures]
+            self.assertEqual(sorted(result[0] for result in results), [200, 409], results)
+            self.assertEqual(sql("SELECT COUNT(*) FROM SyncChangeEvent WHERE eventType='TEMPLATE_PUBLISHED' AND JSON_UNQUOTE(JSON_EXTRACT(payloadJson,'$.id'))='" + draft['id'] + "'"), '1')
+        finally:
+            if lock is not None and lock.poll() is None:
+                lock.communicate('\n', timeout=5)
+            second.terminate()
+            second.wait(timeout=5)
 
 
 if __name__ == '__main__':

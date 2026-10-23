@@ -27,12 +27,12 @@ class Ppms_workflow_service
         $action = Ppms_values::text($input, 'action');
         $reason = Ppms_values::text($input, 'reason', 2000);
         if (!in_array($action, array('APPROVE','RETURN'), TRUE)) { throw new Ppms_problem('INVALID_REVIEW_ACTION'); }
-        return $this->store->transaction(function () use ($actor, $id, $input, $action, $reason) {
-            $record = $this->records->find($id);
-            $this->store->lockForm($record['ppmFormId']);
-            $this->auth->access($actor, $record['ppmFormId']);
+        $form = $this->records->find($id)['ppmFormId'];
+        return $this->store->transaction(function () use ($actor, $id, $input, $action, $reason, $form) {
+            $this->store->lockForm($form);
+            $this->auth->access($actor, $form);
             $device = Ppms_values::text($input, 'deviceId');
-            $this->devices->lease($record['ppmFormId'], $device, Ppms_values::integer($input, 'leaseVersion', 1));
+            $this->devices->lease($form, $device, Ppms_values::integer($input, 'leaseVersion', 1));
             $record = $this->records->find($id);
             $base = Ppms_values::integer($input, 'baseRevisionNo', 1);
             if ($record['currentRevisionNo'] !== $base) { throw new Ppms_problem('REVISION_CHANGED', 409); }
@@ -91,19 +91,19 @@ class Ppms_workflow_service
     {
         $notes = Ppms_values::text($input, 'notes', 2000);
         $decision = Ppms_values::text($input, 'decision');
-        return $this->store->transaction(function () use ($actor, $itemId, $input, $notes, $decision) {
-            $item = $this->store->row('SELECT i.*,l.sourceTraceOutputId,l.downstreamInputKey,v.recordId FROM TraceRevalidationItem i
+        $item = $this->store->row('SELECT i.*,l.sourceTraceOutputId,l.downstreamInputKey,v.recordId FROM TraceRevalidationItem i
                 JOIN PpmTraceLink l ON l.id=i.traceLinkId JOIN PpmRecordRevision v ON v.id=l.downstreamRevisionId WHERE i.id=?', array($itemId));
-            if (!$item) { throw new Ppms_problem('REVALIDATION_ITEM_NOT_FOUND', 404); }
+        if (!$item) { throw new Ppms_problem('REVALIDATION_ITEM_NOT_FOUND', 404); }
+        $form = $this->records->find($item['recordId'])['ppmFormId'];
+        return $this->store->transaction(function () use ($actor, $itemId, $input, $notes, $decision, $item, $form) {
             $this->store->row('SELECT id FROM TraceRevalidation WHERE id=? FOR UPDATE', array($item['revalidationId']));
-            $record = $this->records->find($item['recordId']);
-            $this->store->lockForm($record['ppmFormId']);
-            $this->auth->access($actor, $record['ppmFormId']);
+            $this->store->lockForm($form);
+            $this->auth->access($actor, $form);
             $role = $this->auth->user($actor['id'])['role'];
             if (!in_array($role, array('ADMIN','FSQA','SUPERVISOR','PLANT_MANAGER'), TRUE)) { throw new Ppms_problem('REVALIDATION_REVIEWER_REQUIRED', 403); }
             $device = Ppms_values::text($input, 'deviceId');
-            $this->devices->lease($record['ppmFormId'], $device, Ppms_values::integer($input, 'leaseVersion', 1));
-            $record = $this->records->find($record['id']);
+            $this->devices->lease($form, $device, Ppms_values::integer($input, 'leaseVersion', 1));
+            $record = $this->records->find($item['recordId']);
             if ($record['currentRevisionNo'] !== Ppms_values::integer($input, 'baseRevisionNo', 1)) { throw new Ppms_problem('REVISION_CHANGED', 409); }
             if ($decision === 'ACCEPT_HISTORICAL') {
                 if ($record['status'] !== 'CLOSED') { throw new Ppms_problem('HISTORICAL_ACCEPTANCE_REQUIRES_CLOSED_RECORD', 409); }
