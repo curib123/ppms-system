@@ -7,13 +7,15 @@ class Ppms_record_service
     private $store;
     private $auth;
     private $validator;
+    private $trace;
     public function __construct()
     {
         $ci =& get_instance();
-        $ci->load->library(array('ppms_auth_service', 'ppms_form_validator'));
+        $ci->load->library(array('ppms_auth_service', 'ppms_form_validator', 'ppms_trace_service', 'ppms_device_service'));
         $this->store = $ci->ppms_store;
         $this->auth = $ci->ppms_auth_service;
         $this->validator = $ci->ppms_form_validator;
+        $this->trace = $ci->ppms_trace_service;
     }
     public function find($id)
     {
@@ -34,7 +36,7 @@ class Ppms_record_service
         return $this->store->row('SELECT * FROM PpmRecordRevision WHERE recordId=? AND revisionNo=?', array($record['id'], $record['currentRevisionNo']));
     }
     /** Caller holds the form lock and owns the transaction and mutation receipt. */
-    public function apply($actor, $form, $mutation, $context)
+    public function apply($actor, $form, $mutation, $context, $correctionReason = NULL)
     {
         $operation = $mutation['operationType'];
         $id = $mutation['recordId'];
@@ -70,7 +72,7 @@ class Ppms_record_service
             if ($base !== $record['currentRevisionNo']) {
                 return $this->conflict($actor, $record, $mutation, $context);
             }
-            if ($record['status'] !== 'ACTIVE' || $record['archivedAt']) { throw new Ppms_problem('RECORD_NOT_EDITABLE', 409); }
+            if (($record['status'] !== 'ACTIVE' && $correctionReason === NULL) || $record['archivedAt'] || $record['status'] === 'CLOSED') { throw new Ppms_problem('RECORD_NOT_EDITABLE', 409); }
             if (isset($mutation['templateVersionId']) && $mutation['templateVersionId'] !== $record['templateVersionId']) { throw new Ppms_problem('RECORD_TEMPLATE_PINNED', 409); }
             $previous = $this->revision($record);
             $data = $operation === 'QUEUE_SUBMIT' ? $previous['dataJson'] : ($mutation['dataJson'] ?? NULL);
@@ -82,9 +84,17 @@ class Ppms_record_service
         $revisionId = Ppms_values::id();
         $submitted = $operation === 'QUEUE_SUBMIT';
         $this->store->insert('PpmRecordRevision', array('id' => $revisionId, 'recordId' => $id, 'revisionNo' => $revisionNo,
-            'status' => $submitted ? 'SUBMITTED' : 'DRAFT', 'dataJson' => Ppms_values::json($data),
+            'status' => $submitted ? 'SUBMITTED' : ($correctionReason !== NULL ? 'CORRECTED' : 'DRAFT'), 'dataJson' => Ppms_values::json($data),
+            'correctionReason' => $correctionReason,
             'dataHash' => Ppms_values::hash($data), 'createdById' => $actor['id'], 'submittedAt' => $submitted ? Ppms_values::now() : NULL));
+        $context['recordId'] = $id;
+        $this->trace->link($actor, $form, $revisionId, $data, $template['definitionJson'], $mutation['traceSelections'] ?? array(), $previous['id'] ?? NULL, $context);
         if ($previous) {
+            if (Ppms_values::hash($previous['dataJson']) !== Ppms_values::hash($data)) {
+                if ($this->trace->retire($actor, $record, $revisionId, $correctionReason ?? 'Trace source data changed', $context)) {
+                    $this->store->execute('UPDATE PpmRecordRevision SET isTraceCritical=1 WHERE id=?', array($revisionId));
+                }
+            }
             foreach ($this->changes($previous['dataJson'], $data) as $change) {
                 $this->store->insert('RevisionChange', array('id' => Ppms_values::id(), 'oldRevisionId' => $previous['id'], 'newRevisionId' => $revisionId,
                     'fieldPath' => $change['path'], 'beforeValueJson' => Ppms_values::json($change['before']),
@@ -101,6 +111,23 @@ class Ppms_record_service
         $this->store->audit($actor, 'SYNC_APPLIED', 'PpmRecord', $id, $result, $context);
         $this->store->event($form, 'RECORD_REVISION', $this->view($actor, $id), $id, $revisionId);
         return $result;
+    }
+    public function correct($actor, $id, $input)
+    {
+        return $this->store->transaction(function () use ($actor, $id, $input) {
+            $record = $this->find($id);
+            $this->store->lockForm($record['ppmFormId']);
+            $ci =& get_instance();
+            $deviceId = Ppms_values::text($input, 'deviceId');
+            $ci->ppms_device_service->lease($record['ppmFormId'], $deviceId, Ppms_values::integer($input, 'leaseVersion', 1));
+            $reason = Ppms_values::text($input, 'reason', 2000);
+            $base = Ppms_values::integer($input, 'baseRevisionNo', 1);
+            $record = $this->find($id);
+            if ($record['currentRevisionNo'] !== $base) { throw new Ppms_problem('REVISION_CHANGED', 409); }
+            return $this->apply($actor, $record['ppmFormId'], array('operationType' => 'UPDATE_DRAFT', 'recordId' => $id,
+                'baseRevisionNo' => $base, 'dataJson' => $input['dataJson'] ?? NULL, 'traceSelections' => $input['traceSelections'] ?? array()),
+                array('deviceId' => $deviceId, 'ppmFormId' => $record['ppmFormId'], 'baseRevisionNo' => $base), $reason);
+        });
     }
     private function conflict($actor, $record, $mutation, $context)
     {

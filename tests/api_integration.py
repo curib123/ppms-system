@@ -110,6 +110,7 @@ class PpmApiIntegration(unittest.TestCase):
             {'key': 'entries', 'label': 'Readings', 'type': 'repeatable', 'maxRows': 10,
              'fields': [{'key': 'value', 'label': 'Reading', 'type': 'integer', 'required': True}]}
         ]}
+        type(self).definition = definition
         template = self.api('POST', '/forms/' + self.form + '/templates', {'definitionJson': definition})
         type(self).template = template['id']
         self.assertEqual(template['definitionJson'], definition)
@@ -212,6 +213,78 @@ class PpmApiIntegration(unittest.TestCase):
         self.assertEqual(resolved['results'][0]['revisionNo'], 3)
         self.assertEqual(sql("SELECT COUNT(*) FROM PpmRecordRevision WHERE recordId='record-a'"), '3')
         self.assertEqual(sql("SELECT status FROM SyncConflict WHERE id='" + conflict + "'"), 'RESOLVED')
+
+    def test_08_server_publishes_configured_trace_codes(self):
+        draft = self.api('POST', '/forms/' + self.form + '/templates', {'definitionJson': self.definition})
+        type(self).source_template = draft['id']
+        self.api('PUT', '/templates/' + draft['id'] + '/rules', {'rules': [{
+            'outputKey': 'lotCode', 'outputLabel': 'Lot', 'status': 'ACTIVE', 'sourceType': 'SYSTEM_GENERATED',
+            'formulaTemplate': 'LOT-{{record.productionDate}}-{{sequence}}', 'resetPeriod': 'DAILY',
+            'sequencePadding': 3, 'requiresUniqueBusinessCode': True,
+            'configurationJson': {'bindings': {'record.productionDate': {'source': 'RECORD', 'path': 'productionDate', 'format': 'YYYYMMDD'}}}
+        }]})
+        self.api('POST', '/templates/' + draft['id'] + '/publish', {})
+        create = self.mutation('CREATE_DRAFT', 'source-lot', data={'supplier': 'Lot supplier', 'temperature': 90, 'accepted': True})
+        create['templateVersionId'] = draft['id']
+        result = self.batch([create, self.mutation('QUEUE_SUBMIT', 'source-lot', base=1)])
+        self.assertEqual(result['acceptedCount'], 2)
+        body = {'deviceId': self.device, 'leaseVersion': 1, 'baseRevisionNo': 2}
+        self.api('POST', '/records/source-lot/publish', body, user='alice', expected=403)
+        published = self.api('POST', '/records/source-lot/publish', body)
+        self.assertEqual(published['outputs'][0]['outputCode'], 'LOT-20261023-001')
+        type(self).output = published['outputs'][0]
+        self.assertEqual(self.api('POST', '/records/source-lot/publish', body), published)
+        self.assertEqual(sql('SELECT currentValue FROM CodeSequence LIMIT 1'), '1')
+        self.api('PUT', '/templates/' + draft['id'] + '/rules', {'rules': []}, expected=409)
+
+    def downstream_batch(self, mutations):
+        return self.api('POST', '/sync/batches', {'id': secrets.token_hex(16), 'ppmFormId': self.other_form,
+                        'deviceId': self.downstream_device, 'leaseVersion': 1, 'businessDate': '2026-10-23',
+                        'mutations': mutations}, user='bob')
+
+    def test_09_trace_links_require_an_eligible_configured_source(self):
+        target = self.api('POST', '/forms/' + self.other_form + '/templates', {'definitionJson': {
+            'fields': [{'key': 'sourceLot', 'label': 'Source lot', 'type': 'trace-code', 'required': True}]}})
+        type(self).target_template = target['id']
+        self.api('POST', '/templates/' + target['id'] + '/publish', {})
+        connection = self.api('PUT', '/forms/' + self.other_form + '/connections', {
+            'sourcePpmFormId': self.form, 'sourceOutputKey': 'lotCode', 'targetInputKey': 'sourceLot',
+            'connectionName': 'Lot dependency', 'status': 'ACTIVE', 'requiresApprovalBeforeUse': False})
+        type(self).connection = connection['id']
+        device = self.api('POST', '/devices', {'deviceUuid': 'test-downstream-device', 'displayName': 'Downstream'})
+        type(self).downstream_device = device['id']
+        self.api('PUT', '/forms/' + self.other_form + '/lease', {'deviceId': device['id'], 'expectedLeaseVersion': 0})
+        self.api('PUT', '/forms/' + self.other_form + '/access/test-bob', {'canView': True, 'canCreate': True, 'canEdit': True})
+        grant = self.api('POST', '/sync/grants', {'ppmFormId': self.other_form, 'deviceId': device['id'], 'leaseVersion': 1}, user='bob')
+        type(self).downstream_proof = grant['authorProof']
+        create = {'clientMutationId': secrets.token_hex(16), 'operationType': 'CREATE_DRAFT', 'recordId': 'downstream-lot',
+                  'baseRevisionNo': 0, 'userId': 'test-bob', 'authorProof': self.downstream_proof,
+                  'templateVersionId': target['id'], 'areaPpmAssignmentId': self.forms['PPM-002']['areaPpmAssignmentId'],
+                  'productionDate': '2026-10-23', 'dataJson': {'sourceLot': self.output['outputCode']}}
+        missing = self.downstream_batch([create])
+        self.assertEqual(missing['results'][0]['error'], 'TRACE_SELECTION_REQUIRED')
+        create['clientMutationId'] = secrets.token_hex(16)
+        create['traceSelections'] = [{'connectionId': self.connection, 'sourceTraceOutputId': 'missing', 'inputPath': 'sourceLot'}]
+        self.assertEqual(self.downstream_batch([create])['results'][0]['error'], 'TRACE_OUTPUT_INELIGIBLE')
+        create['clientMutationId'] = secrets.token_hex(16)
+        create['traceSelections'][0]['sourceTraceOutputId'] = self.output['id']
+        accepted = self.downstream_batch([create])
+        self.assertEqual(accepted['results'][0]['status'], 'APPLIED', accepted)
+        self.assertEqual(sql("SELECT sourceTraceOutputId FROM PpmTraceLink WHERE downstreamInputKey='sourceLot' LIMIT 1"), self.output['id'])
+
+    def test_10_trace_correction_preserves_links_and_creates_revalidation(self):
+        body = {'deviceId': self.device, 'leaseVersion': 1, 'baseRevisionNo': 2,
+                'reason': 'Correct production reading', 'dataJson': {'supplier': 'Lot supplier', 'temperature': 91, 'accepted': True}}
+        corrected = self.api('POST', '/records/source-lot/corrections', body, user='alice')
+        self.assertEqual(corrected['revisionNo'], 3)
+        self.assertEqual(sql("SELECT status FROM PpmTraceOutput WHERE id='" + self.output['id'] + "'"), 'SUPERSEDED')
+        self.assertEqual(sql('SELECT COUNT(*) FROM TraceRevalidationItem'), '1')
+        self.assertEqual(sql('SELECT COUNT(*) FROM PpmTraceLink'), '1')
+        self.assertEqual(sql("SELECT COUNT(*) FROM PpmRecordRevision WHERE recordId='source-lot'"), '3')
+        # Reusing an old source through a fresh revision must fail server revalidation.
+        submit = {'clientMutationId': secrets.token_hex(16), 'operationType': 'QUEUE_SUBMIT', 'recordId': 'downstream-lot',
+                  'baseRevisionNo': 1, 'userId': 'test-bob', 'authorProof': self.downstream_proof}
+        self.assertEqual(self.downstream_batch([submit])['results'][0]['error'], 'TRACE_OUTPUT_INELIGIBLE')
 
 
 if __name__ == '__main__':

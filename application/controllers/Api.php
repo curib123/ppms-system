@@ -65,6 +65,18 @@ class Api extends CI_Controller
         if ($method === 'GET' && preg_match('#^records/([^/]+)$#D', $path, $match)) {
             return $this->ppms_record_service->view($actor, $match[1]);
         }
+        if ($method === 'PUT' && preg_match('#^templates/([^/]+)/rules$#D', $path, $match)) {
+            return $this->ppms_trace_service->rules($actor, $match[1], $input);
+        }
+        if ($method === 'PUT' && preg_match('#^forms/([^/]+)/connections$#D', $path, $match)) {
+            return $this->ppms_trace_service->connection($actor, $match[1], $input);
+        }
+        if ($method === 'POST' && preg_match('#^records/([^/]+)/publish$#D', $path, $match)) {
+            return $this->ppms_trace_service->publish($actor, $match[1], $input);
+        }
+        if ($method === 'POST' && preg_match('#^records/([^/]+)/corrections$#D', $path, $match)) {
+            return $this->ppms_record_service->correct($actor, $match[1], $input);
+        }
         throw new Ppms_problem('ENDPOINT_NOT_FOUND', 404);
     }
 
