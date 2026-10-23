@@ -1,0 +1,61 @@
+<?php
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+/** JSON-only, bearer-authenticated entry point; services own business rules. */
+class Api extends CI_Controller
+{
+    public function _remap($resource, $segments = array())
+    {
+        try {
+            $this->load->library('ppms_auth_service');
+            $method = $this->input->method(TRUE);
+            $path = $resource.($segments ? '/'.implode('/', $segments) : '');
+            $input = array();
+            if (in_array($method, array('POST', 'PUT', 'PATCH'), TRUE)) {
+                if (stripos((string) $this->input->get_request_header('Content-Type'), 'application/json') !== 0) {
+                    throw new Ppms_problem('JSON_CONTENT_TYPE_REQUIRED', 415);
+                }
+                $raw = $this->input->raw_input_stream;
+                if (strlen($raw) > 2 * 1024 * 1024) { throw new Ppms_problem('PAYLOAD_TOO_LARGE', 413); }
+                try { $input = (array) Ppms_values::object(json_decode($raw, FALSE, 64, JSON_THROW_ON_ERROR)); }
+                catch (JsonException $error) { throw new Ppms_problem('INVALID_JSON', 400); }
+            }
+            if ($method === 'POST' && $path === 'auth/login') {
+                $result = $this->ppms_auth_service->login($input, $this->input->ip_address());
+            } else {
+                $actor = $this->ppms_auth_service->authenticate($this->input->get_request_header('Authorization'));
+                $result = $this->dispatch($method, $path, $actor, $input);
+            }
+            $this->respond(200, $result);
+        } catch (Ppms_problem $error) {
+            $this->respond($error->status, array('error' => $error->getMessage(), 'details' => (object) $error->details));
+        } catch (Throwable $error) {
+            // SQL errors can contain credentials or production data; expose neither.
+            log_message('error', 'PPMS API failure: '.get_class($error).' code '.(int) $error->getCode());
+            $this->respond(503, array('error' => 'SERVICE_UNAVAILABLE'));
+        }
+    }
+
+    private function dispatch($method, $path, $actor, $input)
+    {
+        if ($method === 'GET' && $path === 'me') { return $this->ppms_auth_service->publicUser($actor); }
+        if ($method === 'POST' && $path === 'auth/logout') { return $this->ppms_auth_service->logout($actor); }
+        $this->load->library('ppms_device_service');
+        if ($method === 'POST' && $path === 'devices') { return $this->ppms_device_service->register($actor, $input); }
+        if ($method === 'PUT' && preg_match('#^forms/([^/]+)/lease$#D', $path, $match)) {
+            return $this->ppms_device_service->assignLease($actor, $match[1], $input);
+        }
+        if ($method === 'PUT' && preg_match('#^forms/([^/]+)/access/([^/]+)$#D', $path, $match)) {
+            return $this->ppms_device_service->assignUser($actor, $match[1], $match[2], $input);
+        }
+        if ($method === 'POST' && $path === 'sync/grants') { return $this->ppms_device_service->grant($actor, $input); }
+        throw new Ppms_problem('ENDPOINT_NOT_FOUND', 404);
+    }
+
+    private function respond($status, $result)
+    {
+        $this->output->set_status_header($status)->set_header('Cache-Control: no-store')
+            ->set_header('X-Content-Type-Options: nosniff')->set_content_type('application/json')
+            ->set_output(json_encode($result, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR));
+    }
+}
