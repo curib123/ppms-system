@@ -21,7 +21,7 @@ class MigrationIntegration(unittest.TestCase):
             result = cli('setup', 'migrate')
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
             self.assertEqual(json.loads(result.stdout)['status'], 'migrated')
-        self.assertEqual(sql('SELECT COUNT(*) FROM PpmsSchemaMigration'), '2')
+        self.assertEqual(sql('SELECT COUNT(*) FROM PpmsSchemaMigration'), '3')
         self.assertEqual(cli('setup', 'verify').returncode, 0)
         self.assertEqual(sql('SELECT COUNT(*) FROM PpmForm'), '26')
         self.assertEqual(sql('SELECT COUNT(*) FROM PpmFormDeviceLease'), '0')
@@ -47,6 +47,29 @@ class MigrationIntegration(unittest.TestCase):
         result = subprocess.run(PHP + ['index.php', 'accounts', 'create'],
                                 cwd=ROOT, env=ENV, input=account, capture_output=True, text=True, timeout=10)
         self.assertNotEqual(result.returncode, 0)
+
+    def test_04_upgrade_preserves_an_existing_experimental_batch_table(self):
+        target = DATABASE + '_legacy'
+        sql('CREATE DATABASE `' + target + '` CHARACTER SET utf8mb4 COLLATE utf8mb4_bin', None)
+        try:
+            result = cli('setup', 'install', env=dict(ENV, DB_DATABASE=target))
+            self.assertEqual(result.returncode, 0, result.stderr)
+            sql("CREATE TABLE SyncDailyBatch (id VARCHAR(191) PRIMARY KEY, ppmFormId VARCHAR(191) NOT NULL, "
+                "userId VARCHAR(191) NOT NULL, deviceId VARCHAR(191) NOT NULL, businessDate DATE NOT NULL, "
+                "batchNo INT NOT NULL DEFAULT 1, status ENUM('DRAFT','PUSHING','PARTIAL','ACCEPTED','CONFLICTED','REJECTED') NOT NULL DEFAULT 'DRAFT', "
+                "baseServerCursor BIGINT NOT NULL DEFAULT 0, mutationCount INT NOT NULL DEFAULT 0, acceptedCount INT NOT NULL DEFAULT 0, "
+                "conflictCount INT NOT NULL DEFAULT 0, rejectedCount INT NOT NULL DEFAULT 0, createdAt DATETIME(3) DEFAULT CURRENT_TIMESTAMP(3), "
+                "pushedAt DATETIME(3), completedAt DATETIME(3)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin", target)
+            # An existing experimental row must survive unchanged.
+            sql("INSERT INTO SyncDailyBatch (id,ppmFormId,userId,deviceId,businessDate,status) "
+                "VALUES ('legacy-history','legacy-form','legacy-user','legacy-device','2026-10-22','ACCEPTED')", target)
+            for _ in range(2):
+                result = cli('setup', 'migrate', env=dict(ENV, DB_DATABASE=target))
+                self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertEqual(sql("SELECT CONCAT(status,':',leaseVersion,':',payloadHash) FROM SyncDailyBatch WHERE id='legacy-history'", target), 'ACCEPTED:1:')
+            self.assertEqual(query('SELECT resultJson FROM SyncDailyBatch LIMIT 1', target).returncode, 0)
+        finally:
+            sql('DROP DATABASE `' + target + '`', None)
 
 
 if __name__ == '__main__':
