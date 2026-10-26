@@ -85,4 +85,5 @@ future offline browser client. Update README with the check commands and map.
 - [CLI reference](https://github.com/Krv-Labs/topos/blob/297a01301610124544a1b8a08123359ab32cb55e/docs/source/cli.rst)
 
 The grouping and Docker runner are implementation recommendations, not
-upstream requirements. Implementation awaits approval of this design.
+upstream requirements. The user approved this design and implementation on
+2026-10-26.
