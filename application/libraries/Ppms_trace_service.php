@@ -123,13 +123,14 @@ class Ppms_trace_service
             $connection = $this->store->row('SELECT * FROM PpmTraceConnection WHERE id=? AND targetPpmFormId=? AND status=\'ACTIVE\'', array(Ppms_values::text($selection, 'connectionId'), $form));
             $pattern = preg_replace('/\.\d+(?=\.|$)/', '[]', $path);
             if (!$connection || $connection['targetInputKey'] !== $pattern) { throw new Ppms_problem('TRACE_CONNECTION_INVALID'); }
-            $output = $this->store->row('SELECT o.*,t.ppmFormId,r.status AS recordStatus,r.archivedAt,f.status AS formStatus
+            // Review status and legacy approval flags are advisory metadata.
+            $output = $this->store->row('SELECT o.*,t.ppmFormId,r.archivedAt,f.status AS formStatus
                 FROM PpmTraceOutput o JOIN PpmRecord r ON r.id=o.recordId JOIN PpmTemplateVersion t ON t.id=r.templateVersionId
                 JOIN PpmForm f ON f.id=t.ppmFormId WHERE o.id=? FOR UPDATE', array(Ppms_values::text($selection, 'sourceTraceOutputId')));
             if (!$output || !in_array($output['status'], array('PUBLISHED','LINKED_DOWNSTREAM'), TRUE) || $output['archivedAt'] || $output['formStatus'] !== 'ACTIVE'
                 || $output['recordId'] === ($context['recordId'] ?? NULL) || $this->hasPendingImpact($output['recordId'])
                 || $output['ppmFormId'] !== $connection['sourcePpmFormId'] || $output['outputKey'] !== $connection['sourceOutputKey']
-                || $output['outputCode'] !== $value || ((int) $connection['requiresApprovalBeforeUse'] && !in_array($output['recordStatus'], array('FSQA_APPROVED','SUPERVISOR_APPROVED','CLOSED'), TRUE))) {
+                || $output['outputCode'] !== $value) {
                 throw new Ppms_problem('TRACE_OUTPUT_INELIGIBLE');
             }
             if (!$write) { continue; }

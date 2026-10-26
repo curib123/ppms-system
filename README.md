@@ -15,10 +15,12 @@ otherwise valid source from feeding a connected PPM.
 
 Start with the [active implementation plan](docs/superpowers/plans/2026-10-26-simple-trackable-backend.md)
 and its [design](docs/superpowers/specs/2026-10-26-simple-trackable-backend-design.md).
-These replace the obsolete root plans. The admin panel and complete advisory
-review behavior are planned work, not implemented features of the current
-setup/form-register page. Preserved local functional changes belong to Task 2;
-the quality tooling is implemented and verified.
+These replace the obsolete root plans. The API records independent,
+revision-specific quality guidance with replay-safe events. Review notes do not
+change content, lifecycle or trace availability; actual corrections retain
+their revision and downstream-impact history. The admin panel and new
+list/history endpoints remain planned work; the current page is the setup/form
+register. The quality tooling is implemented and verified.
 
 See the [code map](docs/architecture.md),
 [Flutter client contract](docs/flutter-client-contract.md),

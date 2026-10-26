@@ -2,8 +2,8 @@
 
 This maps existing service ownership and the revised client boundary. The
 [active plan](superpowers/plans/2026-10-26-simple-trackable-backend.md) tracks
-implementation. The admin panel and complete advisory review behavior are
-targets; pending functional changes still need their own verification. The
+implementation. The API supports independent revision-scoped review guidance;
+the admin panel and bounded list/history endpoints remain planned work. The
 syntax/Topos runner is implemented; see [quality checks](code-quality.md).
 
 PPMS runs on CodeIgniter 3 with its native MySQLi driver and MySQL/MariaDB.
@@ -37,12 +37,12 @@ regression checks, not a statement that they were run when reading this map.
 | `forms`, `forms/{id}/areas/{area}` | `form` | `PpmForm`, `ProductionArea`, `AreaPpmAssignment` | 15 |
 | `areas` | `Api` via store | `ProductionArea` | No dedicated area-list test |
 | `forms/{id}/templates`, `templates/{id}`, `templates/{id}/publish` | `template` + validator | `PpmTemplateVersion` | 03, 06, 14, 15 |
-| `records/{id}`, `records/{id}/corrections` | `record` | `PpmRecord`, `PpmRecordRevision`, `RevisionChange`, `SyncConflict` | 05, 06, 07, 10, 19 |
+| `records/{id}`, `records/{id}/corrections` | `record` | `PpmRecord`, `PpmRecordRevision`, `RevisionChange`, `WorkflowEvent`, `SyncConflict` | 05, 06, 07, 10, 19, 21, 23, 25 |
 | `sync/batches` | `sync` -> `record` | `SyncDailyBatch`, `SyncMutationReceipt`, `SyncConflict` | 04, 05, 07, 16, 18a |
 | `templates/{id}/rules`, `forms/{id}/connections`, `records/{id}/publish` | `trace` | `TraceCodeRule`, `CodeSequence`, `PpmTraceConnection`, `PpmTraceOutput`, `PpmTraceLink` | 08, 09, 10, 12, 13, 18, 19 |
-| `records/{id}/review`, `revalidations/items/{id}/resolve` | `workflow` | `WorkflowEvent`, `PpmRecordRevision`, `TraceRevalidation`, `TraceRevalidationItem` | 12, 19 |
+| `records/{id}/review`, `revalidations/items/{id}/resolve` | `workflow` | `WorkflowEvent`, `PpmRecordRevision`, `TraceRevalidation`, `TraceRevalidationItem` | 12, 19, 21–27 |
 | `forms/{id}/revalidations` | `record` | `TraceRevalidation`, `TraceRevalidationItem`, `PpmTraceLink` | 10, 12, 19 |
-| `sync/bootstrap`, `sync/pull`, `sync/ack` | `pull` | `SyncChangeEvent`, `SyncPullCursor`; authorized template, record and trace reads | 11, 19, 20 |
+| `sync/bootstrap`, `sync/pull`, `sync/ack` | `pull` | `SyncChangeEvent`, `SyncPullCursor`; authorized template, record and trace reads | 11, 19, 20, 24 |
 
 `AuditLog` and `SyncChangeEvent` record applicable service writes. Services
 reuse authentication, device and template checks rather than trusting browser
@@ -55,16 +55,31 @@ fields. Records pin that version, and `PpmRecordRevision.dataJson` stores each
 immutable revision. A new ordinary form uses configuration and these shared
 tables rather than a form-specific table or controller.
 
-The required rule is that Checked, Reviewed and Approved are independent
-guidance against a content revision. A submitted source must publish and feed
-the next form before review. `requiresApprovalBeforeUse` remains inert
-compatibility metadata even when true. Reuse `WorkflowEvent` for review notes,
-with audit/feed refreshes and no content revision or lifecycle change.
+Checked (FSQA), Reviewed (SUPERVISOR) and Approved (PLANT_MANAGER) are
+independent guidance against an exact content revision. `reviewSummary`
+contains that revision's ID and each stage's latest event/status: `PENDING`,
+`CONFIRMED` or `NEEDS_CORRECTION`. ADMIN may act at any explicitly named stage;
+reviewer roles may omit the stage to infer their own. Draft, closed and archived
+records reject new guidance. Historical events remain intact, including a
+legacy Plant Manager `CLOSE` confirmation on its recorded revision.
 
-Some direct approval filters have been removed in pending local edits, but
-`Ppms_workflow_service::review` still advances sequential states and retires
-outputs on RETURN. It also requires the mobile lease. Task 2 removes these
-remaining blockers; this map does not claim the target is implemented.
+`Ppms_workflow_service::review` appends a `WorkflowEvent`, audit entry and
+`RECORD_REVISION` metadata refresh atomically. It never increments content
+revision, changes lifecycle, retires/republishes outputs or starts revalidation.
+A stable client `eventId` makes retries replay-safe. Current access and role
+checks precede event comparison; identical retries after correction return the
+original event alongside the current summary, without reviewing new content.
+New content revisions start with pending guidance.
+
+Review and impact resolution require role/form access, not the mobile device's
+credential. Optional device context must still prove possession and the current
+lease; a token header alone or partial body context is rejected. The service
+does not take over a mobile lease for review.
+
+A valid submitted source may publish and feed the next form before review.
+Pending, confirmed and needs-correction indicators leave eligible sources
+usable in bootstrap/pull, selections and replacement validation.
+`requiresApprovalBeforeUse` remains inert compatibility metadata even when true.
 
 Source eligibility still requires an active configured connection, an eligible
 published output and a matching value/path. Permissions, device leases,
@@ -79,6 +94,9 @@ grants, immutable daily batches, idempotent receipts, explicit revision
 conflicts, selective snapshots/feeds and signed cursor acknowledgments.
 Each mutation commits its record, receipt, audit and change events together;
 one rejected mutation does not discard successful mutations in the batch.
+Review metadata refreshes keep the content revision unchanged; clients must
+apply `RECORD_REVISION` by increasing feed sequence and persist the summary
+before acknowledging the cursor.
 
 Flutter owns the renderer, durable local storage/queue, grant-expiry UI and
 retry/reconciliation screens. See [the Flutter contract](flutter-client-contract.md).

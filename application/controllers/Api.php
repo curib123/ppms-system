@@ -40,6 +40,11 @@ class Api extends CI_Controller
     {
         if ($method === 'GET' && $path === 'me') { return $this->ppms_auth_service->publicUser($actor); }
         if ($method === 'POST' && $path === 'auth/logout') { return $this->ppms_auth_service->logout($actor); }
+        if ($method === 'POST' && preg_match('#^(records/[^/]+/review|revalidations/items/[^/]+/resolve)$#D', $path)
+            && $this->input->get_request_header('X-PPMS-Device-Token') !== NULL
+            && !array_key_exists('deviceId', $input) && !array_key_exists('leaseVersion', $input)) {
+            throw new Ppms_problem('DEVICE_CONTEXT_REQUIRED', 400);
+        }
         if (isset($input['deviceId'])) {
             $this->load->library('ppms_device_service');
             $this->ppms_device_service->credential($input['deviceId'], $this->input->get_request_header('X-PPMS-Device-Token'));

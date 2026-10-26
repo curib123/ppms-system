@@ -8,6 +8,8 @@ import tempfile
 import time
 import unittest
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import contextmanager
+from threading import Barrier
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
@@ -56,7 +58,7 @@ class PpmApiIntegration(unittest.TestCase):
         cls.server.terminate()
         cls.server.wait(timeout=5)
 
-    def api(self, method, path, data=None, user='admin', expected=200, device_auth=True):
+    def api(self, method, path, data=None, user='admin', expected=200, device_auth=True, extra_headers=None):
         headers = {'Content-Type': 'application/json'}
         if user in self.tokens:
             headers['Authorization'] = 'Bearer ' + self.tokens[user]
@@ -65,6 +67,7 @@ class PpmApiIntegration(unittest.TestCase):
                 headers['X-PPMS-Device-Token'] = self.device_tokens[data['deviceId']]
             elif isinstance(device_auth, str):
                 headers['X-PPMS-Device-Token'] = device_auth
+        headers.update(extra_headers or {})
         request = Request(self.base + path, data=None if data is None else json.dumps(data).encode(),
                           headers=headers, method=method)
         try:
@@ -88,7 +91,7 @@ class PpmApiIntegration(unittest.TestCase):
     def test_01_individual_login_and_bearer_authentication(self):
         self.api('GET', '/me', user=None, expected=401)
         self.api('POST', '/auth/login', {'username': 'alice', 'password': 'wrong'}, user=None, expected=401)
-        for user in ('admin', 'alice', 'bob', 'outsider'):
+        for user in ('admin', 'alice', 'bob', 'outsider', 'fsqa', 'supervisor', 'manager', 'denied-reviewer'):
             result = self.login(user)
             self.assertEqual(result['user']['id'], 'test-' + user)
             self.assertNotIn('passwordHash', result['user'])
@@ -320,38 +323,56 @@ class PpmApiIntegration(unittest.TestCase):
         self.assertEqual(shared['events'], [])
         self.assertEqual(sql('SELECT COUNT(*) FROM SyncPullCursor'), '1')
 
-    def test_12_approval_gate_and_downstream_revalidation(self):
+    def test_12_advisory_review_and_downstream_revalidation(self):
         submitted = self.batch([self.mutation('QUEUE_SUBMIT', 'source-lot', base=3)])
         self.assertEqual(submitted['results'][0]['revisionNo'], 4)
         published = self.api('POST', '/records/source-lot/publish', {'deviceId': self.device, 'leaseVersion': 1, 'baseRevisionNo': 4})
         output = published['outputs'][0]
         self.assertEqual(output['outputCode'], 'LOT-20261023-002')
-        self.api('PUT', '/forms/' + self.other_form + '/connections', {
+        connection = self.api('PUT', '/forms/' + self.other_form + '/connections', {
             'sourcePpmFormId': self.form, 'sourceOutputKey': 'lotCode', 'targetInputKey': 'sourceLot',
             'connectionName': 'Lot dependency', 'status': 'ACTIVE', 'requiresApprovalBeforeUse': True})
+        self.assertEqual(int(connection['requiresApprovalBeforeUse']), 1)
+        self.assertEqual(self.api('GET', '/records/source-lot')['record']['status'], 'SUBMITTED')
+        self.assertEqual(self.api('GET', '/records/downstream-lot', user='bob')['record']['status'], 'ACTIVE')
+        sync = {'ppmFormId': self.other_form, 'deviceId': self.downstream_device, 'leaseVersion': 1}
+        snapshot = self.api('POST', '/sync/bootstrap', sync, user='bob')
+        source = next(row for row in snapshot['sources'] if row['sourcePpmFormId'] == self.form)
+        self.assertIn(output['id'], [row['id'] for row in source['outputs']])
+        pull = self.api('POST', '/sync/pull', dict(sync, sourcePpmFormId=self.form, afterSequence='0'), user='bob')
+        self.assertIn(output['id'], [row['payloadJson']['id'] for row in pull['events'] if row['eventType'] == 'TRACE_OUTPUT_PUBLISHED'])
         change = {'clientMutationId': secrets.token_hex(16), 'operationType': 'UPDATE_DRAFT', 'recordId': 'downstream-lot',
                   'baseRevisionNo': 1, 'userId': 'test-bob', 'authorProof': self.downstream_proof,
                   'dataJson': {'sourceLot': output['outputCode']},
                   'traceSelections': [{'connectionId': self.connection, 'sourceTraceOutputId': output['id'], 'inputPath': 'sourceLot'}]}
-        self.assertEqual(self.downstream_batch([change])['results'][0]['error'], 'TRACE_OUTPUT_INELIGIBLE')
-        review = {'deviceId': self.device, 'leaseVersion': 1, 'baseRevisionNo': 4, 'action': 'APPROVE', 'reason': 'FSQA checked source'}
-        self.api('POST', '/records/source-lot/review', review, user='alice', expected=403)
-        approved = self.api('POST', '/records/source-lot/review', review)
-        self.assertEqual(approved['record']['status'], 'FSQA_APPROVED')
-        change['clientMutationId'] = secrets.token_hex(16)
-        self.assertEqual(self.downstream_batch([change])['results'][0]['revisionNo'], 2)
+        changed = self.downstream_batch([change])
+        self.assertEqual(changed['results'][0].get('revisionNo'), 2, changed)
+        self.assertEqual(self.api('GET', '/records/downstream-lot', user='bob')['record']['status'], 'ACTIVE')
         impacts = self.api('GET', '/forms/' + self.other_form + '/revalidations', user='bob')['items']
         self.assertEqual(len(impacts), 1)
         item = impacts[0]['id']
         self.assertEqual(self.api('GET', '/records/downstream-lot', user='bob')['revalidations'][0]['id'], item)
-        context = {'deviceId': self.downstream_device, 'leaseVersion': 1, 'baseRevisionNo': 2,
+        context = {'baseRevisionNo': 2,
                    'decision': 'REPLACED_SOURCE', 'notes': 'Selected and validated replacement lot'}
         self.api('POST', '/revalidations/items/' + item + '/resolve', context, user='bob', expected=403)
+        self.api('POST', '/revalidations/items/' + item + '/resolve', dict(context, leaseVersion=1), expected=422)
+        self.api('POST', '/revalidations/items/' + item + '/resolve',
+                 dict(context, deviceId=self.downstream_device, leaseVersion=1), expected=403, device_auth=False)
+        self.api('POST', '/revalidations/items/' + item + '/resolve', context, expected=400,
+                 extra_headers={'X-PPMS-Device-Token': self.device_tokens[self.downstream_device]})
         self.api('POST', '/revalidations/items/' + item + '/resolve', context)
         self.api('POST', '/revalidations/items/' + item + '/resolve', dict(context, notes='Overwrite prior disposition'), expected=409)
         self.assertEqual(sql('SELECT status FROM TraceRevalidation LIMIT 1'), 'RESOLVED')
         self.assertEqual(sql('SELECT COUNT(*) FROM PpmTraceLink'), '2')
-        self.assertEqual(sql("SELECT currentRevisionNo FROM PpmRecord WHERE id='source-lot'"), '5')
+        self.assertEqual(self.api('GET', '/records/source-lot')['record']['status'], 'SUBMITTED')
+        review = {'eventId': secrets.token_hex(16), 'baseRevisionNo': 4, 'step': 'FSQA_REVIEW',
+                  'action': 'APPROVE', 'reason': 'FSQA checked source'}
+        self.api('POST', '/records/source-lot/review', review, user='alice', expected=403)
+        approved = self.api('POST', '/records/source-lot/review', review)
+        self.assertEqual(approved['record']['status'], 'SUBMITTED')
+        self.assertEqual(approved['reviewSummary']['checked']['status'], 'CONFIRMED')
+        self.assertEqual(sql("SELECT COUNT(*) FROM WorkflowEvent WHERE recordId='source-lot' AND step='FSQA_REVIEW' AND action='APPROVE'"), '1')
+        self.assertEqual(sql("SELECT currentRevisionNo FROM PpmRecord WHERE id='source-lot'"), '4')
 
     def test_13_concurrent_publication_reads_after_the_form_lock(self):
         draft = self.api('POST', '/forms/' + self.form + '/templates', {'definitionJson': self.definition})
@@ -606,6 +627,380 @@ class PpmApiIntegration(unittest.TestCase):
         self.api('POST', '/sync/grants', {'ppmFormId': self.form, 'deviceId': replacement['id'], 'leaseVersion': 2}, user='bob', expected=403)
         self.api('POST', '/auth/logout', {}, user='bob')
         self.api('GET', '/me', user='bob', expected=401)
+
+    def review_fixture(self, submitted=True):
+        """Make an independent mobile-owned source without changing earlier scenarios."""
+        identity = secrets.token_hex(8)
+        form = self.api('POST', '/forms', {'ppmCode': 'REVIEW-' + identity,
+                        'title': 'Review fixture', 'areaId': sql('SELECT id FROM ProductionArea LIMIT 1')})['id']
+        assignment = sql("SELECT id FROM AreaPpmAssignment WHERE ppmFormId='" + form + "' LIMIT 1")
+        date = sql("SELECT DATE_FORMAT(effectiveFrom,'%Y-%m-%d') FROM AreaPpmAssignment WHERE id='" + assignment + "'")
+        definition = {'fields': [{'key': 'name', 'label': 'Name', 'type': 'text', 'required': True},
+                                 {'key': 'code', 'label': 'Code', 'type': 'text', 'required': True}]}
+        template = self.api('POST', '/forms/' + form + '/templates', {'definitionJson': definition})['id']
+        self.api('PUT', '/templates/' + template + '/rules', {'rules': [{
+            'outputKey': 'code', 'outputLabel': 'Code', 'sourceType': 'MANUAL_EXTERNAL', 'status': 'ACTIVE',
+            'requiresUniqueBusinessCode': True, 'configurationJson': {'outputPath': 'code'}}]})
+        self.api('POST', '/templates/' + template + '/publish', {})
+        device = self.api('POST', '/devices', {'deviceUuid': 'review-' + identity, 'displayName': 'Review source device'})['id']
+        self.api('PUT', '/forms/' + form + '/lease', {'deviceId': device, 'expectedLeaseVersion': 0})
+        record = 'review-' + identity
+        mutations = [{'clientMutationId': secrets.token_hex(16), 'operationType': 'CREATE_DRAFT',
+                      'userId': 'test-admin', 'recordId': record, 'baseRevisionNo': 0,
+                      'templateVersionId': template, 'areaPpmAssignmentId': assignment,
+                      'productionDate': date, 'dataJson': {'name': 'Original', 'code': record}}]
+        if submitted:
+            mutations.append({'clientMutationId': secrets.token_hex(16), 'operationType': 'QUEUE_SUBMIT',
+                              'userId': 'test-admin', 'recordId': record, 'baseRevisionNo': 1})
+        result = self.api('POST', '/sync/batches', {'id': secrets.token_hex(16), 'ppmFormId': form,
+                          'deviceId': device, 'leaseVersion': 1, 'mutations': mutations})
+        self.assertEqual(result['acceptedCount'], len(mutations), result)
+        output = None
+        if submitted:
+            output = self.api('POST', '/records/' + record + '/publish',
+                              {'deviceId': device, 'leaseVersion': 1, 'baseRevisionNo': 2})['outputs'][0]
+        for user in ('fsqa', 'supervisor', 'manager'):
+            self.api('PUT', '/forms/' + form + '/access/test-' + user, {'canView': True})
+        return {'form': form, 'record': record, 'device': device, 'output': output}
+
+    def review_command(self, **changes):
+        result = {'eventId': secrets.token_hex(16), 'baseRevisionNo': 2, 'step': 'FSQA_REVIEW',
+                  'action': 'APPROVE', 'reason': 'Checked input values'}
+        result.update(changes)
+        return result
+
+    def test_21_independent_quality_reviews_preserve_content_and_trace_outputs(self):
+        fixture = self.review_fixture()
+        path = '/records/' + fixture['record']
+        before = self.api('GET', path)
+        outputs = sql("SELECT GROUP_CONCAT(CONCAT(id,':',status) ORDER BY id) FROM PpmTraceOutput WHERE recordId='" + fixture['record'] + "'")
+        impacts = sql('SELECT COUNT(*) FROM TraceRevalidationItem')
+        trace_events = sql("SELECT COUNT(*) FROM SyncChangeEvent WHERE ppmFormId='" + fixture['form'] + "' AND eventType LIKE 'TRACE_OUTPUT_%'")
+        first = self.api('POST', path + '/review', self.review_command(step='SUPERVISOR_REVIEW'), user='supervisor')
+        self.assertEqual(first['reviewSummary']['checked']['status'], 'PENDING')
+        self.assertEqual(first['reviewSummary']['reviewed']['status'], 'CONFIRMED')
+        returned = self.api('POST', path + '/review', self.review_command(action='RETURN', reason='Spelling needs attention'), user='fsqa')
+        self.assertEqual(returned['reviewSummary']['checked']['status'], 'NEEDS_CORRECTION')
+        final = self.api('POST', path + '/review', self.review_command(step='PLANT_MANAGER_REVIEW'), user='manager')
+        self.assertEqual(final['reviewSummary']['approved']['status'], 'CONFIRMED')
+        self.assertEqual(final['reviewSummary']['revisionId'], before['revision']['id'])
+        self.assertEqual(final['reviewEvent']['revisionId'], before['revision']['id'])
+        for field in ('currentRevisionNo', 'status', 'closedAt', 'submittedAt', 'templateVersionId'):
+            self.assertEqual(final['record'][field], before['record'][field])
+        self.assertEqual(final['revision'], before['revision'])
+        self.assertEqual(final['revisions'], before['revisions'])
+        self.assertEqual(sql("SELECT GROUP_CONCAT(CONCAT(id,':',status) ORDER BY id) FROM PpmTraceOutput WHERE recordId='" + fixture['record'] + "'"), outputs)
+        self.assertEqual(sql('SELECT COUNT(*) FROM TraceRevalidationItem'), impacts)
+        self.assertEqual(sql("SELECT COUNT(*) FROM SyncChangeEvent WHERE ppmFormId='" + fixture['form'] + "' AND eventType LIKE 'TRACE_OUTPUT_%'"), trace_events)
+
+    def test_21a_correction_notes_do_not_gate_connected_sources_with_either_flag(self):
+        source = self.review_fixture()
+        source_path = '/records/' + source['record']
+        note = self.review_command(action='RETURN', reason='Check the entered spelling',
+                                   deviceId=source['device'], leaseVersion=1)
+        returned = self.api('POST', source_path + '/review', note)
+        self.assertEqual(returned['record']['status'], 'SUBMITTED')
+        self.assertEqual(returned['record']['currentRevisionNo'], 2)
+        self.assertEqual(sql("SELECT status FROM PpmTraceOutput WHERE id='" + source['output']['id'] + "'"), 'PUBLISHED')
+        targets = []
+        for approval_flag in (False, True):
+            identity = secrets.token_hex(8)
+            form = self.api('POST', '/forms', {'ppmCode': 'TARGET-' + identity, 'title': 'Connected review fixture',
+                            'areaId': sql('SELECT id FROM ProductionArea LIMIT 1')})['id']
+            assignment = sql("SELECT id FROM AreaPpmAssignment WHERE ppmFormId='" + form + "' LIMIT 1")
+            date = sql("SELECT DATE_FORMAT(effectiveFrom,'%Y-%m-%d') FROM AreaPpmAssignment WHERE id='" + assignment + "'")
+            template = self.api('POST', '/forms/' + form + '/templates', {'definitionJson': {
+                'fields': [{'key': 'sourceCode', 'label': 'Source code', 'type': 'trace-code', 'required': True}]}})['id']
+            self.api('POST', '/templates/' + template + '/publish', {})
+            connection = self.api('PUT', '/forms/' + form + '/connections', {'sourcePpmFormId': source['form'],
+                                  'sourceOutputKey': 'code', 'targetInputKey': 'sourceCode', 'connectionName': 'Reviewed source',
+                                  'status': 'ACTIVE', 'requiresApprovalBeforeUse': approval_flag})['id']
+            device = self.api('POST', '/devices', {'deviceUuid': 'target-' + identity, 'displayName': 'Target device'})['id']
+            self.api('PUT', '/forms/' + form + '/lease', {'deviceId': device, 'expectedLeaseVersion': 0})
+            context = {'ppmFormId': form, 'deviceId': device, 'leaseVersion': 1}
+            snapshot = self.api('POST', '/sync/bootstrap', context)
+            self.assertNotIn(self.form, [row['sourcePpmFormId'] for row in snapshot['sources']])
+            self.api('POST', '/sync/pull', dict(context, sourcePpmFormId=self.form, afterSequence='0'), expected=403)
+            upstream = next(row for row in snapshot['sources'] if row['sourcePpmFormId'] == source['form'])
+            self.assertIn(source['output']['id'], [row['id'] for row in upstream['outputs']])
+            pull = self.api('POST', '/sync/pull', dict(context, sourcePpmFormId=source['form'], afterSequence='0'))
+            self.assertIn(source['output']['id'], [row['payloadJson']['id'] for row in pull['events'] if row['eventType'] == 'TRACE_OUTPUT_PUBLISHED'])
+            record = 'target-' + identity
+            selection = {'connectionId': connection, 'sourceTraceOutputId': source['output']['id'], 'inputPath': 'sourceCode'}
+            mutations = [{'clientMutationId': secrets.token_hex(16), 'operationType': 'CREATE_DRAFT',
+                          'userId': 'test-admin', 'recordId': record, 'baseRevisionNo': 0, 'templateVersionId': template,
+                          'areaPpmAssignmentId': assignment, 'productionDate': date,
+                          'dataJson': {'sourceCode': source['output']['outputCode']}, 'traceSelections': [selection]},
+                         {'clientMutationId': secrets.token_hex(16), 'operationType': 'QUEUE_SUBMIT',
+                          'userId': 'test-admin', 'recordId': record, 'baseRevisionNo': 1}]
+            original_status = sql("SELECT status FROM PpmTraceOutput WHERE id='" + source['output']['id'] + "'")
+            sql("UPDATE PpmTraceOutput SET status='DISABLED' WHERE id='" + source['output']['id'] + "'")
+            try:
+                disabled_snapshot = self.api('POST', '/sync/bootstrap', context)
+                disabled_upstream = next(row for row in disabled_snapshot['sources'] if row['sourcePpmFormId'] == source['form'])
+                self.assertNotIn(source['output']['id'], [row['id'] for row in disabled_upstream['outputs']])
+                disabled_pull = self.api('POST', '/sync/pull', dict(context, sourcePpmFormId=source['form'], afterSequence='0'))
+                self.assertNotIn(source['output']['id'], [row['payloadJson']['id'] for row in disabled_pull['events'] if row['eventType'] == 'TRACE_OUTPUT_PUBLISHED'])
+                attempt = dict(mutations[0], clientMutationId=secrets.token_hex(16))
+                rejected = self.api('POST', '/sync/batches', dict(context, id=secrets.token_hex(16), mutations=[attempt]))
+                self.assertEqual(rejected['results'][0]['error'], 'TRACE_OUTPUT_INELIGIBLE', rejected)
+            finally:
+                sql("UPDATE PpmTraceOutput SET status='" + original_status + "' WHERE id='" + source['output']['id'] + "'")
+            result = self.api('POST', '/sync/batches', dict(context, id=secrets.token_hex(16), mutations=mutations))
+            self.assertEqual(result['acceptedCount'], 2, result)
+            targets.append({'form': form, 'record': record, 'device': device, 'connection': connection})
+        self.api('POST', source_path + '/corrections', {'deviceId': source['device'], 'leaseVersion': 1,
+                 'baseRevisionNo': 2, 'reason': 'Correct the actual source input',
+                 'dataJson': {'name': 'Corrected source', 'code': source['record'] + '-new'}})
+        result = self.api('POST', '/sync/batches', {'id': secrets.token_hex(16), 'ppmFormId': source['form'],
+                          'deviceId': source['device'], 'leaseVersion': 1, 'mutations': [{
+                              'clientMutationId': secrets.token_hex(16), 'operationType': 'QUEUE_SUBMIT',
+                              'recordId': source['record'], 'userId': 'test-admin', 'baseRevisionNo': 3}]})
+        self.assertEqual(result['acceptedCount'], 1, result)
+        replacement = self.api('POST', source_path + '/publish', {'deviceId': source['device'], 'leaseVersion': 1, 'baseRevisionNo': 4})['outputs'][0]
+        self.assertEqual(self.api('GET', source_path)['reviewSummary']['checked']['status'], 'PENDING')
+        for target in targets:
+            impacts = self.api('GET', '/forms/' + target['form'] + '/revalidations')['items']
+            self.assertEqual(len(impacts), 1, impacts)
+            self.api('POST', '/records/' + target['record'] + '/corrections', {'deviceId': target['device'], 'leaseVersion': 1,
+                     'baseRevisionNo': 2, 'reason': 'Select corrected upstream source',
+                     'dataJson': {'sourceCode': replacement['outputCode']}, 'traceSelections': [{
+                         'connectionId': target['connection'], 'sourceTraceOutputId': replacement['id'], 'inputPath': 'sourceCode'}]})
+            resolved = self.api('POST', '/revalidations/items/' + impacts[0]['id'] + '/resolve', {
+                'baseRevisionNo': 3, 'decision': 'REPLACED_SOURCE', 'notes': 'Replacement source selected without requiring approval'})
+            self.assertEqual(resolved['status'], 'RESOLVED')
+
+    def test_22_quality_review_authorization_and_optional_device_validation(self):
+        fixture = self.review_fixture()
+        path = '/records/' + fixture['record'] + '/review'
+        command = self.review_command()
+        self.api('POST', path, command, user='outsider', expected=403)
+        self.api('POST', path, command, user='denied-reviewer', expected=403)
+        self.api('POST', path, command, user='supervisor', expected=403)
+        missing_step = dict(command)
+        del missing_step['step']
+        self.assertEqual(self.api('POST', path, missing_step, expected=422)['error'], 'REVIEW_STEP_REQUIRED')
+        self.api('POST', path, self.review_command(step='UNKNOWN'), expected=422)
+        self.api('POST', path, self.review_command(action='CLOSE'), expected=422)
+        for field in ('eventId', 'baseRevisionNo'):
+            missing = dict(command)
+            del missing[field]
+            self.api('POST', path, missing, expected=422)
+        self.api('POST', path, self.review_command(action='RETURN', reason='  '), expected=422)
+        self.api('POST', path, self.review_command(baseRevisionNo=1), expected=409)
+        self.api('POST', path, self.review_command(deviceId=fixture['device']), expected=422)
+        self.api('POST', path, self.review_command(leaseVersion=1), expected=422)
+        mobile = self.review_command(deviceId=fixture['device'], leaseVersion=1)
+        self.api('POST', path, mobile, expected=403, device_auth=False)
+        self.api('POST', path, mobile, expected=403, device_auth='0' * 64)
+        self.api('POST', path, dict(mobile, leaseVersion=2), expected=403)
+        self.api('POST', path, command, expected=400,
+                 extra_headers={'X-PPMS-Device-Token': self.device_tokens[fixture['device']]})
+        inferred = self.api('POST', path, missing_step, user='fsqa')
+        self.assertEqual(inferred['reviewEvent']['step'], 'FSQA_REVIEW')
+        self.assertEqual(inferred['reviewEvent']['actorId'], 'test-fsqa')
+        self.assertEqual(inferred['record']['currentRevisionNo'], 2)
+        self.assertEqual(self.api('POST', path, mobile)['reviewEvent']['id'], mobile['eventId'])
+        without_reason = self.review_command()
+        del without_reason['reason']
+        self.api('POST', path, without_reason)
+        self.assertEqual(sql("SELECT COUNT(*) FROM WorkflowEvent WHERE recordId='" + fixture['record'] + "' AND action='APPROVE'"), '3')
+
+    def test_23_review_replay_survives_correction_but_rechecks_current_access(self):
+        fixture = self.review_fixture()
+        path = '/records/' + fixture['record']
+        command = self.review_command()
+        before_audit = int(sql("SELECT COUNT(*) FROM AuditLog WHERE recordId='" + fixture['record'] + "'"))
+        before_feed = int(sql("SELECT COUNT(*) FROM SyncChangeEvent WHERE ppmFormId='" + fixture['form'] + "'"))
+        first = self.api('POST', path + '/review', command)
+        replay = self.api('POST', path + '/review', command)
+        self.assertEqual(replay, first)
+        self.assertEqual(int(sql("SELECT COUNT(*) FROM AuditLog WHERE recordId='" + fixture['record'] + "'")), before_audit + 1)
+        self.assertEqual(int(sql("SELECT COUNT(*) FROM SyncChangeEvent WHERE ppmFormId='" + fixture['form'] + "'")), before_feed + 1)
+        for changes in ({'reason': 'Different note'}, {'action': 'RETURN'},
+                        {'step': 'SUPERVISOR_REVIEW'}, {'baseRevisionNo': 1}):
+            with self.subTest(changes=changes):
+                self.api('POST', path + '/review', dict(command, **changes), expected=409)
+        self.api('POST', path + '/review', command, user='fsqa', expected=409)
+        second = self.review_fixture()
+        self.api('POST', '/records/' + second['record'] + '/review', command, expected=409)
+        reviewer_command = self.review_command()
+        self.api('POST', path + '/review', reviewer_command, user='fsqa')
+        correction = {'deviceId': fixture['device'], 'leaseVersion': 1, 'baseRevisionNo': 2,
+                      'reason': 'Correct the entered name', 'dataJson': {'name': 'Corrected', 'code': fixture['record']}}
+        self.api('POST', path + '/corrections', correction)
+        current = self.api('GET', path)
+        self.assertEqual(current['record']['currentRevisionNo'], 3)
+        self.assertEqual(sql("SELECT status FROM PpmTraceOutput WHERE id='" + fixture['output']['id'] + "'"), 'SUPERSEDED')
+        for stage in ('checked', 'reviewed', 'approved'):
+            self.assertEqual(current['reviewSummary'][stage]['status'], 'PENDING')
+        replay = self.api('POST', path + '/review', command)
+        self.assertEqual(replay['reviewEvent'], first['reviewEvent'])
+        self.assertEqual(replay['reviewSummary']['revisionId'], current['revision']['id'])
+        self.assertEqual(replay['reviewSummary']['checked']['status'], 'PENDING')
+        self.assertEqual(sql("SELECT COUNT(*) FROM WorkflowEvent WHERE id='" + command['eventId'] + "'"), '1')
+        self.api('POST', path + '/review', self.review_command(), user='fsqa', expected=409)
+        self.api('PUT', '/forms/' + fixture['form'] + '/access/test-fsqa', {'canView': False})
+        self.api('POST', path + '/review', reviewer_command, user='fsqa', expected=403)
+        self.api('PUT', '/forms/' + fixture['form'] + '/access/test-fsqa', {'canView': True})
+        sql("UPDATE User SET role='PERSONNEL' WHERE id='test-fsqa'")
+        try:
+            self.api('POST', path + '/review', reviewer_command, user='fsqa', expected=403)
+        finally:
+            sql("UPDATE User SET role='FSQA' WHERE id='test-fsqa'")
+
+    def test_24_review_metadata_sync_and_feed_failure_are_atomic(self):
+        fixture = self.review_fixture()
+        path = '/records/' + fixture['record']
+        context = {'ppmFormId': fixture['form'], 'deviceId': fixture['device'], 'leaseVersion': 1}
+        snapshot = self.api('POST', '/sync/bootstrap', context)
+        source = next(row for row in snapshot['sources'] if row['sourcePpmFormId'] == fixture['form'])
+        self.api('POST', '/sync/ack', dict(context, cursorToken=source['cursorToken']))
+        record = self.api('GET', path)
+        command = self.review_command(action='RETURN', reason='Please check spelling')
+        before_audit = sql("SELECT COUNT(*) FROM AuditLog WHERE recordId='" + fixture['record'] + "'")
+        sql("CREATE TRIGGER reject_review_feed BEFORE INSERT ON SyncChangeEvent FOR EACH ROW BEGIN "
+            "IF NEW.ppmFormId='" + fixture['form'] + "' AND NEW.eventType='RECORD_REVISION' THEN "
+            "SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Test feed write failure'; END IF; END")
+        try:
+            self.api('POST', path + '/review', command, expected=503)
+            self.assertEqual(sql("SELECT COUNT(*) FROM WorkflowEvent WHERE id='" + command['eventId'] + "'"), '0')
+            self.assertEqual(sql("SELECT COUNT(*) FROM AuditLog WHERE recordId='" + fixture['record'] + "'"), before_audit)
+            self.assertEqual(self.api('GET', path)['revision'], record['revision'])
+        finally:
+            sql('DROP TRIGGER reject_review_feed')
+        self.api('POST', path + '/review', command)
+        pull = self.api('POST', '/sync/pull', dict(context, sourcePpmFormId=fixture['form'], afterSequence=source['sequence']))
+        self.assertEqual(len(pull['events']), 1, pull)
+        event = pull['events'][0]
+        self.assertEqual(event['eventType'], 'RECORD_REVISION')
+        self.assertEqual(event['payloadJson']['revision']['id'], record['revision']['id'])
+        self.assertEqual(event['payloadJson']['record']['currentRevisionNo'], 2)
+        self.assertEqual(event['payloadJson']['reviewSummary']['checked']['status'], 'NEEDS_CORRECTION')
+        self.assertGreater(int(event['sequence']), int(source['sequence']))
+        self.assertEqual(sql("SELECT lastEventSequence FROM SyncPullCursor WHERE deviceId='" + fixture['device'] + "'"), source['sequence'])
+        self.api('POST', '/sync/ack', dict(context, cursorToken=pull['cursorToken'] + 'x'), expected=403)
+        self.api('POST', '/sync/ack', dict(context, cursorToken=pull['cursorToken']))
+        self.assertEqual(self.api('POST', '/sync/pull', dict(context, sourcePpmFormId=fixture['form']))['events'], [])
+
+    def test_25_review_timestamps_legacy_close_and_read_only_records(self):
+        fixture = self.review_fixture()
+        path = '/records/' + fixture['record']
+        revision = self.api('GET', path)['revision']['id']
+        prior = 'f' * 32
+        sql("INSERT INTO WorkflowEvent (id,recordId,revisionId,step,action,actorId,reason,createdAt) VALUES ('" + prior
+            + "','" + fixture['record'] + "','" + revision + "','FSQA_REVIEW','RETURN','test-admin','Prior event','2099-01-01 00:00:00.000')")
+        first = self.api('POST', path + '/review', self.review_command(eventId='0' * 31 + '1'))
+        self.assertEqual(sql("SELECT TIMESTAMPDIFF(MICROSECOND,a.createdAt,b.createdAt) FROM WorkflowEvent a JOIN WorkflowEvent b ON b.id='"
+                             + first['reviewEvent']['id'] + "' WHERE a.id='" + prior + "'"), '1000')
+        second = self.api('POST', path + '/review', self.review_command(eventId='0' * 31 + '2', action='RETURN', reason='Later input issue'))
+        self.assertEqual(second['reviewSummary']['checked']['event']['id'], second['reviewEvent']['id'])
+        self.assertEqual(second['reviewSummary']['checked']['status'], 'NEEDS_CORRECTION')
+        self.assertGreater(second['reviewEvent']['createdAt'], first['reviewEvent']['createdAt'])
+        sql("UPDATE PpmRecord SET status='CLOSED',closedAt=UTC_TIMESTAMP(3) WHERE id='" + fixture['record'] + "'")
+        sql("UPDATE PpmRecordRevision SET status='CLOSED' WHERE id='" + revision + "'")
+        sql("INSERT INTO WorkflowEvent (id,recordId,revisionId,step,action,actorId,reason) VALUES ('legacy-close-"
+            + fixture['record'] + "','" + fixture['record'] + "','" + revision
+            + "','PLANT_MANAGER_REVIEW','CLOSE','test-admin','Historical closure')")
+        legacy = self.api('GET', path)
+        self.assertEqual(legacy['reviewSummary']['approved']['status'], 'CONFIRMED')
+        self.assertEqual(legacy['reviewSummary']['approved']['event']['action'], 'CLOSE')
+        self.api('POST', path + '/review', self.review_command(), expected=409)
+        self.api('POST', path + '/corrections', {'deviceId': fixture['device'], 'leaseVersion': 1,
+                 'baseRevisionNo': 2, 'reason': 'Attempt closed edit', 'dataJson': {'name': 'Changed', 'code': fixture['record']}}, expected=409)
+        draft = self.review_fixture(submitted=False)
+        self.api('POST', '/records/' + draft['record'] + '/review', self.review_command(baseRevisionNo=1), expected=409)
+        rejected = self.api('POST', '/records/' + draft['record'] + '/publish', {
+            'deviceId': draft['device'], 'leaseVersion': 1, 'baseRevisionNo': 1}, expected=409)
+        self.assertEqual(rejected['error'], 'RECORD_NOT_PUBLISHABLE')
+        archived = self.review_fixture()
+        sql("UPDATE PpmRecord SET archivedAt=UTC_TIMESTAMP(3) WHERE id='" + archived['record'] + "'")
+        self.api('POST', '/records/' + archived['record'] + '/review', self.review_command(), expected=409)
+
+    @contextmanager
+    def other_api_server(self):
+        with socket.socket() as sock:
+            sock.bind(('127.0.0.1', 0))
+            port = sock.getsockname()[1]
+        server = subprocess.Popen(PHP + ['-S', '127.0.0.1:' + str(port), '-t', 'public', 'public/router.php'],
+                                  cwd=ROOT, env=self.env, stdout=self.log, stderr=self.log)
+        try:
+            for _ in range(50):
+                try:
+                    with socket.create_connection(('127.0.0.1', port), timeout=0.1):
+                        break
+                except OSError:
+                    time.sleep(0.1)
+            else:
+                self.fail('Second API server did not start')
+            yield 'http://127.0.0.1:' + str(port) + '/api/v1'
+        finally:
+            server.terminate()
+            server.wait(timeout=5)
+
+    def concurrent_post(self, base, path, body, barrier=None):
+        if barrier:
+            barrier.wait(timeout=5)
+        headers = {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + self.tokens['admin']}
+        if 'deviceId' in body:
+            headers['X-PPMS-Device-Token'] = self.device_tokens[body['deviceId']]
+        request = Request(base + path, data=json.dumps(body).encode(), method='POST', headers=headers)
+        try:
+            response = urlopen(request, timeout=20)
+        except HTTPError as error:
+            response = error
+        with response:
+            return response.status, json.loads(response.read())
+
+    def test_26_review_and_correction_reread_content_after_the_form_lock(self):
+        fixture = self.review_fixture()
+        path = '/records/' + fixture['record']
+        old_revision = self.api('GET', path)['revision']['id']
+        command = self.review_command()
+        correction = {'deviceId': fixture['device'], 'leaseVersion': 1, 'baseRevisionNo': 2,
+                      'reason': 'Concurrent correction', 'dataJson': {'name': 'Corrected concurrently', 'code': fixture['record']}}
+        lock = subprocess.Popen(PHP + ['tests/hold_form_lock.php', fixture['form']], cwd=ROOT, env=self.env,
+                                stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        try:
+            self.assertEqual(lock.stdout.readline().strip(), 'READY')
+            with self.other_api_server() as second:
+                with ThreadPoolExecutor(max_workers=2) as pool:
+                    review = pool.submit(self.concurrent_post, self.base, path + '/review', command)
+                    corrected = pool.submit(self.concurrent_post, second, path + '/corrections', correction)
+                    deadline = time.monotonic() + 8
+                    waiting = 0
+                    while time.monotonic() < deadline:
+                        waiting = int(sql('SELECT COUNT(*) FROM information_schema.INNODB_LOCK_WAITS'))
+                        if waiting >= 2:
+                            break
+                        time.sleep(0.05)
+                    lock.communicate('\n', timeout=5)
+                    review_result, correction_result = review.result(), corrected.result()
+                self.assertGreaterEqual(waiting, 2)
+            self.assertEqual(correction_result[0], 200, correction_result)
+            self.assertIn(review_result[0], (200, 409), review_result)
+            current = self.api('GET', path)
+            self.assertEqual(current['record']['currentRevisionNo'], 3)
+            self.assertEqual(current['reviewSummary']['checked']['status'], 'PENDING')
+            events = int(sql("SELECT COUNT(*) FROM WorkflowEvent WHERE id='" + command['eventId'] + "'"))
+            self.assertEqual(events, 1 if review_result[0] == 200 else 0)
+            if events:
+                self.assertEqual(sql("SELECT revisionId FROM WorkflowEvent WHERE id='" + command['eventId'] + "'"), old_revision)
+        finally:
+            if lock.poll() is None:
+                lock.communicate('\n', timeout=5)
+
+    def test_27_concurrent_review_event_reuse_across_forms_is_a_conflict(self):
+        left, right = self.review_fixture(), self.review_fixture()
+        command = self.review_command()
+        gate = Barrier(2)
+        with self.other_api_server() as second:
+            with ThreadPoolExecutor(max_workers=2) as pool:
+                futures = [pool.submit(self.concurrent_post, self.base, '/records/' + left['record'] + '/review', command, gate),
+                           pool.submit(self.concurrent_post, second, '/records/' + right['record'] + '/review', command, gate)]
+                results = [future.result() for future in futures]
+        self.assertEqual(sorted(result[0] for result in results), [200, 409], results)
+        self.assertEqual(sql("SELECT COUNT(*) FROM WorkflowEvent WHERE id='" + command['eventId'] + "'"), '1')
 
 
 if __name__ == '__main__':

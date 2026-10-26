@@ -42,17 +42,42 @@ See [the current API guide](backend-api.md) for existing request bodies.
 
 ## Quality guidance and connected work
 
-The revised contract shows Checked, Reviewed and Approved against the exact
-content revision. None is a prerequisite for selecting an otherwise eligible
-published output, including when legacy `requiresApprovalBeforeUse` is true.
-Needs-correction notes guide input fixes; notes alone do not retire outputs.
-New content revisions leave previous guidance historical. Real corrections
-still retire affected outputs and create downstream revalidation.
+Record responses include `reviewSummary.revisionId` plus `checked`, `reviewed`
+and `approved`. Each contains `step`, `label`, `status` and the latest `event`
+or `null`. Show `PENDING`, `CONFIRMED` and `NEEDS_CORRECTION` against that exact
+content revision. Checked belongs to FSQA, Reviewed to SUPERVISOR and Approved
+to PLANT_MANAGER; stages do not depend on one another. New content revisions
+start pending and leave earlier events historical. Legacy Plant Manager
+`CLOSE` counts as confirmation only on its recorded revision.
 
-This is the target of Task 2, not a claim that current review code is complete.
-The online admin uses its own session/role/CSRF boundary for review and never
-borrows the Flutter device credential or takes over a lease for that action.
-Personnel field edits, corrections, publication and sync keep mobile security.
+None of these indicators is a prerequisite for selecting an otherwise eligible
+published output, including when legacy `requiresApprovalBeforeUse` is true.
+Needs-correction notes guide input fixes; review does not create content
+revisions, close records, retire/republish outputs or start revalidation. Real
+corrections still retire affected outputs and create downstream revalidation.
+
+An authorized online review integration sends a stable `eventId`,
+`baseRevisionNo`, `step`, `action` and optional `reason` to the
+[review endpoint](backend-api.md#records-traceability-and-online-review).
+RETURN requires a reason; ADMIN must name a stage, while a reviewer role may
+infer its own. Keep the same event ID/payload after a lost response. The
+response includes `reviewEvent` for the accepted original decision and a
+summary for the current revision. After correction, a replay can return an
+older `reviewEvent.revisionId`; never apply that decision to newer content.
+Current role and form access still apply to retries, and changed event-ID reuse
+returns 409. Personnel permissions do not grant review actions.
+
+Review and impact resolution can omit device context. If supplied, send the
+complete device ID/lease/token set, which is validated; do not attach a token
+header by itself. The planned online admin uses its own session/role/CSRF
+boundary and never borrows the Flutter credential or takes over a lease to
+review. Personnel field edits, corrections, publication and sync keep mobile
+security. The admin panel and new list/history endpoints remain planned work.
+
+A review commits its audit and `RECORD_REVISION` metadata refresh together.
+Store a newer feed event's summary even if its content revision number matches
+the cached revision; revision equality alone is not a duplicate-event test.
+Persist that update before acknowledging the signed cursor.
 
 ## Handoff and validation
 

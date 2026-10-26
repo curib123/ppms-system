@@ -11,21 +11,23 @@ Batch responses contain an outcome for each mutation, including failed ones.
 
 The [active plan](superpowers/plans/2026-10-26-simple-trackable-backend.md) and
 [design](superpowers/specs/2026-10-26-simple-trackable-backend-design.md) define
-the next implementation. This guide records the existing service contract;
-it does not certify pending working-tree changes or the planned admin panel.
+the delivery work. This guide records the current REST service contract. The
+online admin panel and new list/history endpoints remain planned work.
 
-The required review behavior is informational and revision-specific. Missing
-checks, review, approval or a correction-request note must not block connected
-trace work. Review must not create a content revision, close a record or retire
-its outputs. Actual content corrections retain trace revalidation. Task 2
-replaces the legacy review behavior documented below and removes approval
-filters from source discovery/use/replacement. The complete rule is not yet
-implemented merely because some direct filters have been edited locally.
+Review is informational and revision-specific. Missing checks, review,
+approval or a correction-request note do not block otherwise eligible connected
+trace work. Review appends a workflow event without creating a content revision,
+closing a record or retiring outputs. Actual content corrections retain trace
+revalidation. The legacy approval flag no longer gates source discovery, use
+or replacement.
 
-The planned admin session/CSRF boundary permits authorized online reviewers to
-act without the personnel device's token. Mobile sync/edit/correct/publish
-retain their device credentials and lease checks. New list/history endpoints
-and review input/output fields in the plan are proposals until implemented.
+This behavior reuses `WorkflowEvent` and the existing lifecycle enums; it
+requires no schema migration or changes to canonical default data.
+
+Authorized online review and revalidation decisions can omit mobile device
+context. Mobile sync/edit/correct/publish retain their device credentials and
+lease checks. The planned admin panel adds its own session/CSRF boundary around
+these shared services; its browser routes are not yet available.
 
 ## Install or upgrade
 
@@ -97,12 +99,19 @@ Register a device with `POST /devices`:
 
 The response contains `id` and a one-time `deviceToken`. Persist the token in
 the device's protected shared storage. Sync, record publication and correction
-writes require device credentials. Legacy review and revalidation currently
-require them too; the plan replaces that reviewer constraint. The header is:
+writes require device credentials. The header is:
 
 ```http
 X-PPMS-Device-Token: <registered-device-token>
 ```
+
+Review and revalidation decisions require a current reviewer role and form
+access, but no mobile credential when device context is omitted. If supplied,
+include both `deviceId` and `leaseVersion` in the body plus this header; the
+server validates device possession and the current form lease. A token header
+without either body field returns HTTP 400 (`DEVICE_CONTEXT_REQUIRED`); partial
+body context returns 422. Missing/invalid credentials or a stale lease return
+403. Reviewing a record never transfers the personnel device's lease.
 
 Public device IDs and lease versions are insufficient to authorize a device.
 Only the token hash is stored. Registering an existing UUID does not reissue its
@@ -255,7 +264,25 @@ resolution supports `KEEP_SERVER`, `APPLY_LOCAL_AS_NEW_REVISION`, and
 ## Records, traceability and online review
 
 `GET /records/{id}` returns metadata, the current revision, immutable revision
-history, exact source links and revalidation items. It requires form access.
+history, `reviewSummary`, exact source links and revalidation items. It requires
+form access. The summary belongs to the current content revision, with this
+shape:
+
+```json
+{
+  "revisionId":"content-revision-id",
+  "checked":{"step":"FSQA_REVIEW","label":"Checked","status":"PENDING","event":null},
+  "reviewed":{"step":"SUPERVISOR_REVIEW","label":"Reviewed","status":"PENDING","event":null},
+  "approved":{"step":"PLANT_MANAGER_REVIEW","label":"Approved","status":"PENDING","event":null}
+}
+```
+
+Each indicator is `PENDING`, `CONFIRMED` or `NEEDS_CORRECTION`. Its `event` is
+the latest applicable `WorkflowEvent` for that exact revision and stage, or
+`null`. Earlier events remain historical. A new content revision starts with
+pending indicators; confirmation never carries onto changed content. A legacy
+`PLANT_MANAGER_REVIEW` event with action `CLOSE` counts as confirmation on its
+recorded revision only. Existing closed records remain closed.
 
 `POST /records/{id}/corrections` takes `deviceId`, `leaseVersion`,
 `baseRevisionNo`, `reason`, replacement `dataJson`, and optional
@@ -265,8 +292,9 @@ preserves old links and recursively creates revalidation items and retirement
 events throughout the downstream record chain.
 
 `POST /records/{id}/publish` takes the same device/base fields and requires
-`canPublish` (or admin), a submitted/reviewed record, valid current source links,
-and no outstanding revalidation. Publication is idempotent per revision.
+`canPublish` (or admin), a submitted record (or compatible legacy approval/closed
+lifecycle state), valid current source links and no outstanding revalidation.
+Publication is idempotent per revision; quality review is not a prerequisite.
 
 Rules support `SYSTEM_GENERATED`, `MANUAL_EXTERNAL`, `SCAN_EXTERNAL`, and
 `UPSTREAM_LOOKUP`. Pending rules cannot publish. Example generated rule:
@@ -288,8 +316,14 @@ same revision. Sequence counters, output creation and audit commit together.
 
 A trace connection accepts `sourcePpmFormId`, `sourceOutputKey`,
 `targetInputKey`, `connectionName`, `status`, and boolean
-`requiresApprovalBeforeUse`. Only active connections are selectable. Record
-mutations select an existing published output using:
+`requiresApprovalBeforeUse`. The last field is retained as inert compatibility
+metadata, including when true. Only active connections are selectable. Valid
+submitted sources may publish before any quality review; pending or
+needs-correction indicators do not remove otherwise eligible outputs from
+bootstrap, incremental pull, trace selection or replacement-source validation.
+Publication, matching code/input path, current permissions, output eligibility
+and genuine revalidation checks still apply. Record mutations select an existing
+published output using:
 
 ```json
 {"traceSelections":[{
@@ -303,21 +337,63 @@ For a row, use a concrete path such as `entries.0.sourceLot`; configuration uses
 Unchanged selections carry forward through new revisions only after current
 eligibility checks. Typing a code does not create evidence of its source.
 
-**Legacy review contract, scheduled for replacement in Task 2:**
-`POST /records/{id}/review` takes device/base fields, `action` (`APPROVE` or
-`RETURN`) and `reason`. Decisions require online validation. FSQA, Supervisor,
-and Plant Manager approvals proceed through the original statuses to `CLOSED`;
-an admin may perform each step. Each decision appends a revision and workflow
-event. Returns preserve history and retire affected published outputs.
-Those side effects are current implementation gaps, not the desired review
-rules. The revised contract appends an event to the content revision and feeds
-its quality summary without modifying content or source availability.
+`POST /records/{id}/review` requires an online bearer-authenticated reviewer,
+current form access, and a stable client-generated `eventId`:
+
+```json
+{
+  "eventId":"client-generated-review-event-id",
+  "baseRevisionNo":2,
+  "step":"FSQA_REVIEW",
+  "action":"RETURN",
+  "reason":"Check the spelling of the supplier name"
+}
+```
+
+| Indicator | Step | Permitted role |
+| --- | --- | --- |
+| Checked | `FSQA_REVIEW` | FSQA or ADMIN |
+| Reviewed | `SUPERVISOR_REVIEW` | SUPERVISOR or ADMIN |
+| Approved | `PLANT_MANAGER_REVIEW` | PLANT_MANAGER or ADMIN |
+
+Stages are independent; a supervisor may review while Checked is still
+pending. Reviewers may omit `step` to infer their own stage. ADMIN must provide
+it or receive 422 (`REVIEW_STEP_REQUIRED`). `APPROVE` confirms that stage and
+may omit `reason`; `RETURN` requires a nonempty reason of at most 2,000
+characters and marks that stage `NEEDS_CORRECTION`. New decisions on drafts,
+closed or archived records return 409 (`RECORD_NOT_REVIEWABLE`).
+
+The response keeps the normal record view and adds `reviewEvent`, the accepted
+event with its `id`, `recordId`, `revisionId`, `step`, `action`, `actorId`,
+`reason` and `createdAt`. `reviewSummary` describes the current revision. A
+review-only decision changes neither record lifecycle nor content revision,
+data, trace links or published outputs. It does not close, retire, republish or
+create downstream revalidation work. A correction-request note guides the
+personnel correction flow; an actual data correction still appends content
+history, retires affected outputs and propagates genuine downstream impacts.
+
+Reuse the same `eventId` and payload after a lost response. Current identity,
+access and reviewer role are checked first. The stored event is then compared
+before the current-revision precondition: identical actor, record, base
+revision, stage, action and reason return the original event without duplicate
+writes. This also works after a later correction, returning the old
+`reviewEvent.revisionId` alongside the current revision and its summary; it
+does not review the newer content. Different payload/actor/record reuse returns
+409 (`REVIEW_EVENT_REUSED`). A new event with a stale base returns 409
+(`REVISION_CHANGED`).
+
+The workflow event, audit entry and `RECORD_REVISION` change-feed entry commit
+together. This metadata refresh may carry the same content revision number
+with an updated `reviewSummary`. Apply it by feed sequence, not by revision
+number alone. It emits no trace-publication event.
 
 `GET /forms/{id}/revalidations` exposes authorized impact item IDs and reasons.
-`POST /revalidations/items/{id}/resolve` takes device/base fields, `notes` and
-`decision`: `REPLACED_SOURCE` requires a current eligible replacement link;
-`ACCEPT_HISTORICAL` requires a closed record. Only an authorized reviewer/admin
-can resolve an item. A parent resolves once all its items are resolved.
+`POST /revalidations/items/{id}/resolve` takes `baseRevisionNo`, `notes` and
+`decision`, with optional complete device context as described above.
+`REPLACED_SOURCE` requires a current eligible replacement link, without an
+approval prerequisite. `ACCEPT_HISTORICAL` requires a closed record. Only an
+authorized reviewer/admin can resolve an item. A parent resolves once all its
+items are resolved.
 Finalized impact dispositions cannot be overwritten.
 
 ## Selective pull protocol
@@ -374,3 +450,12 @@ Historical baseline verification on 2026-10-23 with PHP 8.0.30 and disposable Ma
 mutation-ID reuse, legacy batch upgrades and three-form trace invalidation.
 Application PHP syntax checks and the standalone field-validation checks passed.
 These historical results do not verify the revised plan or current local edits.
+
+Task 2 verification on 2026-10-26: 9 installer, 4 migration and 29 API cases
+passed against disposable MariaDB, including independent review, replay after
+correction, atomic feed rollback, concurrent writes and trace use with both
+legacy flag values. Disabled outputs, unrelated upstream streams and draft
+publication remain rejected. Routing (1,074 assertions), field validation,
+conversion integrity and 15 quality-runner tests passed. Syntax checks covered
+58 PHP and 8 Python files; real Topos parsed all 8 supported files. These checks
+verify the REST change, not a delivered admin UI or Flutter storage behavior.

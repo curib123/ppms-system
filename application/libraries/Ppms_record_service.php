@@ -27,10 +27,31 @@ class Ppms_record_service
     {
         $record = $this->find($id);
         $this->auth->access($actor, $record['ppmFormId']);
-        return array('record' => $record, 'revision' => $this->revision($record),
+        $revision = $this->revision($record);
+        return array('record' => $record, 'revision' => $revision, 'reviewSummary' => $this->reviewSummary($revision),
             'revisions' => $this->store->rows('SELECT * FROM PpmRecordRevision WHERE recordId=? ORDER BY revisionNo', array($id)),
             'traceLinks' => $this->store->rows('SELECT l.* FROM PpmTraceLink l JOIN PpmRecordRevision v ON v.id=l.downstreamRevisionId WHERE v.recordId=? ORDER BY v.revisionNo,l.id', array($id)),
             'revalidations' => $this->revalidations($actor, $record['ppmFormId'], $id)['items']);
+    }
+    /** Review events describe only the exact content revision they checked. */
+    public function reviewSummary($revision)
+    {
+        $summary = array('revisionId' => $revision['id']);
+        $indicators = array('FSQA_REVIEW' => array('checked','Checked'),
+            'SUPERVISOR_REVIEW' => array('reviewed','Reviewed'), 'PLANT_MANAGER_REVIEW' => array('approved','Approved'));
+        foreach ($indicators as $step => $indicator) {
+            $summary[$indicator[0]] = array('step' => $step, 'label' => $indicator[1], 'status' => 'PENDING', 'event' => NULL);
+        }
+        $events = $this->store->rows('SELECT * FROM WorkflowEvent WHERE revisionId=? AND step IS NOT NULL
+            AND action IN (\'APPROVE\',\'RETURN\',\'CLOSE\') ORDER BY createdAt DESC,id DESC', array($revision['id']));
+        foreach ($events as $event) {
+            if (!isset($indicators[$event['step']]) || ($event['action'] === 'CLOSE' && $event['step'] !== 'PLANT_MANAGER_REVIEW')) { continue; }
+            $key = $indicators[$event['step']][0];
+            if ($summary[$key]['event'] !== NULL) { continue; }
+            $summary[$key]['status'] = $event['action'] === 'RETURN' ? 'NEEDS_CORRECTION' : 'CONFIRMED';
+            $summary[$key]['event'] = $event;
+        }
+        return $summary;
     }
     public function revalidations($actor, $form, $recordId = NULL)
     {

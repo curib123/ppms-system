@@ -8,7 +8,8 @@ $db = new mysqli(getenv('DB_HOST'), getenv('DB_USERNAME'), getenv('DB_PASSWORD')
 $db->set_charset('utf8mb4');
 $statement = $db->prepare('INSERT INTO User (id,email,username,displayName,passwordHash,role,updatedAt) VALUES (?,?,?,?,?,?,UTC_TIMESTAMP(3))');
 $password = password_hash(getenv('PPMS_TEST_PASSWORD'), PASSWORD_DEFAULT);
-foreach (array('admin' => 'ADMIN', 'alice' => 'PERSONNEL', 'bob' => 'PERSONNEL', 'outsider' => 'PERSONNEL') as $name => $role) {
+foreach (array('admin' => 'ADMIN', 'alice' => 'PERSONNEL', 'bob' => 'PERSONNEL', 'outsider' => 'PERSONNEL',
+              'fsqa' => 'FSQA', 'supervisor' => 'SUPERVISOR', 'manager' => 'PLANT_MANAGER', 'denied-reviewer' => 'FSQA') as $name => $role) {
     $id = 'test-'.$name;
     $email = $name.'@example.test';
     $statement->bind_param('ssssss', $id, $email, $name, $name, $password, $role);
