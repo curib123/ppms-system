@@ -1,4 +1,4 @@
-# PPMS - CodeIgniter 3 / MySQLi
+# PPMS REST API and admin control panel
 
 CodeIgniter **3.1.13** with the native **MySQLi** driver, the converted PPMS
 schema, and the original default data. Includes guarded database setup,
@@ -7,12 +7,30 @@ shared-device daily synchronization, traceability and review APIs, the PPM form
 register, and a health endpoint. See [the backend API guide](docs/backend-api.md)
 for setup, requests and client synchronization responsibilities.
 
+The revised target is a **CI3 REST API plus an online admin control panel**.
+Personnel enter records through a **Flutter mobile app**. The browser stack is
+**Tailwind CSS, native CSS, jQuery and Chart.js**, using CI3 PHP views.
+Checked, Reviewed and Approved are quality guidance; they do not block an
+otherwise valid source from feeding a connected PPM.
+
+Start with the [active implementation plan](docs/superpowers/plans/2026-10-26-simple-trackable-backend.md)
+and its [design](docs/superpowers/specs/2026-10-26-simple-trackable-backend-design.md).
+These replace the obsolete root plans. The admin panel and complete advisory
+review behavior are planned work, not implemented features of the current
+setup/form-register page. Existing local code/tooling changes need verification.
+
+See the [code map](docs/architecture.md),
+[Flutter client contract](docs/flutter-client-contract.md),
+[current API guide](docs/backend-api.md) and [quality tooling plan](docs/code-quality.md).
+
 ## Requirements
 
 - PHP with `mysqli`; verified with XAMPP PHP **8.0.30**.
 - **MySQL 8.0.16+** or **MariaDB 10.4+**; verified with XAMPP MariaDB **10.4.32**.
 - Apache with `mod_rewrite`, or PHP's development server for local use.
-- No PostgreSQL, PDO PostgreSQL extension, Composer, or Node.js is required.
+- The current PHP backend needs no PostgreSQL, Composer or Node.js runtime.
+- The planned admin CSS build/browser tests use development-only Node tooling;
+  compiled CSS and pinned JavaScript assets are served locally in production.
 
 ## Windows / XAMPP setup
 
@@ -96,6 +114,7 @@ database/source/          Archived original PostgreSQL/Prisma artifacts
 database/migrations/      Versioned MySQL runtime extensions
 public/                   Web document root
 scripts/                  PHP launcher and reproducible SQL converter
+tools/topos/              Optional pinned developer analyzer container
 system/                   Unmodified CodeIgniter 3.1.13 framework
 tests/                    Integration checks using a disposable MySQL database
 index.php                 CLI entry point
@@ -110,11 +129,27 @@ configured through CI3's `encrypt` connection setting.
 
 ## Verification and regeneration
 
+Check first-party syntax, optionally including Topos structural analysis:
+
+```powershell
+python scripts/check_quality.py
+python scripts/check_quality.py --topos
+```
+
+These quality-runner commands describe unfinished local tooling; finish and
+verify Task 1 of the active plan before relying on them. Topos v0.14.0 analyzes
+supported Python/JavaScript sources; it does not parse PHP or Dart. Its optional
+Windows runner uses Docker's Linux containers. PHP lint and behavior tests
+remain required. The planned web client is the online admin panel; Flutter owns
+personnel entry and offline storage/queues.
+
 ```powershell
 python tests/integration.py
 python tests/migrations.py
 python tests/api_integration.py
+php tests/api_routing.php
 php tests/validation.php
+python tests/quality.py
 python tests/run_with_mariadb.py
 python scripts/convert_database.py
 ```

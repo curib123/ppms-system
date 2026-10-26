@@ -1,10 +1,31 @@
-# Dynamic PPM and offline synchronization API
+# PPMS REST API: current contract
 
-This is the CodeIgniter 3 / native MySQLi backend for the two root plans. All
+This is the CodeIgniter 3 / native MySQLi backend for the Flutter personnel
+client. The planned browser admin panel calls the same domain services. All
 paths below start with `/api/v1`. Responses are JSON with `Cache-Control:
 no-store`. Successful requests return HTTP 200; rejected requests return
 `{"error":"ERROR_CODE","details":{}}` with the appropriate HTTP status.
 Batch responses contain an outcome for each mutation, including failed ones.
+
+## Revised direction and delivery status
+
+The [active plan](superpowers/plans/2026-10-26-simple-trackable-backend.md) and
+[design](superpowers/specs/2026-10-26-simple-trackable-backend-design.md) define
+the next implementation. This guide records the existing service contract;
+it does not certify pending working-tree changes or the planned admin panel.
+
+The required review behavior is informational and revision-specific. Missing
+checks, review, approval or a correction-request note must not block connected
+trace work. Review must not create a content revision, close a record or retire
+its outputs. Actual content corrections retain trace revalidation. Task 2
+replaces the legacy review behavior documented below and removes approval
+filters from source discovery/use/replacement. The complete rule is not yet
+implemented merely because some direct filters have been edited locally.
+
+The planned admin session/CSRF boundary permits authorized online reviewers to
+act without the personnel device's token. Mobile sync/edit/correct/publish
+retain their device credentials and lease checks. New list/history endpoints
+and review input/output fields in the plan are proposals until implemented.
 
 ## Install or upgrade
 
@@ -75,8 +96,9 @@ Register a device with `POST /devices`:
 ```
 
 The response contains `id` and a one-time `deviceToken`. Persist the token in
-the device's protected shared storage. All sync, record publication, correction,
-review and revalidation writes also require:
+the device's protected shared storage. Sync, record publication and correction
+writes require device credentials. Legacy review and revalidation currently
+require them too; the plan replaces that reviewer constraint. The header is:
 
 ```http
 X-PPMS-Device-Token: <registered-device-token>
@@ -281,11 +303,15 @@ For a row, use a concrete path such as `entries.0.sourceLot`; configuration uses
 Unchanged selections carry forward through new revisions only after current
 eligibility checks. Typing a code does not create evidence of its source.
 
+**Legacy review contract, scheduled for replacement in Task 2:**
 `POST /records/{id}/review` takes device/base fields, `action` (`APPROVE` or
 `RETURN`) and `reason`. Decisions require online validation. FSQA, Supervisor,
 and Plant Manager approvals proceed through the original statuses to `CLOSED`;
 an admin may perform each step. Each decision appends a revision and workflow
 event. Returns preserve history and retire affected published outputs.
+Those side effects are current implementation gaps, not the desired review
+rules. The revised contract appends an event to the content revision and feeds
+its quality summary without modifying content or source availability.
 
 `GET /forms/{id}/revalidations` exposes authorized impact item IDs and reasons.
 `POST /revalidations/items/{id}/resolve` takes device/base fields, `notes` and
@@ -321,8 +347,11 @@ details after upstream retirement. Re-bootstrap when assignments or dependency
 configuration change, pruning no-longer-authorized cache entries. Save drafts
 and mutation queues durably, preserve original author proofs, retry interrupted
 `PUSHING` batches with the same ID/payload, and enforce offline grant expiry.
-The browser renderer, IndexedDB transactions and queue implementation are not
-part of these backend changes.
+These are Flutter responsibilities: dynamic rendering, durable local storage,
+mutation queue, original-author preservation and applying review refresh events
+by feed sequence even when the content revision does not change. See the
+[Flutter contract](flutter-client-contract.md). The online admin panel does not
+implement a second offline personnel client.
 
 ## Verification
 
@@ -340,7 +369,8 @@ application database is changed. To use a separately managed test server, run
 the three Python suites individually with `DB_HOST`, `DB_PORT`, `DB_USERNAME`,
 and `DB_PASSWORD`; each creates and drops only its disposable test database.
 
-Verified on 2026-10-23 with PHP 8.0.30 and disposable MariaDB 10.4.32:
+Historical baseline verification on 2026-10-23 with PHP 8.0.30 and disposable MariaDB 10.4.32:
 35 Python test cases passed, including concurrent publication, cross-form
 mutation-ID reuse, legacy batch upgrades and three-form trace invalidation.
 Application PHP syntax checks and the standalone field-validation checks passed.
+These historical results do not verify the revised plan or current local edits.
