@@ -1,10 +1,8 @@
-# Code quality and Topos plan
+# Code quality checks
 
-**Status, 2026-10-26:** The runner, tests and Dockerfile are unfinished local
-work. The commands and behavior below describe the intended tooling contract,
-not a completed verification. Finish Task 1 in the
-[active plan](superpowers/plans/2026-10-26-simple-trackable-backend.md) before
-relying on it. The optional analyzer must not delay review/admin implementation.
+The syntax runner and pinned optional Topos integration implement Task 1 of the
+[active plan](superpowers/plans/2026-10-26-simple-trackable-backend.md).
+The analyzer stays independent of review/admin functionality.
 
 Run from the repository root:
 
@@ -15,8 +13,9 @@ python scripts/check_quality.py --topos
 
 The first command lints tracked first-party PHP and parses Python without
 executing application code. It excludes `system/`, third-party/vendor files,
-untracked files and local credentials. Stage new source files before checking
-them. Use `--php C:/path/to/php.exe` if PHP is not on PATH.
+runtime caches/logs/sessions, dependency/generated directories, untracked files
+and local credentials. Stage new source files before checking them. Use
+`--php C:/path/to/php.exe` if PHP is not on PATH.
 
 The second command also runs [Topos](https://github.com/Krv-Labs/topos), pinned
 to **v0.14.0**, against supported tracked first-party files. It uses an installed
@@ -35,6 +34,9 @@ mismatches and invalid analyzer output exit nonzero.
 The ignored `.quality/topos.json` report contains tool version, source revision,
 working-tree state, source hashes, analyzed paths and the complete upstream
 result, including unavailable metrics.
+Metadata is captured before evaluation; a source change during evaluation
+fails the check instead of recording misleading provenance. Update notices
+are disabled for native and Docker execution.
 A completed analysis does not mean every file meets every structural criterion.
 Reports are local developer artifacts and are never production or audit data.
 
@@ -51,6 +53,11 @@ python tests/run_with_mariadb.py
 The routing check covers controller contracts; the disposable MariaDB suites
 exercise installation, migrations and the real HTTP -> services -> database
 flow. Topos supplements these checks.
+
+Verified on 2026-10-26: 15 quality-runner tests, syntax for 58 PHP and 8 Python
+files, and a real Topos v0.14.0 Linux-container analysis of all 8 supported
+first-party files. Every source parsed; COMPOSABLE was unavailable by design.
+Structural findings remain advisory and are not a PHP or Flutter assessment.
 
 To rebuild the optional runner after changing its Dockerfile:
 

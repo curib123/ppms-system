@@ -21,7 +21,7 @@ setup/form-register page. Existing local code/tooling changes need verification.
 
 See the [code map](docs/architecture.md),
 [Flutter client contract](docs/flutter-client-contract.md),
-[current API guide](docs/backend-api.md) and [quality tooling plan](docs/code-quality.md).
+[current API guide](docs/backend-api.md) and [quality checks](docs/code-quality.md).
 
 ## Requirements
 
@@ -136,8 +136,7 @@ python scripts/check_quality.py
 python scripts/check_quality.py --topos
 ```
 
-These quality-runner commands describe unfinished local tooling; finish and
-verify Task 1 of the active plan before relying on them. Topos v0.14.0 analyzes
+The quality runner implements Task 1 of the active plan. Topos v0.14.0 analyzes
 supported Python/JavaScript sources; it does not parse PHP or Dart. Its optional
 Windows runner uses Docker's Linux containers. PHP lint and behavior tests
 remain required. The planned web client is the online admin panel; Flutter owns
