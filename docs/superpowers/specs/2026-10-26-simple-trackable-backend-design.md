@@ -1,6 +1,6 @@
 # Simple PPMS REST API and admin control panel
 
-Date: 2026-10-26. Status: revised design for implementation, not a delivery claim.
+Date: 2026-10-26. Status: Tasks 1-2 implemented; admin-panel delivery pending.
 
 ## Purpose and ownership
 
@@ -50,14 +50,15 @@ trace publication, pull/ack and review services. The current human page is a
 setup/form register. A complete admin panel and this Flutter client are not
 implemented here.
 
-Task 1 now implements the syntax/Topos runner with focused failure/provenance
-tests and a real analyzer run. Pending functional changes remove approval
-filters from trace linking, upstream discovery and replacement selection;
-preserve that work for Task 2 rather than treating it as the complete rule.
-`Ppms_workflow_service::review` still creates content revisions,
-progresses sequential approval states and retires outputs on RETURN. Review and
-revalidation also demand the form's mobile device lease. Those gaps are explicit
-tasks, not evidence that the new behavior already works.
+Task 1 implements the syntax/Topos runner with focused failure/provenance
+tests and a real analyzer run. Task 2 implements independent guidance through
+existing `WorkflowEvent` rows, atomic audit/feed updates and replay-safe event
+IDs. Review leaves content revisions, lifecycle and trace outputs unchanged.
+Review/impact decisions use current reviewer/form access without requiring a
+mobile lease, while supplied mobile context and personnel writes remain
+protected. Approval filters have been removed from trace use/discovery and
+replacement selection. See the plan's verification records for tested scope;
+the admin panel and bounded list/history endpoints are still pending.
 
 ## Record quality and traceability
 
@@ -71,7 +72,7 @@ Show three indicators on each submitted content revision:
 | Reviewed | `SUPERVISOR_REVIEW` | SUPERVISOR or ADMIN |
 | Approved | `PLANT_MANAGER_REVIEW` | PLANT_MANAGER or ADMIN |
 
-This label mapping is the implementation proposal based on existing roles.
+These labels map to the existing reviewer roles.
 Each indicator is independent: a permitted reviewer may act even when another
 indicator is pending. Reuse existing `WorkflowEvent` fields: `revisionId`,
 `step`, `action`, `actorId`, `reason`, `createdAt`. `APPROVE` confirms that stage;
@@ -224,5 +225,6 @@ histories and failure responses.
 
 Do not label dirty code, proposed screens or a draft quality runner as shipped.
 Record checks for the tested commit and commit independently complete changes.
-Task 1 delivers development checks. Functional implementation boxes remain
-unchecked until their own behavior and browser verification pass.
+Tasks 1-2 deliver development checks and the advisory-review REST contract.
+Admin implementation and browser/mobile release boxes remain unchecked until
+their own behavior and UI verification pass.

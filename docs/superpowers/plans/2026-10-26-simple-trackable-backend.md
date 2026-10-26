@@ -14,9 +14,9 @@ native CSS, jQuery, Chart.js; optional Topos v0.14.0 for supported sources.
 
 **Spec:** [REST API and admin design](../specs/2026-10-26-simple-trackable-backend-design.md).
 
-**Status:** Task 1 implemented and verified on 2026-10-26; Tasks 2-8 pending.
+**Status:** Tasks 1-2 implemented and verified on 2026-10-26; Tasks 3-8 pending.
 This is the single active plan, superseding backend-only and offline browser
-tasks. Preserved local functional changes do not complete Task 2.
+tasks. The preserved functional edits are integrated into Task 2.
 
 ## Global constraints
 
@@ -93,8 +93,9 @@ Tooling source commit: `799895a`. Work continues on
 - Independent Task 1 review found no material code/security issues.
 
 Backend baseline tests used the working tree, including preexisting trace and
-API-test edits. Those functional files remain uncommitted; these results do
-not establish Task 2's full advisory-review contract or an admin-panel release.
+API-test edits. At Task 1 completion those files were still uncommitted;
+that baseline alone did not establish Task 2 or an admin-panel release.
+Task 2's implementation and results are recorded below.
 
 ## Task 2: Independent review and non-blocking trace progression
 
@@ -109,15 +110,47 @@ to record reads. Return `reviewEvent` with the accepted event/original revision
 identity alongside the current `reviewSummary`. If device context is supplied,
 validate its complete ID/token/version through `lease()`; partial context fails.
 
-- [ ] Add cases proving a submitted unreviewed source publishes and works in bootstrap, pull, selection and replacement with legacy approval metadata false and true. Draft, superseded, disabled and unauthorized sources remain rejected.
-- [ ] Add regressions for independent stages and RETURN leaving output IDs/status, current revision/data hash, lifecycle and downstream impacts unchanged. Assert no duplicate codes or automatic CLOSED status.
-- [ ] Test role/form denial, reviewer success without a mobile token, invalid/partial supplied device context, stale revision 409, identical-event replay after a later correction, changed-payload/cross-actor/cross-record event reuse 409 and concurrent review/content changes. Run against current code and identify expected failures.
-- [ ] Append review events to the existing content revision without synthetic revisions, trace retirement/relinking or republication. Require a RETURN reason. Infer missing step only from a single reviewer role; ADMIN must name it (`REVIEW_STEP_REQUIRED`).
-- [ ] Use `eventId` as `WorkflowEvent.id`; after fresh identity/access checks, compare an existing event before enforcing the current revision check. Replays return the original event and current summary without duplicate writes. New events lock the form and reread content/access.
-- [ ] Append audit/feed entries transactionally. Emit `RECORD_REVISION` with updated summary even when the content revision is unchanged; test pull/ack applying it by event sequence. Allocate monotonic per-record/step timestamps as the spec defines and test same-clock-tick decisions. Keep legacy CLOSE history readable and closed records read-only.
-- [ ] Finish removal of approval filters in trace/pull/replacement code. Keep `requiresApprovalBeforeUse` stored but inert. Authorize review/impact decisions by role/form, preserving device leases for mobile sync/edit/correct/publish.
-- [ ] Test real data correction retiring affected outputs, preserving links, generating recursive impacts and leaving prior review historical. Preserve existing closed records and their correction restrictions.
-- [ ] Run routing/validation/lint and full disposable suites. Update the implemented API contract; commit `fix: separate PPM quality review from trace progression`.
+- [x] Add cases proving a submitted unreviewed source publishes and works in bootstrap, pull, selection and replacement with legacy approval metadata false and true. Draft, superseded, disabled and unauthorized sources remain rejected.
+- [x] Add regressions for independent stages and RETURN leaving output IDs/status, current revision/data hash, lifecycle and downstream impacts unchanged. Assert no duplicate codes or automatic CLOSED status.
+- [x] Test role/form denial, reviewer success without a mobile token, invalid/partial supplied device context, stale revision 409, identical-event replay after a later correction, changed-payload/cross-actor/cross-record event reuse 409 and concurrent review/content changes. Run against current code and identify expected failures.
+- [x] Append review events to the existing content revision without synthetic revisions, trace retirement/relinking or republication. Require a RETURN reason. Infer missing step only from a single reviewer role; ADMIN must name it (`REVIEW_STEP_REQUIRED`).
+- [x] Use `eventId` as `WorkflowEvent.id`; after fresh identity/access checks, compare an existing event before enforcing the current revision check. Replays return the original event and current summary without duplicate writes. New events lock the form and reread content/access.
+- [x] Append audit/feed entries transactionally. Emit `RECORD_REVISION` with updated summary even when the content revision is unchanged; test pull/ack applying it by event sequence. Allocate monotonic per-record/step timestamps as the spec defines and test same-clock-tick decisions. Keep legacy CLOSE history readable and closed records read-only.
+- [x] Finish removal of approval filters in trace/pull/replacement code. Keep `requiresApprovalBeforeUse` stored but inert. Authorize review/impact decisions by role/form, preserving device leases for mobile sync/edit/correct/publish.
+- [x] Test real data correction retiring affected outputs, preserving links, generating recursive impacts and leaving prior review historical. Preserve existing closed records and their correction restrictions.
+- [x] Run routing/validation/lint and full disposable suites. Update the implemented API contract; commit `fix: separate PPM quality review from trace progression`.
+
+### Task 2 verification record
+
+Implementation commit: `f98ff06`. Existing trace/pull/workflow/API-test edits
+were retained and completed. No schema, enum, migration or canonical seed
+changes were needed.
+
+- RED: original review/impact decisions rejected authorized requests without a
+  device. An isolated copy of the original workflow also proved valid-device
+  RETURN changed `SUBMITTED` to `ACTIVE`, violating advisory review.
+- GREEN: `python tests/run_with_mariadb.py` passed 9 installer, 4 migration
+  and 29 API cases (42 total). Added negative assertions were then verified by
+  a further 29-case API run with explicit subprocess exit 0.
+- Coverage includes independent stages, unchanged revision/lifecycle/outputs,
+  device omission and invalid supplied context, current permissions on replay,
+  replay after correction, atomic audit/feed rollback, signed acknowledgment,
+  monotonic timestamps, legacy CLOSE/read-only records and real concurrency.
+- Both legacy flag values support discovery, selection and unreviewed
+  replacement after RETURN. Disabled outputs, draft publication and unrelated
+  upstream reads are explicitly rejected. Existing three-form correction
+  propagation and mobile-device/authorship/retry tests still pass.
+- Routing: 1,074 assertions; field validation, conversion integrity and 15
+  quality tests passed. Syntax: 58 PHP and 8 Python files. Real Topos parsed
+  all 8 supported sources; it does not assess PHP or Dart.
+- Independent product and final reviews found no material correctness/security
+  issues. The final review's missing negative cases were added and passed.
+
+The REST contract now supplies current-revision `reviewSummary` and the
+accepted original `reviewEvent`. Flutter must process metadata refreshes by
+feed sequence even when content revision numbers stay unchanged. Admin session
+routes, screens and bounded history/list endpoints remain Tasks 3-8; these API
+checks do not claim a browser UI or Flutter storage release.
 
 ## Task 3: Admin login and page shell
 
