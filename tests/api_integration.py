@@ -418,6 +418,8 @@ class PpmApiIntegration(unittest.TestCase):
         area = sql('SELECT id FROM ProductionArea LIMIT 1')
         created = self.api('POST', '/forms', {'ppmCode': 'TEST-PPM-027', 'title': 'Configured inspection', 'areaId': area})
         type(self).configured_form = created['id']
+        # The new assignment starts when the form is created, unlike seeded assignments.
+        type(self).configured_production_date = sql("SELECT DATE_FORMAT(effectiveFrom,'%Y-%m-%d') FROM AreaPpmAssignment WHERE ppmFormId='" + created['id'] + "' LIMIT 1")
         self.assertEqual(created['ppmCode'], 'TEST-PPM-027')
         self.api('POST', '/forms', {'ppmCode': 'TEST-PPM-027', 'title': 'Duplicate', 'areaId': area}, expected=409)
         self.api('POST', '/forms', {'ppmCode': 'TEST-PPM-028', 'title': 'Forbidden', 'areaId': area}, user='bob', expected=403)
@@ -473,12 +475,12 @@ class PpmApiIntegration(unittest.TestCase):
         assignment = sql("SELECT id FROM AreaPpmAssignment WHERE ppmFormId='" + form + "' LIMIT 1")
         create = {'clientMutationId': secrets.token_hex(16), 'operationType': 'CREATE_DRAFT', 'recordId': 'unique-rows',
                   'userId': 'test-admin', 'baseRevisionNo': 0, 'templateVersionId': template['id'],
-                  'areaPpmAssignmentId': assignment, 'productionDate': '2026-10-23', 'dataJson': {'entries': [{'code': 'DUP'}, {'code': 'DUP'}]}}
+                  'areaPpmAssignmentId': assignment, 'productionDate': self.configured_production_date, 'dataJson': {'entries': [{'code': 'DUP'}, {'code': 'DUP'}]}}
         submit = {'clientMutationId': secrets.token_hex(16), 'operationType': 'QUEUE_SUBMIT', 'recordId': 'unique-rows',
                   'userId': 'test-admin', 'baseRevisionNo': 1}
         result = self.api('POST', '/sync/batches', {'id': secrets.token_hex(16), 'ppmFormId': form,
                           'deviceId': device['id'], 'leaseVersion': 1, 'mutations': [create, submit]})
-        self.assertEqual(result['acceptedCount'], 2)
+        self.assertEqual(result['acceptedCount'], 2, result)
         self.api('POST', '/records/unique-rows/publish', {'deviceId': device['id'], 'leaseVersion': 1, 'baseRevisionNo': 2}, expected=409)
         self.assertEqual(sql("SELECT COUNT(*) FROM PpmTraceOutput WHERE recordId='unique-rows'"), '0')
 
@@ -513,12 +515,14 @@ class PpmApiIntegration(unittest.TestCase):
                              'status': 'ACTIVE', 'requiresApprovalBeforeUse': False})
         create_c = dict(create_b, clientMutationId=secrets.token_hex(16), recordId='chain-c', userId='test-admin',
                         templateVersionId=template_c['id'], areaPpmAssignmentId=sql("SELECT id FROM AreaPpmAssignment WHERE ppmFormId='" + form_c + "' LIMIT 1"),
+                        productionDate=self.configured_production_date,
                         dataJson={'fromB': output_b['outputCode']}, traceSelections=[{'connectionId': connection['id'], 'sourceTraceOutputId': output_b['id'], 'inputPath': 'fromB'}])
         del create_c['authorProof']
         submit_c = dict(submit_b, clientMutationId=secrets.token_hex(16), recordId='chain-c', userId='test-admin')
         del submit_c['authorProof']
-        self.api('POST', '/sync/batches', {'id': secrets.token_hex(16), 'ppmFormId': form_c, 'deviceId': self.configured_device,
-                 'leaseVersion': 1, 'mutations': [create_c, submit_c]})
+        result = self.api('POST', '/sync/batches', {'id': secrets.token_hex(16), 'ppmFormId': form_c, 'deviceId': self.configured_device,
+                          'leaseVersion': 1, 'mutations': [create_c, submit_c]})
+        self.assertEqual(result['acceptedCount'], 2, result)
         output_c = self.api('POST', '/records/chain-c/publish', {'deviceId': self.configured_device, 'leaseVersion': 1, 'baseRevisionNo': 2})['outputs'][0]
         self.api('POST', '/records/source-lot/corrections', {'deviceId': self.device, 'leaseVersion': 1,
                  'baseRevisionNo': source['currentRevisionNo'], 'reason': 'Critical upstream correction',
@@ -542,7 +546,7 @@ class PpmApiIntegration(unittest.TestCase):
         body_b = {'id': secrets.token_hex(16), 'ppmFormId': self.configured_form, 'deviceId': self.configured_device, 'leaseVersion': 1,
                   'mutations': [{'clientMutationId': identity, 'operationType': 'CREATE_DRAFT', 'recordId': 'concurrent-other',
                                  'userId': 'test-admin', 'baseRevisionNo': 0, 'templateVersionId': template,
-                                 'areaPpmAssignmentId': assignment, 'productionDate': '2026-10-23', 'dataJson': {'entries': []}}]}
+                                 'areaPpmAssignmentId': assignment, 'productionDate': self.configured_production_date, 'dataJson': {'entries': []}}]}
         with socket.socket() as sock:
             sock.bind(('127.0.0.1', 0))
             port = sock.getsockname()[1]
