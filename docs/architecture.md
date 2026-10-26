@@ -3,7 +3,8 @@
 This maps existing service ownership and the revised client boundary. The
 [active plan](superpowers/plans/2026-10-26-simple-trackable-backend.md) tracks
 implementation. The admin panel and complete advisory review behavior are
-targets; uncommitted implementation/tooling must still be verified.
+targets; pending functional changes still need their own verification. The
+syntax/Topos runner is implemented; see [quality checks](code-quality.md).
 
 PPMS runs on CodeIgniter 3 with its native MySQLi driver and MySQL/MariaDB.
 `public/` is the web document root. Keep the original table names, enum values,

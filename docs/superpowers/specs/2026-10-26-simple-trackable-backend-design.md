@@ -50,10 +50,11 @@ trace publication, pull/ack and review services. The current human page is a
 setup/form register. A complete admin panel and this Flutter client are not
 implemented here.
 
-At review time, the working tree contains unfinished Topos tooling and changes
-removing approval filters from trace linking, upstream discovery and replacement
-selection. Preserve and inspect that work before implementation. It is not
-verified delivery. `Ppms_workflow_service::review` still creates content revisions,
+Task 1 now implements the syntax/Topos runner with focused failure/provenance
+tests and a real analyzer run. Pending functional changes remove approval
+filters from trace linking, upstream discovery and replacement selection;
+preserve that work for Task 2 rather than treating it as the complete rule.
+`Ppms_workflow_service::review` still creates content revisions,
 progresses sequential approval states and retires outputs on RETURN. Review and
 revalidation also demand the form's mobile device lease. Those gaps are explicit
 tasks, not evidence that the new behavior already works.
@@ -223,5 +224,5 @@ histories and failure responses.
 
 Do not label dirty code, proposed screens or a draft quality runner as shipped.
 Record checks for the tested commit and commit independently complete changes.
-This revision delivers the design and plan only; implementation boxes remain
-unchecked.
+Task 1 delivers development checks. Functional implementation boxes remain
+unchecked until their own behavior and browser verification pass.

@@ -17,7 +17,8 @@ Start with the [active implementation plan](docs/superpowers/plans/2026-10-26-si
 and its [design](docs/superpowers/specs/2026-10-26-simple-trackable-backend-design.md).
 These replace the obsolete root plans. The admin panel and complete advisory
 review behavior are planned work, not implemented features of the current
-setup/form-register page. Existing local code/tooling changes need verification.
+setup/form-register page. Preserved local functional changes belong to Task 2;
+the quality tooling is implemented and verified.
 
 See the [code map](docs/architecture.md),
 [Flutter client contract](docs/flutter-client-contract.md),

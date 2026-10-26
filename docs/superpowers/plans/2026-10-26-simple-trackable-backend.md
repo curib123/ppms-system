@@ -14,9 +14,9 @@ native CSS, jQuery, Chart.js; optional Topos v0.14.0 for supported sources.
 
 **Spec:** [REST API and admin design](../specs/2026-10-26-simple-trackable-backend-design.md).
 
-**Status:** Revised 2026-10-26; implementation/release verification pending.
+**Status:** Task 1 implemented and verified on 2026-10-26; Tasks 2-8 pending.
 This is the single active plan, superseding backend-only and offline browser
-tasks. Existing local changes are not completed tasks.
+tasks. Preserved local functional changes do not complete Task 2.
 
 ## Global constraints
 
@@ -53,7 +53,7 @@ tasks. Existing local changes are not completed tasks.
 | New `application/libraries/Ppms_admin_query_service.php` | Scoped lists, bounded histories, aggregates, trace projections |
 | New `application/views/admin/`, `resources/css/admin.css`, `public/assets/` | CI3 screens/partials, Tailwind input/built CSS, native styles, pinned JS/licenses |
 | Existing `tests/`, new `tests/admin_integration.py`, `tests/admin_browser.spec.js` | Real HTTP/database and browser verification |
-| Draft `scripts/check_quality.py`, `tests/quality.py`, `tools/topos/Dockerfile` | Optional development checks; verify before adoption |
+| Existing `scripts/check_quality.py`, `tests/quality.py`, `tools/topos/Dockerfile` | Verified syntax checks and optional supported-source analysis |
 
 Unqualified service names below live under `application/libraries/`; controllers
 under `application/controllers/`. New paths are proposals, not existing features.
@@ -67,12 +67,34 @@ under `application/controllers/`. New paths are proposals, not existing features
 `python scripts/check_quality.py [--topos] [--php PATH]` exits nonzero on
 syntax/tool/coverage failure. Reports are ignored developer artifacts.
 
-- [ ] Record branch/HEAD, staged/unstaged work and actual baseline test results. Inspect unfinished tooling and trace edits; preserve unrelated work.
-- [ ] Run `php tests/api_routing.php`, `php tests/validation.php`, `python tests/conversion.py`, `python tests/run_with_mariadb.py`. Address any baseline defect in a separate scoped change.
-- [ ] Review/test invalid PHP/Python, analyzer failure, wrong version, malformed/incomplete output, unsupported PHP and exclusion of vendor/private data. Demonstrate failures before finalizing handling.
-- [ ] Finish tracked first-party source selection and pinned native/Docker Topos execution. Verify download checksums, read-only mounts, no analysis network, version/revision/path hashes and explicit unavailable PHP/Dart/COMPOSABLE coverage.
-- [ ] Run `python tests/quality.py`, the normal quality command and a real `--topos` analysis; inspect its report. Missing tooling is a limitation, not a pass.
-- [ ] Commit only the finished tooling: `chore: add optional Topos and first-party syntax checks`. Optional analyzer installation can proceed independently and must not delay functional tasks.
+- [x] Record branch/HEAD, staged/unstaged work and actual baseline test results. Inspect unfinished tooling and trace edits; preserve unrelated work.
+- [x] Run `php tests/api_routing.php`, `php tests/validation.php`, `python tests/conversion.py`, `python tests/run_with_mariadb.py`. Address any baseline defect in a separate scoped change.
+- [x] Review/test invalid PHP/Python, analyzer failure, wrong version, malformed/incomplete output, unsupported PHP and exclusion of vendor/private data. Demonstrate failures before finalizing handling.
+- [x] Finish tracked first-party source selection and pinned native/Docker Topos execution. Verify download checksums, read-only mounts, no analysis network, version/revision/path hashes and explicit unavailable PHP/Dart/COMPOSABLE coverage.
+- [x] Run `python tests/quality.py`, the normal quality command and a real `--topos` analysis; inspect its report. Missing tooling is a limitation, not a pass.
+- [x] Commit only the finished tooling: `chore: add optional Topos and first-party syntax checks`. Optional analyzer installation can proceed independently and must not delay functional tasks.
+
+### Task 1 verification record
+
+Tooling source commit: `799895a`. Work continues on
+`feature/offline-dynamic-ppm-api`; the existing functional edits were preserved.
+
+- `python tests/quality.py`: 15 tests passed. New exclusion, concurrent-edit,
+  pre-analysis metadata and update-notice checks failed before their fixes.
+- Normal syntax check and `python scripts/check_quality.py --topos`: 58 PHP
+  and 8 Python files passed; real Topos v0.14.0 parsed all 8 supported files.
+  The ignored report includes source hashes/revision and dirty state.
+- `php tests/api_routing.php`: 1,074 assertions passed;
+  `php tests/validation.php` and the conversion-integrity test passed.
+- `python tests/run_with_mariadb.py`: 9 installer, 4 migration and 21 API tests
+  passed on a private disposable server. An initial installer retry scenario
+  exceeded its 30-second child timeout; an isolated rerun and the final complete
+  run passed. The cause was unconfirmed; no speculative installer fix was made.
+- Independent Task 1 review found no material code/security issues.
+
+Backend baseline tests used the working tree, including preexisting trace and
+API-test edits. Those functional files remain uncommitted; these results do
+not establish Task 2's full advisory-review contract or an admin-panel release.
 
 ## Task 2: Independent review and non-blocking trace progression
 
