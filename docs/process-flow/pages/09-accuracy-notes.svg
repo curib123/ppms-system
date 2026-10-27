@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1680" height="1188" viewBox="0 0 1680 1188">
+<rect width="100%" height="100%" fill="white"/>
+<title>Accuracy notes and source authority</title>
+<rect x="64" y="200" width="1552" height="3" rx="0" fill="#CCD7E2" stroke="none"/>
+<rect x="64" y="200" width="150" height="3" rx="0" fill="#087E83" stroke="none"/>
+<rect x="64" y="1135" width="1552" height="1" rx="0" fill="#CCD7E2" stroke="none"/>
+<rect x="64" y="235" width="755" height="260" rx="12" fill="#FFF6E6" stroke="none"/>
+<rect x="64" y="520" width="755" height="247" rx="12" fill="#FFF6E6" stroke="none"/>
+<rect x="64" y="792" width="755" height="310" rx="12" fill="#F1F6FC" stroke="none"/>
+<rect x="850" y="235" width="766" height="360" rx="12" fill="#EDF8F7" stroke="none"/>
+<rect x="850" y="620" width="766" height="482" rx="12" fill="#F3F7FA" stroke="none"/>
+<text x="64" y="54.05" font-family="Helvetica,Arial,sans-serif" font-size="15" font-weight="700" fill="#2563A6">PPMS / PROCESS DOCUMENTATION</text>
+<text x="1405.17" y="52.98" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#52647A">27 OCTOBER 2026 / DEFAULTS</text>
+<text x="64" y="128.73" font-family="Helvetica,Arial,sans-serif" font-size="39" font-weight="700" fill="#172B45">Accuracy notes and source authority</text>
+<text x="64" y="169.35" font-family="Helvetica,Arial,sans-serif" font-size="18" font-weight="400" fill="#52647A">This document describes the checked-in defaults and current guards. It does not certify that every seeded route is operational.</text>
+<text x="64" y="1166.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#52647A">Default seed + current CI3 service rules | Editable source included | See accuracy notes</text>
+<text x="1570.13" y="1166.05" font-family="Helvetica,Arial,sans-serif" font-size="15" font-weight="700" fill="#2563A6">09 / 09</text>
+<text x="82" y="266.05" font-family="Helvetica,Arial,sans-serif" font-size="15" font-weight="700" fill="#52647A">01 / REQUIRED INPUTS WITH NO ACTIVE SOURCE</text>
+<text x="84" y="312.26" font-family="Helvetica,Arial,sans-serif" font-size="18" font-weight="700" fill="#98610A">PPM-017: entries[].packingCode</text>
+<text x="84" y="335.66" font-family="Helvetica,Arial,sans-serif" font-size="18" font-weight="700" fill="#98610A">PPM-024: entries[].productCode</text>
+<text x="84" y="359.06" font-family="Helvetica,Arial,sans-serif" font-size="18" font-weight="700" fill="#98610A">PPM-024: entries[].rollCode</text>
+<text x="84" y="412.275" font-family="Helvetica,Arial,sans-serif" font-size="17" font-weight="400" fill="#172B45">The runtime requires an exact active source selection for populated trace fields. No supplier</text>
+<text x="84" y="434.375" font-family="Helvetica,Arial,sans-serif" font-size="17" font-weight="400" fill="#172B45">form or connection is invented here.</text>
+<text x="82" y="551.05" font-family="Helvetica,Arial,sans-serif" font-size="15" font-weight="700" fill="#52647A">02 / SAME-FORM SOURCES NEED ANOTHER RECORD</text>
+<text x="84" y="596.26" font-family="Helvetica,Arial,sans-serif" font-size="18" font-weight="700" fill="#98610A">PPM-011 meringueCode -&gt; mixture meringueCode</text>
+<text x="84" y="619.66" font-family="Helvetica,Arial,sans-serif" font-size="18" font-weight="700" fill="#98610A">PPM-022 oilCode -&gt; usageOilCode</text>
+<text x="84" y="667.275" font-family="Helvetica,Arial,sans-serif" font-size="17" font-weight="400" fill="#172B45">Same-record source selection is explicitly rejected. Verify the separate-record / first-record</text>
+<text x="84" y="689.375" font-family="Helvetica,Arial,sans-serif" font-size="17" font-weight="400" fill="#172B45">bootstrap arrangement for these streams before rollout.</text>
+<text x="82" y="823.05" font-family="Helvetica,Arial,sans-serif" font-size="15" font-weight="700" fill="#52647A">03 / PRESERVE THE ACTUAL CONFIGURATION</text>
+<text x="84" y="868.275" font-family="Helvetica,Arial,sans-serif" font-size="17" font-weight="400" fill="#172B45">CONN-004 and CONN-005 remain ACTIVE in the seed, but their target paths are obsolete.</text>
+<text x="84" y="890.375" font-family="Helvetica,Arial,sans-serif" font-size="17" font-weight="400" fill="#172B45">The diagrams use the corresponding current row paths.</text>
+<text x="84" y="912.475" font-family="Helvetica,Arial,sans-serif" font-size="17" font-weight="400" fill="#172B45"></text>
+<text x="84" y="934.575" font-family="Helvetica,Arial,sans-serif" font-size="17" font-weight="400" fill="#172B45">PPM-005 / PPM-006 stay RESERVED. PPM-025 is absent. No onward source link is</text>
+<text x="84" y="956.675" font-family="Helvetica,Arial,sans-serif" font-size="17" font-weight="400" fill="#172B45">configured for frozen eggyolk or an external pan-greaser handoff.</text>
+<text x="868" y="266.05" font-family="Helvetica,Arial,sans-serif" font-size="15" font-weight="700" fill="#52647A">04 / RUNTIME AND CLIENT BOUNDARIES</text>
+<text x="872" y="311.275" font-family="Helvetica,Arial,sans-serif" font-size="17" font-weight="400" fill="#172B45">Checked, Reviewed and Approved are independent guidance on the exact content revision.</text>
+<text x="872" y="333.375" font-family="Helvetica,Arial,sans-serif" font-size="17" font-weight="400" fill="#172B45">Review does not gate an otherwise eligible published source.</text>
+<text x="872" y="355.475" font-family="Helvetica,Arial,sans-serif" font-size="17" font-weight="400" fill="#172B45"></text>
+<text x="872" y="377.575" font-family="Helvetica,Arial,sans-serif" font-size="17" font-weight="400" fill="#172B45">Corrections return the record to ACTIVE with a CORRECTED revision. Resubmission and</text>
+<text x="872" y="399.675" font-family="Helvetica,Arial,sans-serif" font-size="17" font-weight="400" fill="#172B45">publication remain separate. Unresolved genuine trace impacts still block publication.</text>
+<text x="872" y="421.775" font-family="Helvetica,Arial,sans-serif" font-size="17" font-weight="400" fill="#172B45"></text>
+<text x="872" y="443.875" font-family="Helvetica,Arial,sans-serif" font-size="17" font-weight="400" fill="#172B45">Flutter local entry and the admin panel are planned client work in this checkout; this PDF is not</text>
+<text x="872" y="465.975" font-family="Helvetica,Arial,sans-serif" font-size="17" font-weight="400" fill="#172B45">proof of client delivery.</text>
+<text x="868" y="651.05" font-family="Helvetica,Arial,sans-serif" font-size="15" font-weight="700" fill="#52647A">05 / SOURCE INDEX AND REPRODUCTION</text>
+<text x="872" y="689.513" font-family="Helvetica,Arial,sans-serif" font-size="13.5" font-weight="400" fill="#52647A">database/default_data.sql + database/manifest.json</text>
+<text x="872" y="720.513" font-family="Helvetica,Arial,sans-serif" font-size="13.5" font-weight="400" fill="#52647A">application/libraries/Ppms_record_service.php</text>
+<text x="872" y="751.513" font-family="Helvetica,Arial,sans-serif" font-size="13.5" font-weight="400" fill="#52647A">application/libraries/Ppms_trace_service.php</text>
+<text x="872" y="782.513" font-family="Helvetica,Arial,sans-serif" font-size="13.5" font-weight="400" fill="#52647A">application/libraries/Ppms_workflow_service.php</text>
+<text x="872" y="813.513" font-family="Helvetica,Arial,sans-serif" font-size="13.5" font-weight="400" fill="#52647A">application/libraries/Ppms_sync_service.php</text>
+<text x="872" y="844.513" font-family="Helvetica,Arial,sans-serif" font-size="13.5" font-weight="400" fill="#52647A">docs/architecture.md + docs/flutter-client-contract.md</text>
+<text x="872" y="875.513" font-family="Helvetica,Arial,sans-serif" font-size="13.5" font-weight="400" fill="#52647A">docs/superpowers/specs/2026-10-26-simple-trackable-backend-design.md</text>
+<text x="872" y="906.513" font-family="Helvetica,Arial,sans-serif" font-size="13.5" font-weight="400" fill="#52647A">docs/superpowers/plans/2026-10-26-simple-trackable-backend.md</text>
+<text x="872" y="961.2" font-family="Helvetica,Arial,sans-serif" font-size="16" font-weight="400" fill="#172B45">Full SHA-256 values: source/default-ppm-flow.json</text>
+<text x="872" y="982" font-family="Helvetica,Arial,sans-serif" font-size="16" font-weight="400" fill="#172B45">Build and validation commands: README.md</text>
+<text x="872" y="1002.8" font-family="Helvetica,Arial,sans-serif" font-size="16" font-weight="400" fill="#172B45">All shapes, labels and connectors: included .drawio file</text>
+<text x="872" y="1052.12" font-family="Helvetica,Arial,sans-serif" font-size="16" font-weight="700" fill="#087E83">No live database was queried or changed.</text>
+<text x="872" y="1072.92" font-family="Helvetica,Arial,sans-serif" font-size="16" font-weight="700" fill="#087E83">No existing PDF was supplied; this is a new source-based document.</text>
+</svg>

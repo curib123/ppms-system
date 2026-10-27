@@ -25,6 +25,9 @@ register. The quality tooling is implemented and verified.
 See the [code map](docs/architecture.md),
 [Flutter client contract](docs/flutter-client-contract.md),
 [current API guide](docs/backend-api.md) and [quality checks](docs/code-quality.md).
+The [default PPM process-flow package](docs/process-flow/README.md) includes a
+new nine-page PDF and editable diagrams based on the canonical forms, exact
+trace connections and current record/review/correction rules.
 
 ## Requirements
 

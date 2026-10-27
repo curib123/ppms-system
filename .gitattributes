@@ -4,5 +4,7 @@
 *.json text eol=lf
 *.md text eol=lf
 *.ps1 text eol=crlf
+docs/process-flow/*.drawio text eol=lf
+docs/process-flow/pages/*.svg text eol=lf
 # Keep the byte-for-byte source snapshots used by the canonical seed hash.
 database/source/** -text

@@ -1,0 +1,31 @@
+{
+  "scope": "Static source and generated-document validation; no application/database writes or client playthrough",
+  "pages": 9,
+  "formCodes": 26,
+  "savedConnections": 56,
+  "mappedCurrentConnections": 33,
+  "artifactSha256": {
+    "pages/01-ingredients.svg": "534b88ef2c6ab928b9f266d3ae2b7bedbe6471563bc62948aa5fcd2213d4d02c",
+    "pages/02-finishing.svg": "fc4eeb6c373cbe4d72c4038a431244b701eeefe4ff9906d5a1036f656c855dd4",
+    "pages/03-record-workflow.svg": "eba23f49465c5c92ef6fabf32aa9406bd9aa7fd8c2d6b6b38b0efe50afceb690",
+    "pages/04-corrections.svg": "a6eb915d1ff79f6c6c84a981e057b82480effda74e87261204765528b007cc6b",
+    "pages/05-form-register.svg": "1e2b3a579355c6688e340ff66f326963a749378b12b9c2b2155ee59fd8da0574",
+    "pages/06-active-connections.svg": "cb7dfec421ea3cf4c151fad39317f07ea5b5e2d270c68addbd0054546039a351",
+    "pages/07-active-connections.svg": "0565715923f90f4c25ba6b4de505aa4a7c96992f8b80aed0fc5097b39f27e134",
+    "pages/08-inactive-connections.svg": "990a60b5a06d10dd2899a792f68dfce7f04f510d9da6b73d36073472ff95a993",
+    "pages/09-accuracy-notes.svg": "cc78cea82c1e7412af81ac82b12f375730cd62a1a5e044a54aaf7d0f8e4833c7",
+    "PPMS_Default_PPM_Process_Flow.drawio": "251ae75e51464eea28ff722a6ae13b70e3588e5ef9e04adbcd1ab80abb3b2575",
+    "PPMS_Default_PPM_Process_Flow.pdf": "75ed63d5a83ff6b67a12f87ace841df109e39f02e85c4f3acc68482a520596a5",
+    "previews/01-ingredients.png": "b837c15470aa6d806c1f300fc29108753e4681c466c18e45f8081b14a659ef4f",
+    "previews/02-finishing.png": "9532d238d80d9b74e09fe937e3a6f6ac59967cd419bf5a23fb8da638672c4d61",
+    "previews/03-record-workflow.png": "0fa809755db4d5af8faffcf303494274fee64908bc23e310c168f6b5cb53305b",
+    "previews/04-corrections.png": "65b6073af213121e3cf27f8dd06db85bf152951e520d7a880cff254ffbeb55fe",
+    "previews/05-form-register.png": "bc413d8f62656df8f631e1d4c822107c963f3edb452ac4b746a0e55ecb22fbf5",
+    "previews/06-active-connections.png": "efd66128def02347847f7402c3a8a162f98a0560e1161bf509efd7b2fad3b556",
+    "previews/07-active-connections.png": "b1b656f163c77d0583c37e4c3858e8b69d36a4258b57191674036b32ac8479c0",
+    "previews/08-inactive-connections.png": "f15b95eadd4ce82ee656863e19a66b017cb73c3b3edb7738305939857af1d605",
+    "previews/09-accuracy-notes.png": "dbfb3bfacabab16bdf0ca6b1ccc61aba3e981fada43a7047daebb35a47fc23f3",
+    "README.md": "2093cf81d9a973f90a1d14c1aeb4f2c17a1c28a5ab8d2f37ddc24e922ba1cce7",
+    "source/default-ppm-flow.json": "4dbcb6955c76933a325b871a397d42ca87020b208ad95e17dc9f22cab8373a1b"
+  }
+}

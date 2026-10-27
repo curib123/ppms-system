@@ -1,0 +1,129 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1680" height="1188" viewBox="0 0 1680 1188">
+<rect width="100%" height="100%" fill="white"/>
+<title>Forming, baking, packing and release</title>
+<rect x="64" y="200" width="1552" height="3" rx="0" fill="#CCD7E2" stroke="none"/>
+<rect x="64" y="200" width="150" height="3" rx="0" fill="#087E83" stroke="none"/>
+<rect x="64" y="1135" width="1552" height="1" rx="0" fill="#CCD7E2" stroke="none"/>
+<rect x="840" y="492" width="770" height="69.6" rx="8" fill="#EDF8F7" stroke="none"/>
+<polyline points="310,390 430,390" fill="none" stroke="#2563A6" stroke-width="2"/>
+<polygon points="430,390 420,386 420,394 430,390" fill="#2563A6"/>
+<polyline points="195,340 195,305 895,305 895,340" fill="none" stroke="#2563A6" stroke-width="2"/>
+<polygon points="895,340 899,330 891,330 895,340" fill="#2563A6"/>
+<polyline points="195,340 195,265 1245,265 1245,340" fill="none" stroke="#2563A6" stroke-width="2"/>
+<polygon points="1245,340 1249,330 1241,330 1245,340" fill="#2563A6"/>
+<polyline points="660,390 780,390" fill="none" stroke="#52647A" stroke-width="2" stroke-dasharray="7 5"/>
+<polygon points="780,390 770,386 770,394 780,390" fill="#52647A"/>
+<polyline points="1010,390 1130,390" fill="none" stroke="#52647A" stroke-width="2" stroke-dasharray="7 5"/>
+<polygon points="1130,390 1120,386 1120,394 1130,390" fill="#52647A"/>
+<polyline points="545,440 545,500" fill="none" stroke="#087E83" stroke-width="2"/>
+<polygon points="545,500 549,490 541,490 545,500" fill="#087E83"/>
+<polyline points="80,550 52,550 52,638 195,638 195,600" fill="none" stroke="#98610A" stroke-width="2"/>
+<polygon points="195,600 191,610 199,610 195,600" fill="#98610A"/>
+<polyline points="300,800 430,800" fill="none" stroke="#2563A6" stroke-width="2"/>
+<polygon points="430,800 420,796 420,804 430,800" fill="#2563A6"/>
+<polyline points="190,750 190,705 890,705 890,720" fill="none" stroke="#2563A6" stroke-width="2"/>
+<polygon points="890,720 894,710 886,710 890,720" fill="#2563A6"/>
+<polyline points="190,850 190,1080 890,1080 890,1060" fill="none" stroke="#2563A6" stroke-width="2"/>
+<polygon points="890,1060 886,1070 894,1070 890,1060" fill="#2563A6"/>
+<polyline points="650,800 710,800 710,770 780,770" fill="none" stroke="#2563A6" stroke-width="2"/>
+<polygon points="780,770 770,766 770,774 780,770" fill="#2563A6"/>
+<polyline points="540,850 540,1010 780,1010" fill="none" stroke="#2563A6" stroke-width="2"/>
+<polygon points="780,1010 770,1006 770,1014 780,1010" fill="#2563A6"/>
+<polyline points="1000,770 1070,770 1070,852 1130,852" fill="none" stroke="#2563A6" stroke-width="2"/>
+<polygon points="1130,852 1120,848 1120,856 1130,852" fill="#2563A6"/>
+<polyline points="1000,1010 1070,1010 1070,895 1130,895" fill="none" stroke="#2563A6" stroke-width="2"/>
+<polygon points="1130,895 1120,891 1120,899 1130,895" fill="#2563A6"/>
+<polyline points="1350,875 1390,875" fill="none" stroke="#2563A6" stroke-width="2"/>
+<polygon points="1390,875 1380,871 1380,879 1390,875" fill="#2563A6"/>
+<polyline points="1240,925 1240,1055 1310,1055" fill="none" stroke="#087E83" stroke-width="2"/>
+<polygon points="1310,1055 1300,1051 1300,1059 1310,1055" fill="#087E83"/>
+<polyline points="1500,925 1500,1010" fill="none" stroke="#087E83" stroke-width="2"/>
+<polygon points="1500,1010 1504,1000 1496,1000 1500,1010" fill="#087E83"/>
+<rect x="80" y="340" width="230" height="100" rx="10" fill="#FFFFFF" stroke="#2563A6" stroke-width="1.5"/>
+<text x="96" y="384.16" font-family="Helvetica,Arial,sans-serif" font-size="18" font-weight="700" fill="#2563A6">PPM-011</text>
+<text x="96" y="411.5" font-family="Helvetica,Arial,sans-serif" font-size="16" font-weight="400" fill="#172B45">Mixing - Meringue</text>
+<rect x="430" y="340" width="230" height="100" rx="10" fill="#FFFFFF" stroke="#2563A6" stroke-width="1.5"/>
+<text x="446" y="384.16" font-family="Helvetica,Arial,sans-serif" font-size="18" font-weight="700" fill="#2563A6">PPM-012</text>
+<text x="446" y="411.5" font-family="Helvetica,Arial,sans-serif" font-size="16" font-weight="400" fill="#172B45">Forming operations</text>
+<rect x="780" y="340" width="230" height="100" rx="10" fill="#FFFFFF" stroke="#2563A6" stroke-width="1.5"/>
+<text x="796" y="384.16" font-family="Helvetica,Arial,sans-serif" font-size="18" font-weight="700" fill="#2563A6">PPM-013</text>
+<text x="796" y="411.5" font-family="Helvetica,Arial,sans-serif" font-size="16" font-weight="400" fill="#172B45">Baking monitoring</text>
+<rect x="1130" y="340" width="230" height="100" rx="10" fill="#FFFFFF" stroke="#2563A6" stroke-width="1.5"/>
+<text x="1146" y="384.16" font-family="Helvetica,Arial,sans-serif" font-size="18" font-weight="700" fill="#2563A6">PPM-014</text>
+<text x="1146" y="411.5" font-family="Helvetica,Arial,sans-serif" font-size="16" font-weight="400" fill="#172B45">Baked receiving</text>
+<rect x="312" y="353" width="86.68999969959259" height="23" rx="3" fill="#FFFFFF" stroke="none"/>
+<rect x="469" y="275" width="185.5159990787506" height="23" rx="3" fill="#FFFFFF" stroke="none"/>
+<rect x="864" y="236" width="242.31399881839752" height="23" rx="3" fill="#FFFFFF" stroke="none"/>
+<rect x="666" y="412" width="62.58199965953827" height="23" rx="3" fill="#FFFFFF" stroke="none"/>
+<rect x="1016" y="412" width="103.04199945926666" height="23" rx="3" fill="#FFFFFF" stroke="none"/>
+<rect x="430" y="500" width="230" height="100" rx="10" fill="#FFFFFF" stroke="#087E83" stroke-width="1.5"/>
+<text x="446" y="533.76" font-family="Helvetica,Arial,sans-serif" font-size="18" font-weight="700" fill="#087E83">PPM-023</text>
+<text x="446" y="561.1" font-family="Helvetica,Arial,sans-serif" font-size="16" font-weight="400" fill="#172B45">Forming personnel</text>
+<text x="446" y="581.9" font-family="Helvetica,Arial,sans-serif" font-size="16" font-weight="400" fill="#172B45">Session reference</text>
+<rect x="567" y="463" width="110.04199945926666" height="23" rx="3" fill="#FFFFFF" stroke="none"/>
+<rect x="80" y="500" width="230" height="100" rx="10" fill="#FFFFFF" stroke="#087E83" stroke-width="1.5"/>
+<text x="96" y="533.76" font-family="Helvetica,Arial,sans-serif" font-size="18" font-weight="700" fill="#087E83">PPM-022</text>
+<text x="96" y="561.1" font-family="Helvetica,Arial,sans-serif" font-size="16" font-weight="400" fill="#172B45">Pan greaser</text>
+<text x="96" y="581.9" font-family="Helvetica,Arial,sans-serif" font-size="16" font-weight="400" fill="#172B45">Oil usage stream</text>
+<rect x="69" y="609" width="155.93399941921234" height="23" rx="3" fill="#FFFFFF" stroke="none"/>
+<rect x="80" y="750" width="220" height="100" rx="10" fill="#FFFFFF" stroke="#2563A6" stroke-width="1.5"/>
+<text x="96" y="783.76" font-family="Helvetica,Arial,sans-serif" font-size="18" font-weight="700" fill="#2563A6">PPM-014</text>
+<text x="96" y="811.1" font-family="Helvetica,Arial,sans-serif" font-size="16" font-weight="400" fill="#172B45">Baked code</text>
+<text x="96" y="831.9" font-family="Helvetica,Arial,sans-serif" font-size="16" font-weight="400" fill="#172B45">Same form as above</text>
+<rect x="430" y="750" width="220" height="100" rx="10" fill="#FFFFFF" stroke="#2563A6" stroke-width="1.5"/>
+<text x="446" y="783.76" font-family="Helvetica,Arial,sans-serif" font-size="18" font-weight="700" fill="#2563A6">PPM-024</text>
+<text x="446" y="811.1" font-family="Helvetica,Arial,sans-serif" font-size="16" font-weight="400" fill="#172B45">Product coding</text>
+<text x="446" y="831.9" font-family="Helvetica,Arial,sans-serif" font-size="16" font-weight="400" fill="#172B45">Roll code output</text>
+<rect x="780" y="720" width="220" height="100" rx="10" fill="#FFFFFF" stroke="#2563A6" stroke-width="1.5"/>
+<text x="796" y="753.76" font-family="Helvetica,Arial,sans-serif" font-size="18" font-weight="700" fill="#2563A6">PPM-015</text>
+<text x="796" y="781.1" font-family="Helvetica,Arial,sans-serif" font-size="16" font-weight="400" fill="#172B45">Primary packing</text>
+<text x="796" y="801.9" font-family="Helvetica,Arial,sans-serif" font-size="16" font-weight="400" fill="#172B45">Printed foil input</text>
+<rect x="780" y="960" width="220" height="100" rx="10" fill="#FFFFFF" stroke="#2563A6" stroke-width="1.5"/>
+<text x="796" y="993.76" font-family="Helvetica,Arial,sans-serif" font-size="18" font-weight="700" fill="#2563A6">PPM-016</text>
+<text x="796" y="1021.1" font-family="Helvetica,Arial,sans-serif" font-size="16" font-weight="400" fill="#172B45">Primary packing</text>
+<text x="796" y="1041.9" font-family="Helvetica,Arial,sans-serif" font-size="16" font-weight="400" fill="#172B45">Plain foil input</text>
+<rect x="1130" y="825" width="220" height="100" rx="10" fill="#FFFFFF" stroke="#2563A6" stroke-width="1.5"/>
+<text x="1146" y="869.16" font-family="Helvetica,Arial,sans-serif" font-size="18" font-weight="700" fill="#2563A6">PPM-017</text>
+<text x="1146" y="896.5" font-family="Helvetica,Arial,sans-serif" font-size="16" font-weight="400" fill="#172B45">Secondary packing</text>
+<rect x="1390" y="825" width="220" height="100" rx="10" fill="#FFFFFF" stroke="#2563A6" stroke-width="1.5"/>
+<text x="1406" y="869.16" font-family="Helvetica,Arial,sans-serif" font-size="18" font-weight="700" fill="#2563A6">PPM-018</text>
+<text x="1406" y="896.5" font-family="Helvetica,Arial,sans-serif" font-size="16" font-weight="400" fill="#172B45">Tertiary packing</text>
+<rect x="1310" y="1010" width="300" height="90" rx="10" fill="#EDF8F7" stroke="#087E83" stroke-width="1.5"/>
+<text x="1326" y="1049.16" font-family="Helvetica,Arial,sans-serif" font-size="18" font-weight="700" fill="#087E83">WH-STOCK-RELEASE</text>
+<text x="1326" y="1076.5" font-family="Helvetica,Arial,sans-serif" font-size="16" font-weight="400" fill="#172B45">Stock releasing form</text>
+<rect x="304" y="762" width="85.93399941921234" height="23" rx="3" fill="#FFFFFF" stroke="none"/>
+<rect x="559" y="677" width="85.93399941921234" height="23" rx="3" fill="#FFFFFF" stroke="none"/>
+<rect x="434" y="1046" width="85.93399941921234" height="23" rx="3" fill="#FFFFFF" stroke="none"/>
+<rect x="654" y="733" width="100.68999969959259" height="23" rx="3" fill="#FFFFFF" stroke="none"/>
+<rect x="560" y="976" width="87.4599997997284" height="23" rx="3" fill="#FFFFFF" stroke="none"/>
+<rect x="1004" y="732" width="116.2579995393753" height="23" rx="3" fill="#FFFFFF" stroke="none"/>
+<rect x="1004" y="1018" width="116.2579995393753" height="23" rx="3" fill="#FFFFFF" stroke="none"/>
+<rect x="1089" y="967" width="150.50199925899506" height="23" rx="3" fill="#FFFFFF" stroke="none"/>
+<rect x="1384" y="941" width="116.2579995393753" height="23" rx="3" fill="#FFFFFF" stroke="none"/>
+<text x="64" y="54.05" font-family="Helvetica,Arial,sans-serif" font-size="15" font-weight="700" fill="#2563A6">PPMS / PROCESS DOCUMENTATION</text>
+<text x="1405.17" y="52.98" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#52647A">27 OCTOBER 2026 / DEFAULTS</text>
+<text x="64" y="128.73" font-family="Helvetica,Arial,sans-serif" font-size="39" font-weight="700" fill="#172B45">Forming, baking, packing and release</text>
+<text x="64" y="169.35" font-family="Helvetica,Arial,sans-serif" font-size="18" font-weight="400" fill="#52647A">Solid arrows are current trace mappings. The two dashed arrows show physical activity order inferred from field labels.</text>
+<text x="64" y="1166.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#52647A">Default seed + current CI3 service rules | Editable source included | See accuracy notes</text>
+<text x="1570.13" y="1166.05" font-family="Helvetica,Arial,sans-serif" font-size="15" font-weight="700" fill="#2563A6">02 / 09</text>
+<text x="80" y="251.12" font-family="Helvetica,Arial,sans-serif" font-size="16" font-weight="700" fill="#2563A6">PRODUCTION ACTIVITIES</text>
+<text x="318" y="370.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#2563A6">Mixing code</text>
+<text x="475" y="292.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#2563A6">Mixing code direct to baking</text>
+<text x="870" y="253.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#2563A6">Mixing code direct to baked receiving</text>
+<text x="672" y="429.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#52647A">To oven</text>
+<text x="1022" y="429.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#52647A">Baked transfer</text>
+<text x="573" y="480.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#087E83">Internal session</text>
+<text x="75" y="626.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#98610A">Oil from another record</text>
+<text x="858" y="521.2" font-family="Helvetica,Arial,sans-serif" font-size="16" font-weight="400" fill="#087E83">PPM-013 and PPM-023 have no default output rules. Pan greaser has no configured link to other</text>
+<text x="858" y="542" font-family="Helvetica,Arial,sans-serif" font-size="16" font-weight="400" fill="#087E83">production forms.</text>
+<text x="80" y="682.12" font-family="Helvetica,Arial,sans-serif" font-size="16" font-weight="700" fill="#2563A6">PACKING / EXACT BAKED AND FOIL-ROLL SOURCES</text>
+<text x="310" y="779.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#2563A6">Baked code</text>
+<text x="565" y="694.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#2563A6">Baked code</text>
+<text x="440" y="1063.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#2563A6">Baked code</text>
+<text x="660" y="750.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#2563A6">Printed foil roll</text>
+<text x="566" y="993.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#2563A6">Plain foil roll</text>
+<text x="1010" y="749.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#2563A6">Consume-before</text>
+<text x="1010" y="1035.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#2563A6">Consume-before</text>
+<text x="1095" y="984.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#087E83">Consume-before code</text>
+<text x="1390" y="958.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#087E83">Consume-before</text>
+</svg>

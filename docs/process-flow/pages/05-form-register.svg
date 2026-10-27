@@ -1,0 +1,204 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1680" height="1188" viewBox="0 0 1680 1188">
+<rect width="100%" height="100%" fill="white"/>
+<title>Default form register</title>
+<rect x="64" y="200" width="1552" height="3" rx="0" fill="#CCD7E2" stroke="none"/>
+<rect x="64" y="200" width="150" height="3" rx="0" fill="#087E83" stroke="none"/>
+<rect x="64" y="1135" width="1552" height="1" rx="0" fill="#CCD7E2" stroke="none"/>
+<rect x="64" y="250" width="1552" height="43" rx="4" fill="#EAF0F7" stroke="none"/>
+<rect x="64" y="293" width="1552" height="29" rx="0" fill="#F7F9FC" stroke="none"/>
+<rect x="64" y="322" width="1552" height="29" rx="0" fill="#FFFFFF" stroke="none"/>
+<rect x="64" y="351" width="1552" height="29" rx="0" fill="#F7F9FC" stroke="none"/>
+<rect x="64" y="380" width="1552" height="29" rx="0" fill="#FFFFFF" stroke="none"/>
+<rect x="64" y="409" width="1552" height="29" rx="0" fill="#F7F9FC" stroke="none"/>
+<rect x="64" y="438" width="1552" height="29" rx="0" fill="#FFFFFF" stroke="none"/>
+<rect x="64" y="467" width="1552" height="29" rx="0" fill="#F7F9FC" stroke="none"/>
+<rect x="64" y="496" width="1552" height="29" rx="0" fill="#FFFFFF" stroke="none"/>
+<rect x="64" y="525" width="1552" height="29" rx="0" fill="#F7F9FC" stroke="none"/>
+<rect x="64" y="554" width="1552" height="29" rx="0" fill="#FFFFFF" stroke="none"/>
+<rect x="64" y="583" width="1552" height="29" rx="0" fill="#F7F9FC" stroke="none"/>
+<rect x="64" y="612" width="1552" height="29" rx="0" fill="#FFFFFF" stroke="none"/>
+<rect x="64" y="641" width="1552" height="29" rx="0" fill="#F7F9FC" stroke="none"/>
+<rect x="64" y="670" width="1552" height="29" rx="0" fill="#FFFFFF" stroke="none"/>
+<rect x="64" y="699" width="1552" height="29" rx="0" fill="#F7F9FC" stroke="none"/>
+<rect x="64" y="728" width="1552" height="29" rx="0" fill="#FFFFFF" stroke="none"/>
+<rect x="64" y="757" width="1552" height="29" rx="0" fill="#F7F9FC" stroke="none"/>
+<rect x="64" y="786" width="1552" height="29" rx="0" fill="#FFFFFF" stroke="none"/>
+<rect x="64" y="815" width="1552" height="29" rx="0" fill="#F7F9FC" stroke="none"/>
+<rect x="64" y="844" width="1552" height="29" rx="0" fill="#FFFFFF" stroke="none"/>
+<rect x="64" y="873" width="1552" height="29" rx="0" fill="#F7F9FC" stroke="none"/>
+<rect x="64" y="902" width="1552" height="29" rx="0" fill="#FFFFFF" stroke="none"/>
+<rect x="64" y="931" width="1552" height="29" rx="0" fill="#F7F9FC" stroke="none"/>
+<rect x="64" y="960" width="1552" height="29" rx="0" fill="#FFFFFF" stroke="none"/>
+<rect x="64" y="989" width="1552" height="29" rx="0" fill="#F7F9FC" stroke="none"/>
+<rect x="64" y="1018" width="1552" height="29" rx="0" fill="#FFFFFF" stroke="none"/>
+<rect x="64" y="1070" width="1552" height="47.5" rx="8" fill="#EDF8F7" stroke="none"/>
+<text x="64" y="54.05" font-family="Helvetica,Arial,sans-serif" font-size="15" font-weight="700" fill="#2563A6">PPMS / PROCESS DOCUMENTATION</text>
+<text x="1405.17" y="52.98" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#52647A">27 OCTOBER 2026 / DEFAULTS</text>
+<text x="64" y="128.73" font-family="Helvetica,Arial,sans-serif" font-size="39" font-weight="700" fill="#172B45">Default form register</text>
+<text x="64" y="169.35" font-family="Helvetica,Arial,sans-serif" font-size="18" font-weight="400" fill="#52647A">All 26 defaults: 24 active forms and two reserved forms. Template v3 is distinct from each controlled paper revision.</text>
+<text x="64" y="1166.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#52647A">Default seed + current CI3 service rules | Editable source included | See accuracy notes</text>
+<text x="1570.13" y="1166.05" font-family="Helvetica,Arial,sans-serif" font-size="15" font-weight="700" fill="#2563A6">05 / 09</text>
+<text x="75" y="275.98" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#2563A6">FORM CODE</text>
+<text x="260" y="275.98" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#2563A6">CONTROLLED TITLE</text>
+<text x="645" y="275.98" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#2563A6">AREA</text>
+<text x="865" y="275.98" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#2563A6">STATE</text>
+<text x="985" y="275.98" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#2563A6">VERSION / REV</text>
+<text x="1145" y="275.98" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#2563A6">ROW LIMITS</text>
+<text x="75" y="312.98" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#172B45">PPM-001</text>
+<text x="260" y="313.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">EGG PREPARATION</text>
+<text x="645" y="313.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">Egg Preparation</text>
+<text x="865" y="313.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">ACTIVE</text>
+<text x="985" y="313.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">v3 / 004</text>
+<text x="1145" y="312.98" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#52647A">1-200 rows</text>
+<text x="75" y="341.98" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#172B45">PPM-002</text>
+<text x="260" y="342.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">EGGWHITES</text>
+<text x="645" y="342.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">Egg Preparation</text>
+<text x="865" y="342.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">ACTIVE</text>
+<text x="985" y="342.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">v3 / 003</text>
+<text x="1145" y="341.98" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#52647A">1-200 rows</text>
+<text x="75" y="370.98" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#172B45">PPM-003</text>
+<text x="260" y="371.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">EGGYOLK</text>
+<text x="645" y="371.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">Egg Preparation</text>
+<text x="865" y="371.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">ACTIVE</text>
+<text x="985" y="371.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">v3 / 004</text>
+<text x="1145" y="370.98" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#52647A">1-200 rows</text>
+<text x="75" y="399.98" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#172B45">PPM-004</text>
+<text x="260" y="400.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">PEANUT SORTING (RAW)</text>
+<text x="645" y="400.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">Peanut Section</text>
+<text x="865" y="400.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">ACTIVE</text>
+<text x="985" y="400.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">v3 / 004</text>
+<text x="1145" y="399.98" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#52647A">1-200 rows</text>
+<text x="75" y="428.98" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#172B45">PPM-005</text>
+<text x="260" y="429.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">PEANUT BLANCHING</text>
+<text x="645" y="429.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">Peanut Section</text>
+<text x="865" y="429.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">RESERVED</text>
+<text x="985" y="429.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">v3 / 004</text>
+<text x="1145" y="428.98" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#52647A">1-200 rows</text>
+<text x="75" y="457.98" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#172B45">PPM-006</text>
+<text x="260" y="458.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">PEANUT SORTING (PRE-ROASTED)</text>
+<text x="645" y="458.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">Peanut Section</text>
+<text x="865" y="458.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">RESERVED</text>
+<text x="985" y="458.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">v3 / 004</text>
+<text x="1145" y="457.98" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#52647A">1-200 rows</text>
+<text x="75" y="486.98" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#172B45">PPM-007</text>
+<text x="260" y="487.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">PEANUT FINAL ROASTING</text>
+<text x="645" y="487.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">Peanut Section</text>
+<text x="865" y="487.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">ACTIVE</text>
+<text x="985" y="487.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">v3 / 004</text>
+<text x="1145" y="486.98" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#52647A">1-200 rows</text>
+<text x="75" y="515.98" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#172B45">PPM-008</text>
+<text x="260" y="516.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">PEANUT GRINDING</text>
+<text x="645" y="516.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">Peanut Section</text>
+<text x="865" y="516.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">ACTIVE</text>
+<text x="985" y="516.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">v3 / 004</text>
+<text x="1145" y="515.98" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#52647A">1-200 rows</text>
+<text x="75" y="544.98" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#172B45">PPM-009</text>
+<text x="260" y="545.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">GROUND PEANUTS</text>
+<text x="645" y="545.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">Peanut Section</text>
+<text x="865" y="545.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">ACTIVE</text>
+<text x="985" y="545.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">v3 / 003</text>
+<text x="1145" y="544.98" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#52647A">1-200 rows</text>
+<text x="75" y="573.98" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#172B45">PPM-010</text>
+<text x="260" y="574.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">SUGAR</text>
+<text x="645" y="574.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">Scaling &amp; Mixing</text>
+<text x="865" y="574.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">ACTIVE</text>
+<text x="985" y="574.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">v3 / 005</text>
+<text x="1145" y="573.98" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#52647A">1-200 rows</text>
+<text x="75" y="602.98" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#172B45">PPM-011</text>
+<text x="260" y="603.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">MIXING - MERINGUE</text>
+<text x="645" y="603.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">Scaling &amp; Mixing</text>
+<text x="865" y="603.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">ACTIVE</text>
+<text x="985" y="603.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">v3 / 005</text>
+<text x="1145" y="602.98" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#52647A">Meringue 100 / mixture 100 / lots 300</text>
+<text x="75" y="631.98" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#172B45">PPM-012</text>
+<text x="260" y="632.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">FORMING</text>
+<text x="645" y="632.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">Forming</text>
+<text x="865" y="632.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">ACTIVE</text>
+<text x="985" y="632.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">v3 / 006</text>
+<text x="1145" y="631.98" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#52647A">1-200 rows</text>
+<text x="75" y="660.98" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#172B45">PPM-013</text>
+<text x="260" y="661.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">BAKING</text>
+<text x="645" y="661.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">Baking</text>
+<text x="865" y="661.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">ACTIVE</text>
+<text x="985" y="661.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">v3 / 004</text>
+<text x="1145" y="660.98" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#52647A">1-200 rows</text>
+<text x="75" y="689.98" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#172B45">PPM-014</text>
+<text x="260" y="690.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">BAKED RECEIVING</text>
+<text x="645" y="690.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">Baking</text>
+<text x="865" y="690.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">ACTIVE</text>
+<text x="985" y="690.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">v3 / 004</text>
+<text x="1145" y="689.98" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#52647A">1-200 rows</text>
+<text x="75" y="718.98" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#172B45">PPM-015</text>
+<text x="260" y="719.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">PRIMARY PACKING</text>
+<text x="645" y="719.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">Packing</text>
+<text x="865" y="719.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">ACTIVE</text>
+<text x="985" y="719.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">v3 / 004</text>
+<text x="1145" y="718.98" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#52647A">1-200 rows</text>
+<text x="75" y="747.98" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#172B45">PPM-016</text>
+<text x="260" y="748.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">PRIMARY PACKING</text>
+<text x="645" y="748.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">Packing</text>
+<text x="865" y="748.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">ACTIVE</text>
+<text x="985" y="748.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">v3 / 005</text>
+<text x="1145" y="747.98" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#52647A">1-200 rows</text>
+<text x="75" y="776.98" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#172B45">PPM-017</text>
+<text x="260" y="777.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">SECONDARY PACKING</text>
+<text x="645" y="777.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">Packing</text>
+<text x="865" y="777.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">ACTIVE</text>
+<text x="985" y="777.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">v3 / 003</text>
+<text x="1145" y="776.98" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#52647A">1-200 rows</text>
+<text x="75" y="805.98" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#172B45">PPM-018</text>
+<text x="260" y="806.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">TERTIARY PACKING</text>
+<text x="645" y="806.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">Packing</text>
+<text x="865" y="806.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">ACTIVE</text>
+<text x="985" y="806.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">v3 / 003</text>
+<text x="1145" y="805.98" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#52647A">1-200 rows</text>
+<text x="75" y="834.98" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#172B45">PPM-019</text>
+<text x="260" y="835.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">VANILLA</text>
+<text x="645" y="835.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">Scaling &amp; Mixing</text>
+<text x="865" y="835.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">ACTIVE</text>
+<text x="985" y="835.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">v3 / 002</text>
+<text x="1145" y="834.98" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#52647A">1-200 rows</text>
+<text x="75" y="863.98" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#172B45">PPM-020</text>
+<text x="260" y="864.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">FROZEN EGGYOLK</text>
+<text x="645" y="864.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">Egg Preparation</text>
+<text x="865" y="864.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">ACTIVE</text>
+<text x="985" y="864.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">v3 / 003</text>
+<text x="1145" y="863.98" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#52647A">1-200 rows</text>
+<text x="75" y="892.98" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#172B45">PPM-021</text>
+<text x="260" y="893.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">RAW PEANUT RECEIVING</text>
+<text x="645" y="893.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">Peanut Section</text>
+<text x="865" y="893.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">ACTIVE</text>
+<text x="985" y="893.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">v3 / 002</text>
+<text x="1145" y="892.98" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#52647A">1-200 rows</text>
+<text x="75" y="921.98" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#172B45">PPM-022</text>
+<text x="260" y="922.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">PAN GREASER</text>
+<text x="645" y="922.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">Baking</text>
+<text x="865" y="922.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">ACTIVE</text>
+<text x="985" y="922.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">v3 / 001</text>
+<text x="1145" y="921.98" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#52647A">1-200 rows</text>
+<text x="75" y="950.98" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#172B45">PPM-023</text>
+<text x="260" y="951.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">FORMING</text>
+<text x="645" y="951.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">Forming</text>
+<text x="865" y="951.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">ACTIVE</text>
+<text x="985" y="951.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">v3 / 002</text>
+<text x="1145" y="950.98" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#52647A">1-200 rows</text>
+<text x="75" y="979.98" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#172B45">PPM-024</text>
+<text x="260" y="980.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">PRODUCT CODING</text>
+<text x="645" y="980.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">Packing</text>
+<text x="865" y="980.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">ACTIVE</text>
+<text x="985" y="980.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">v3 / 000</text>
+<text x="1145" y="979.98" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#52647A">1-200 rows</text>
+<text x="75" y="1008.98" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#172B45">PPM-026</text>
+<text x="260" y="1009.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">SUGAR RECEIVING</text>
+<text x="645" y="1009.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">Scaling &amp; Mixing</text>
+<text x="865" y="1009.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">ACTIVE</text>
+<text x="985" y="1009.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">v3 / 000</text>
+<text x="1145" y="1008.98" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#52647A">1-200 rows</text>
+<text x="75" y="1037.98" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#172B45">WH-STOCK-RELEASE</text>
+<text x="260" y="1038.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">STOCK RELEASING FORM</text>
+<text x="645" y="1038.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">Warehouse</text>
+<text x="865" y="1038.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">ACTIVE</text>
+<text x="985" y="1038.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">v3 / 001</text>
+<text x="1145" y="1037.98" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#52647A">1-200 rows</text>
+<text x="82" y="1098.13" font-family="Helvetica,Arial,sans-serif" font-size="15" font-weight="400" fill="#087E83">Minimum one row per required group on submit. No PPM-025 is present. The 26th default is WH-STOCK-RELEASE. Duplicate form titles retain their distinct codes.</text>
+</svg>

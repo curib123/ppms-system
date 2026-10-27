@@ -1,0 +1,2 @@
+# Development-only vector document generation and preview rendering.
+PyMuPDF==1.28.2

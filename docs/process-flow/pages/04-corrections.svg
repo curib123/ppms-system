@@ -1,0 +1,97 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1680" height="1188" viewBox="0 0 1680 1188">
+<rect width="100%" height="100%" fill="white"/>
+<title>Corrections and downstream revalidation</title>
+<rect x="64" y="200" width="1552" height="3" rx="0" fill="#CCD7E2" stroke="none"/>
+<rect x="64" y="200" width="150" height="3" rx="0" fill="#087E83" stroke="none"/>
+<rect x="64" y="1135" width="1552" height="1" rx="0" fill="#CCD7E2" stroke="none"/>
+<rect x="80" y="659" width="1510" height="50.1" rx="8" fill="#EDF8F7" stroke="none"/>
+<polyline points="330,370 410,370" fill="none" stroke="#2563A6" stroke-width="2"/>
+<polygon points="410,370 400,366 400,374 410,370" fill="#2563A6"/>
+<polyline points="525,290 525,242 950,242 950,265" fill="none" stroke="#2563A6" stroke-width="2"/>
+<polygon points="950,265 954,255 946,255 950,265" fill="#2563A6"/>
+<polyline points="1100,320 1240,320" fill="none" stroke="#087E83" stroke-width="2"/>
+<polygon points="1240,320 1230,316 1230,324 1240,320" fill="#087E83"/>
+<polyline points="525,450 525,510" fill="none" stroke="#2563A6" stroke-width="2"/>
+<polygon points="525,510 529,500 521,500 525,510" fill="#2563A6"/>
+<polyline points="690,565 800,565" fill="none" stroke="#2563A6" stroke-width="2"/>
+<polygon points="800,565 790,561 790,569 800,565" fill="#2563A6"/>
+<polyline points="1100,565 1240,565" fill="none" stroke="#98610A" stroke-width="2"/>
+<polygon points="1240,565 1230,561 1230,569 1240,565" fill="#98610A"/>
+<polyline points="330,925 410,925" fill="none" stroke="#98610A" stroke-width="2"/>
+<polygon points="410,925 400,921 400,929 410,925" fill="#98610A"/>
+<polyline points="525,845 525,812 745,812 745,855 800,855" fill="none" stroke="#087E83" stroke-width="2"/>
+<polygon points="800,855 790,851 790,859 800,855" fill="#087E83"/>
+<polyline points="525,1005 525,1055 750,1055 750,1028 800,1028" fill="none" stroke="#98610A" stroke-width="2"/>
+<polygon points="800,1028 790,1024 790,1032 800,1028" fill="#98610A"/>
+<polyline points="1100,855 1170,855 1170,910 1240,910" fill="none" stroke="#087E83" stroke-width="2"/>
+<polygon points="1240,910 1230,906 1230,914 1240,910" fill="#087E83"/>
+<polyline points="1100,1028 1170,1028 1170,960 1240,960" fill="none" stroke="#98610A" stroke-width="2"/>
+<polygon points="1240,960 1230,956 1230,964 1240,960" fill="#98610A"/>
+<rect x="80" y="320" width="250" height="100" rx="10" fill="#FFFFFF" stroke="#2563A6" stroke-width="1.5"/>
+<text x="96" y="353.76" font-family="Helvetica,Arial,sans-serif" font-size="18" font-weight="700" fill="#2563A6">Input issue found</text>
+<text x="96" y="381.1" font-family="Helvetica,Arial,sans-serif" font-size="16" font-weight="400" fill="#172B45">Personnel or reviewer</text>
+<text x="96" y="401.9" font-family="Helvetica,Arial,sans-serif" font-size="16" font-weight="400" fill="#172B45">identifies a problem</text>
+<polygon points="525,290 640,370 525,450 410,370" fill="#FFF9ED" stroke="#98610A" stroke-width="1.7"/>
+<text x="467.5" y="355.46" font-family="Helvetica,Arial,sans-serif" font-size="18" font-weight="700" fill="#98610A">Content</text>
+<text x="467.5" y="378.86" font-family="Helvetica,Arial,sans-serif" font-size="18" font-weight="700" fill="#98610A">change?</text>
+<text x="467.5" y="406.2" font-family="Helvetica,Arial,sans-serif" font-size="16" font-weight="400" fill="#172B45"></text>
+<rect x="800" y="265" width="300" height="110" rx="10" fill="#FFFFFF" stroke="#2563A6" stroke-width="1.5"/>
+<text x="816" y="303.76" font-family="Helvetica,Arial,sans-serif" font-size="18" font-weight="700" fill="#2563A6">Append quality guidance</text>
+<text x="816" y="331.1" font-family="Helvetica,Arial,sans-serif" font-size="16" font-weight="400" fill="#172B45">APPROVE or RETURN event</text>
+<text x="816" y="351.9" font-family="Helvetica,Arial,sans-serif" font-size="16" font-weight="400" fill="#172B45">RETURN requires a reason</text>
+<rect x="1240" y="265" width="350" height="110" rx="10" fill="#EDF8F7" stroke="#087E83" stroke-width="1.5"/>
+<text x="1256" y="303.76" font-family="Helvetica,Arial,sans-serif" font-size="18" font-weight="700" fill="#087E83">Content and trace unchanged</text>
+<text x="1256" y="331.1" font-family="Helvetica,Arial,sans-serif" font-size="16" font-weight="400" fill="#172B45">No new content revision</text>
+<text x="1256" y="351.9" font-family="Helvetica,Arial,sans-serif" font-size="16" font-weight="400" fill="#172B45">No retirement or revalidation</text>
+<rect x="604" y="212" width="111.58199965953827" height="23" rx="3" fill="#FFFFFF" stroke="none"/>
+<rect x="410" y="510" width="280" height="110" rx="10" fill="#FFFFFF" stroke="#2563A6" stroke-width="1.5"/>
+<text x="426" y="548.76" font-family="Helvetica,Arial,sans-serif" font-size="18" font-weight="700" fill="#2563A6">Authorize correction</text>
+<text x="426" y="576.1" font-family="Helvetica,Arial,sans-serif" font-size="16" font-weight="400" fill="#172B45">Current access + mobile lease</text>
+<text x="426" y="596.9" font-family="Helvetica,Arial,sans-serif" font-size="16" font-weight="400" fill="#172B45">Base revision + reason</text>
+<rect x="800" y="510" width="300" height="110" rx="10" fill="#EDF8F7" stroke="#087E83" stroke-width="1.5"/>
+<text x="816" y="548.76" font-family="Helvetica,Arial,sans-serif" font-size="18" font-weight="700" fill="#087E83">Append corrected revision</text>
+<text x="816" y="576.1" font-family="Helvetica,Arial,sans-serif" font-size="16" font-weight="400" fill="#172B45">Record ACTIVE / CORRECTED</text>
+<text x="816" y="596.9" font-family="Helvetica,Arial,sans-serif" font-size="16" font-weight="400" fill="#172B45">Pinned template; keep history</text>
+<rect x="1240" y="510" width="350" height="110" rx="10" fill="#FFF9ED" stroke="#98610A" stroke-width="1.5"/>
+<text x="1256" y="548.76" font-family="Helvetica,Arial,sans-serif" font-size="18" font-weight="700" fill="#98610A">Retire affected trace outputs</text>
+<text x="1256" y="576.1" font-family="Helvetica,Arial,sans-serif" font-size="16" font-weight="400" fill="#172B45">When data changes + outputs exist:</text>
+<text x="1256" y="596.9" font-family="Helvetica,Arial,sans-serif" font-size="16" font-weight="400" fill="#172B45">traverse linked downstream records</text>
+<rect x="542" y="466" width="36.121999859809875" height="23" rx="3" fill="#FFFFFF" stroke="none"/>
+<rect x="80" y="870" width="250" height="110" rx="10" fill="#FFF9ED" stroke="#98610A" stroke-width="1.5"/>
+<text x="96" y="898.36" font-family="Helvetica,Arial,sans-serif" font-size="18" font-weight="700" fill="#98610A">Open impact items</text>
+<text x="96" y="925.7" font-family="Helvetica,Arial,sans-serif" font-size="16" font-weight="400" fill="#172B45">One task per affected link</text>
+<text x="96" y="946.5" font-family="Helvetica,Arial,sans-serif" font-size="16" font-weight="400" fill="#172B45">Unresolved impact blocks</text>
+<text x="96" y="967.3" font-family="Helvetica,Arial,sans-serif" font-size="16" font-weight="400" fill="#172B45">publish</text>
+<polygon points="525,845 640,925 525,1005 410,925" fill="#FFF9ED" stroke="#98610A" stroke-width="1.7"/>
+<text x="467.5" y="910.46" font-family="Helvetica,Arial,sans-serif" font-size="18" font-weight="700" fill="#98610A">Closed</text>
+<text x="467.5" y="933.86" font-family="Helvetica,Arial,sans-serif" font-size="18" font-weight="700" fill="#98610A">record?</text>
+<text x="467.5" y="961.2" font-family="Helvetica,Arial,sans-serif" font-size="16" font-weight="400" fill="#172B45"></text>
+<rect x="800" y="795" width="300" height="120" rx="10" fill="#EDF8F7" stroke="#087E83" stroke-width="1.5"/>
+<text x="816" y="828.36" font-family="Helvetica,Arial,sans-serif" font-size="18" font-weight="700" fill="#087E83">REPLACED_SOURCE</text>
+<text x="816" y="855.7" font-family="Helvetica,Arial,sans-serif" font-size="16" font-weight="400" fill="#172B45">Correct + submit using a different</text>
+<text x="816" y="876.5" font-family="Helvetica,Arial,sans-serif" font-size="16" font-weight="400" fill="#172B45">eligible source in current revision;</text>
+<text x="816" y="897.3" font-family="Helvetica,Arial,sans-serif" font-size="16" font-weight="400" fill="#172B45">then resolve with notes</text>
+<rect x="800" y="975" width="300" height="105" rx="10" fill="#FFF9ED" stroke="#98610A" stroke-width="1.5"/>
+<text x="816" y="1011.26" font-family="Helvetica,Arial,sans-serif" font-size="18" font-weight="700" fill="#98610A">ACCEPT_HISTORICAL</text>
+<text x="816" y="1038.6" font-family="Helvetica,Arial,sans-serif" font-size="16" font-weight="400" fill="#172B45">Closed records only</text>
+<text x="816" y="1059.4" font-family="Helvetica,Arial,sans-serif" font-size="16" font-weight="400" fill="#172B45">Record the decision + notes</text>
+<rect x="1240" y="875" width="350" height="125" rx="10" fill="#EDF8F7" stroke="#087E83" stroke-width="1.5"/>
+<text x="1256" y="910.86" font-family="Helvetica,Arial,sans-serif" font-size="18" font-weight="700" fill="#087E83">Resolve each impact item</text>
+<text x="1256" y="938.2" font-family="Helvetica,Arial,sans-serif" font-size="16" font-weight="400" fill="#172B45">Parent impact becomes RESOLVED</text>
+<text x="1256" y="959" font-family="Helvetica,Arial,sans-serif" font-size="16" font-weight="400" fill="#172B45">when every item is resolved.</text>
+<text x="1256" y="979.8" font-family="Helvetica,Arial,sans-serif" font-size="16" font-weight="400" fill="#172B45">Publication remains a separate step.</text>
+<rect x="644" y="778" width="29.89199995994568" height="23" rx="3" fill="#FFFFFF" stroke="none"/>
+<rect x="644" y="1018" width="36.121999859809875" height="23" rx="3" fill="#FFFFFF" stroke="none"/>
+<text x="64" y="54.05" font-family="Helvetica,Arial,sans-serif" font-size="15" font-weight="700" fill="#2563A6">PPMS / PROCESS DOCUMENTATION</text>
+<text x="1405.17" y="52.98" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#52647A">27 OCTOBER 2026 / DEFAULTS</text>
+<text x="64" y="128.73" font-family="Helvetica,Arial,sans-serif" font-size="39" font-weight="700" fill="#172B45">Corrections and downstream revalidation</text>
+<text x="64" y="169.35" font-family="Helvetica,Arial,sans-serif" font-size="18" font-weight="400" fill="#52647A">A review note and an actual data correction follow different paths. Preserve original evidence and immutable history.</text>
+<text x="64" y="1166.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#52647A">Default seed + current CI3 service rules | Editable source included | See accuracy notes</text>
+<text x="1570.13" y="1166.05" font-family="Helvetica,Arial,sans-serif" font-size="15" font-weight="700" fill="#2563A6">04 / 09</text>
+<text x="610" y="229.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#2563A6">No / review only</text>
+<text x="548" y="483.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#2563A6">Yes</text>
+<text x="98" y="689.275" font-family="Helvetica,Arial,sans-serif" font-size="17" font-weight="400" fill="#087E83">Resubmit the corrected source, then publish fresh eligible outputs. Existing links remain historical; superseded outputs cannot be selected for new work.</text>
+<text x="80" y="757.12" font-family="Helvetica,Arial,sans-serif" font-size="16" font-weight="700" fill="#2563A6">DOWNSTREAM IMPACT RESOLUTION / REVIEWER ROLE + FORM ACCESS + CURRENT REVISION</text>
+<text x="650" y="795.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#087E83">No</text>
+<text x="650" y="1035.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#98610A">Yes</text>
+</svg>

@@ -1,0 +1,169 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1680" height="1188" viewBox="0 0 1680 1188">
+<rect width="100%" height="100%" fill="white"/>
+<title>Reserved, pending and disabled connections</title>
+<rect x="64" y="200" width="1552" height="3" rx="0" fill="#CCD7E2" stroke="none"/>
+<rect x="64" y="200" width="150" height="3" rx="0" fill="#087E83" stroke="none"/>
+<rect x="64" y="1135" width="1552" height="1" rx="0" fill="#CCD7E2" stroke="none"/>
+<rect x="64" y="290" width="1552" height="43" rx="4" fill="#EAF0F7" stroke="none"/>
+<rect x="64" y="333" width="1552" height="35" rx="0" fill="#F7F9FC" stroke="none"/>
+<rect x="64" y="368" width="1552" height="35" rx="0" fill="#FFFFFF" stroke="none"/>
+<rect x="64" y="403" width="1552" height="35" rx="0" fill="#F7F9FC" stroke="none"/>
+<rect x="64" y="438" width="1552" height="35" rx="0" fill="#FFFFFF" stroke="none"/>
+<rect x="64" y="473" width="1552" height="35" rx="0" fill="#F7F9FC" stroke="none"/>
+<rect x="64" y="508" width="1552" height="35" rx="0" fill="#FFFFFF" stroke="none"/>
+<rect x="64" y="543" width="1552" height="35" rx="0" fill="#F7F9FC" stroke="none"/>
+<rect x="64" y="578" width="1552" height="35" rx="0" fill="#FFFFFF" stroke="none"/>
+<rect x="64" y="613" width="1552" height="35" rx="0" fill="#F7F9FC" stroke="none"/>
+<rect x="64" y="648" width="1552" height="35" rx="0" fill="#FFFFFF" stroke="none"/>
+<rect x="64" y="683" width="1552" height="35" rx="0" fill="#F7F9FC" stroke="none"/>
+<rect x="64" y="718" width="1552" height="35" rx="0" fill="#FFFFFF" stroke="none"/>
+<rect x="64" y="753" width="1552" height="35" rx="0" fill="#F7F9FC" stroke="none"/>
+<rect x="64" y="788" width="1552" height="35" rx="0" fill="#FFFFFF" stroke="none"/>
+<rect x="64" y="823" width="1552" height="35" rx="0" fill="#F7F9FC" stroke="none"/>
+<rect x="64" y="858" width="1552" height="35" rx="0" fill="#FFFFFF" stroke="none"/>
+<rect x="64" y="893" width="1552" height="35" rx="0" fill="#F7F9FC" stroke="none"/>
+<rect x="64" y="928" width="1552" height="35" rx="0" fill="#FFFFFF" stroke="none"/>
+<rect x="64" y="963" width="1552" height="35" rx="0" fill="#F7F9FC" stroke="none"/>
+<rect x="64" y="998" width="1552" height="35" rx="0" fill="#FFFFFF" stroke="none"/>
+<rect x="64" y="1033" width="1552" height="35" rx="0" fill="#F7F9FC" stroke="none"/>
+<rect x="64" y="1082" width="1552" height="47.5" rx="8" fill="#FFF6E6" stroke="none"/>
+<text x="64" y="54.05" font-family="Helvetica,Arial,sans-serif" font-size="15" font-weight="700" fill="#2563A6">PPMS / PROCESS DOCUMENTATION</text>
+<text x="1405.17" y="52.98" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#52647A">27 OCTOBER 2026 / DEFAULTS</text>
+<text x="64" y="128.73" font-family="Helvetica,Arial,sans-serif" font-size="39" font-weight="700" fill="#172B45">Reserved, pending and disabled connections</text>
+<text x="64" y="169.35" font-family="Helvetica,Arial,sans-serif" font-size="18" font-weight="400" fill="#52647A">These 21 saved relationships are retained in the default seed. They are excluded from current trace source selection.</text>
+<text x="64" y="1166.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#52647A">Default seed + current CI3 service rules | Editable source included | See accuracy notes</text>
+<text x="1570.13" y="1166.05" font-family="Helvetica,Arial,sans-serif" font-size="15" font-weight="700" fill="#2563A6">08 / 09</text>
+<text x="75" y="315.98" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#2563A6">CONNECTION NAME</text>
+<text x="285" y="315.98" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#2563A6">SOURCE</text>
+<text x="445" y="315.98" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#2563A6">OUTPUT KEY</text>
+<text x="715" y="315.98" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#2563A6">TARGET</text>
+<text x="885" y="315.98" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#2563A6">TARGET INPUT PATH</text>
+<text x="1350" y="315.98" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#2563A6">STORED STATUS</text>
+<text x="75" y="352.98" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#172B45">CONN-001</text>
+<text x="285" y="353.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">PPM-004</text>
+<text x="445" y="353.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">sortingCode</text>
+<text x="715" y="353.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">PPM-005</text>
+<text x="885" y="353.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">sortingCode</text>
+<text x="1350" y="352.98" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#52647A">RESERVED</text>
+<text x="75" y="387.98" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#172B45">CONN-002</text>
+<text x="285" y="388.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">PPM-005</text>
+<text x="445" y="388.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">blanchingCode</text>
+<text x="715" y="388.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">PPM-006</text>
+<text x="885" y="388.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">blanchingCode</text>
+<text x="1350" y="387.98" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#52647A">RESERVED</text>
+<text x="75" y="422.98" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#172B45">CONN-003</text>
+<text x="285" y="423.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">PPM-006</text>
+<text x="445" y="423.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">finalSortingCode</text>
+<text x="715" y="423.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">PPM-007</text>
+<text x="885" y="423.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">entries[].sortingCode</text>
+<text x="1350" y="422.98" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#52647A">RESERVED</text>
+<text x="75" y="457.98" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#172B45">CONN-006</text>
+<text x="285" y="458.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">PPM-001</text>
+<text x="445" y="458.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">productionCode</text>
+<text x="715" y="458.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">PPM-002</text>
+<text x="885" y="458.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">code</text>
+<text x="1350" y="457.98" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#98610A">PENDING_VALIDATION</text>
+<text x="75" y="492.98" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#172B45">CONN-007</text>
+<text x="285" y="493.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">PPM-001</text>
+<text x="445" y="493.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">productionCode</text>
+<text x="715" y="493.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">PPM-003</text>
+<text x="885" y="493.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">code</text>
+<text x="1350" y="492.98" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#98610A">PENDING_VALIDATION</text>
+<text x="75" y="527.98" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#172B45">CONN-008</text>
+<text x="285" y="528.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">PPM-002</text>
+<text x="445" y="528.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">code</text>
+<text x="715" y="528.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">PPM-011</text>
+<text x="885" y="528.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">eggwhitesCode</text>
+<text x="1350" y="527.98" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#98610A">PENDING_VALIDATION</text>
+<text x="75" y="562.98" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#172B45">CONN-009</text>
+<text x="285" y="563.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">PPM-010</text>
+<text x="445" y="563.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">sugarCode</text>
+<text x="715" y="563.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">PPM-011</text>
+<text x="885" y="563.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">sugarCode</text>
+<text x="1350" y="562.98" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#98610A">PENDING_VALIDATION</text>
+<text x="75" y="597.98" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#172B45">CONN-010</text>
+<text x="285" y="598.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">PPM-019</text>
+<text x="445" y="598.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">code</text>
+<text x="715" y="598.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">PPM-011</text>
+<text x="885" y="598.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">vanillaCode</text>
+<text x="1350" y="597.98" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#98610A">PENDING_VALIDATION</text>
+<text x="75" y="632.98" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#172B45">CONN-014</text>
+<text x="285" y="633.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">PPM-012</text>
+<text x="445" y="633.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">mixingCode</text>
+<text x="715" y="633.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">PPM-013</text>
+<text x="885" y="633.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">mixingCode</text>
+<text x="1350" y="632.98" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#98610A">PENDING_VALIDATION</text>
+<text x="75" y="667.98" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#172B45">CONN-015</text>
+<text x="285" y="668.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">PPM-013</text>
+<text x="445" y="668.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">mixingCode</text>
+<text x="715" y="668.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">PPM-014</text>
+<text x="885" y="668.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">mixingCode</text>
+<text x="1350" y="667.98" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#98610A">PENDING_VALIDATION</text>
+<text x="75" y="702.98" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#172B45">CONN-016</text>
+<text x="285" y="703.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">PPM-014</text>
+<text x="445" y="703.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">bakedCode</text>
+<text x="715" y="703.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">PPM-015</text>
+<text x="885" y="703.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">bakedCode</text>
+<text x="1350" y="702.98" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#98610A">PENDING_VALIDATION</text>
+<text x="75" y="737.98" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#172B45">CONN-017</text>
+<text x="285" y="738.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">PPM-014</text>
+<text x="445" y="738.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">bakedCode</text>
+<text x="715" y="738.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">PPM-016</text>
+<text x="885" y="738.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">bakedCode</text>
+<text x="1350" y="737.98" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#98610A">PENDING_VALIDATION</text>
+<text x="75" y="772.98" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#172B45">CONN-018</text>
+<text x="285" y="773.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">PPM-014</text>
+<text x="445" y="773.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">bakedCode</text>
+<text x="715" y="773.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">PPM-024</text>
+<text x="885" y="773.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">bakedCode</text>
+<text x="1350" y="772.98" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#98610A">PENDING_VALIDATION</text>
+<text x="75" y="807.98" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#172B45">CONN-019</text>
+<text x="285" y="808.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">PPM-024</text>
+<text x="445" y="808.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">rollCode</text>
+<text x="715" y="808.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">PPM-015</text>
+<text x="885" y="808.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">printedFoilRollCode</text>
+<text x="1350" y="807.98" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#98610A">PENDING_VALIDATION</text>
+<text x="75" y="842.98" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#172B45">CONN-020</text>
+<text x="285" y="843.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">PPM-024</text>
+<text x="445" y="843.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">rollCode</text>
+<text x="715" y="843.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">PPM-016</text>
+<text x="885" y="843.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">plainFoilRollCode</text>
+<text x="1350" y="842.98" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#98610A">PENDING_VALIDATION</text>
+<text x="75" y="877.98" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#172B45">CONN-021</text>
+<text x="285" y="878.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">PPM-015</text>
+<text x="445" y="878.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">consumeBeforeCode</text>
+<text x="715" y="878.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">PPM-017</text>
+<text x="885" y="878.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">consumeBeforeCode</text>
+<text x="1350" y="877.98" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#98610A">PENDING_VALIDATION</text>
+<text x="75" y="912.98" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#172B45">CONN-022</text>
+<text x="285" y="913.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">PPM-016</text>
+<text x="445" y="913.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">consumeBeforeCode</text>
+<text x="715" y="913.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">PPM-017</text>
+<text x="885" y="913.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">consumeBeforeCode</text>
+<text x="1350" y="912.98" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#98610A">PENDING_VALIDATION</text>
+<text x="75" y="947.98" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#172B45">CONN-023</text>
+<text x="285" y="948.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">PPM-017</text>
+<text x="445" y="948.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">consumeBeforeCode</text>
+<text x="715" y="948.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">PPM-018</text>
+<text x="885" y="948.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">consumeBeforeCode</text>
+<text x="1350" y="947.98" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#98610A">PENDING_VALIDATION</text>
+<text x="75" y="982.98" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#172B45">CONN-026</text>
+<text x="285" y="983.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">PPM-004</text>
+<text x="445" y="983.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">sortingCode</text>
+<text x="715" y="983.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">PPM-007</text>
+<text x="885" y="983.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">finalSortingCode</text>
+<text x="1350" y="982.98" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#AD4141">DISABLED</text>
+<text x="75" y="1017.98" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#172B45">CONN-027</text>
+<text x="285" y="1018.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">PPM-003</text>
+<text x="445" y="1018.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">code</text>
+<text x="715" y="1018.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">PPM-020</text>
+<text x="885" y="1018.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">eggyolkCode</text>
+<text x="1350" y="1017.98" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#98610A">PENDING_VALIDATION</text>
+<text x="75" y="1052.98" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#172B45">CONN-028</text>
+<text x="285" y="1053.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">PPM-010</text>
+<text x="445" y="1053.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">sugarCode</text>
+<text x="715" y="1053.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">PPM-020</text>
+<text x="885" y="1053.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#172B45">sugarCode</text>
+<text x="1350" y="1052.98" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#98610A">PENDING_VALIDATION</text>
+<text x="82" y="1110.13" font-family="Helvetica,Arial,sans-serif" font-size="15" font-weight="400" fill="#98610A">Pending links are not missing arrows to add automatically. Validate real source output rules and current target fields before activation.</text>
+</svg>

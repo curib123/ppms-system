@@ -6,9 +6,9 @@ there was no input PDF to reproduce.
 
 ## Deliverables
 
-- `PPMS_Default_PPM_Process_Flow.pdf`: landscape process diagrams, form register,
+- [PPMS_Default_PPM_Process_Flow.pdf](PPMS_Default_PPM_Process_Flow.pdf): nine landscape pages with process diagrams, form register,
   exact connection register, and configuration limitations.
-- `PPMS_Default_PPM_Process_Flow.drawio`: editable diagrams.net pages with native
+- [PPMS_Default_PPM_Process_Flow.drawio](PPMS_Default_PPM_Process_Flow.drawio): editable diagrams.net pages with native
   text, shapes, and connectors. Open with diagrams.net or the draw.io desktop app.
 - `pages/*.svg`: vector copies for viewing and reuse.
 - `previews/*.png`: rendered previews of the PDF pages.
@@ -73,7 +73,9 @@ Archived PostgreSQL/Prisma seed scripts are provenance, not the active schema.
 Source file SHA-256 values are included in the JSON snapshot.
 
 The document build uses Python and PyMuPDF, without an application/runtime
-dependency. Run from the repository root:
+dependency. If PyMuPDF is absent, install the pinned development requirement
+with `python -m pip install -r scripts/documentation/requirements.txt`.
+Run from the repository root:
 
 ```powershell
 python scripts/documentation/ppm_source.py
@@ -86,3 +88,8 @@ names in the PDF, exact mapping coverage in the editable diagrams, page/text
 bounds, and rendered PDF previews. It does not claim a production playthrough
 or native Visio inspection. Edit configuration in the application through its
 authorized workflow; editing the diagram changes documentation only.
+
+The PDF pages are: ingredients to mixing; forming/baking/packing/stock release;
+record entry/submission/publication with independent review; actual correction
+and impact resolution; the 26-form register; two active-connection register
+pages; non-active connections; and source authority/configuration gaps.

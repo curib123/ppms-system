@@ -1,0 +1,110 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1680" height="1188" viewBox="0 0 1680 1188">
+<rect width="100%" height="100%" fill="white"/>
+<title>One PPM record: entry to downstream use</title>
+<rect x="64" y="200" width="1552" height="3" rx="0" fill="#CCD7E2" stroke="none"/>
+<rect x="64" y="200" width="150" height="3" rx="0" fill="#087E83" stroke="none"/>
+<rect x="64" y="1135" width="1552" height="1" rx="0" fill="#CCD7E2" stroke="none"/>
+<rect x="64" y="235" width="1552" height="230" rx="12" fill="#F1F6FC" stroke="none"/>
+<rect x="1120" y="705" width="496" height="380" rx="12" fill="#F3F7FA" stroke="none"/>
+<rect x="80" y="1080" width="1000" height="47.5" rx="8" fill="#EDF8F7" stroke="none"/>
+<polyline points="360,368 430,368" fill="none" stroke="#2563A6" stroke-width="2"/>
+<polygon points="430,368 420,364 420,372 430,368" fill="#2563A6"/>
+<polyline points="710,368 780,368" fill="none" stroke="#2563A6" stroke-width="2"/>
+<polygon points="780,368 770,364 770,372 780,368" fill="#2563A6"/>
+<polyline points="1060,368 1130,368" fill="none" stroke="#2563A6" stroke-width="2"/>
+<polygon points="1130,368 1120,364 1120,372 1130,368" fill="#2563A6"/>
+<polyline points="1270,423 1270,515" fill="none" stroke="#087E83" stroke-width="2"/>
+<polygon points="1270,515 1274,505 1266,505 1270,515" fill="#087E83"/>
+<polyline points="1130,568 1020,568" fill="none" stroke="#087E83" stroke-width="2"/>
+<polygon points="1020,568 1030,572 1030,564 1020,568" fill="#087E83"/>
+<polyline points="780,568 670,568" fill="none" stroke="#087E83" stroke-width="2"/>
+<polygon points="670,568 680,572 680,564 670,568" fill="#087E83"/>
+<polyline points="430,568 360,568" fill="none" stroke="#087E83" stroke-width="2"/>
+<polygon points="360,568 370,572 370,564 360,568" fill="#087E83"/>
+<polyline points="900,645 900,735" fill="none" stroke="#AD4141" stroke-width="2"/>
+<polygon points="900,735 904,725 896,725 900,735" fill="#AD4141"/>
+<polyline points="550,645 550,735" fill="none" stroke="#98610A" stroke-width="2"/>
+<polygon points="550,735 554,725 546,725 550,735" fill="#98610A"/>
+<polyline points="220,620 220,770" fill="none" stroke="#087E83" stroke-width="2"/>
+<polygon points="220,770 224,760 216,760 220,770" fill="#087E83"/>
+<polyline points="220,885 220,1010 430,1010" fill="none" stroke="#087E83" stroke-width="2"/>
+<polygon points="430,1010 420,1006 420,1014 430,1010" fill="#087E83"/>
+<rect x="80" y="313" width="280" height="110" rx="10" fill="#FFFFFF" stroke="#2563A6" stroke-width="1.5"/>
+<text x="96" y="351.76" font-family="Helvetica,Arial,sans-serif" font-size="18" font-weight="700" fill="#2563A6">Sign in individually</text>
+<text x="96" y="379.1" font-family="Helvetica,Arial,sans-serif" font-size="16" font-weight="400" fill="#172B45">Use assigned device</text>
+<text x="96" y="399.9" font-family="Helvetica,Arial,sans-serif" font-size="16" font-weight="400" fill="#172B45">and current form access</text>
+<rect x="430" y="313" width="280" height="110" rx="10" fill="#FFFFFF" stroke="#2563A6" stroke-width="1.5"/>
+<text x="446" y="351.76" font-family="Helvetica,Arial,sans-serif" font-size="18" font-weight="700" fill="#2563A6">Open assigned PPM</text>
+<text x="446" y="379.1" font-family="Helvetica,Arial,sans-serif" font-size="16" font-weight="400" fill="#172B45">Use active published</text>
+<text x="446" y="399.9" font-family="Helvetica,Arial,sans-serif" font-size="16" font-weight="400" fill="#172B45">template and area</text>
+<rect x="780" y="313" width="280" height="110" rx="10" fill="#FFFFFF" stroke="#2563A6" stroke-width="1.5"/>
+<text x="796" y="351.76" font-family="Helvetica,Arial,sans-serif" font-size="18" font-weight="700" fill="#2563A6">Save draft locally</text>
+<text x="796" y="379.1" font-family="Helvetica,Arial,sans-serif" font-size="16" font-weight="400" fill="#172B45">Keep original author</text>
+<text x="796" y="399.9" font-family="Helvetica,Arial,sans-serif" font-size="16" font-weight="400" fill="#172B45">and pinned version</text>
+<rect x="1130" y="313" width="280" height="110" rx="10" fill="#FFFFFF" stroke="#2563A6" stroke-width="1.5"/>
+<text x="1146" y="351.76" font-family="Helvetica,Arial,sans-serif" font-size="18" font-weight="700" fill="#2563A6">Fill rows and sources</text>
+<text x="1146" y="379.1" font-family="Helvetica,Arial,sans-serif" font-size="16" font-weight="400" fill="#172B45">Select exact eligible</text>
+<text x="1146" y="399.9" font-family="Helvetica,Arial,sans-serif" font-size="16" font-weight="400" fill="#172B45">published output IDs</text>
+<rect x="1130" y="515" width="280" height="105" rx="10" fill="#FFFFFF" stroke="#087E83" stroke-width="1.5"/>
+<text x="1146" y="551.26" font-family="Helvetica,Arial,sans-serif" font-size="18" font-weight="700" fill="#087E83">Sync draft, then submit</text>
+<text x="1146" y="578.6" font-family="Helvetica,Arial,sans-serif" font-size="16" font-weight="400" fill="#172B45">Immutable batch + mutation IDs</text>
+<text x="1146" y="599.4" font-family="Helvetica,Arial,sans-serif" font-size="16" font-weight="400" fill="#172B45">Server submits saved draft data</text>
+<polygon points="900,490 1020,567.5 900,645 780,567.5" fill="#FFF9ED" stroke="#98610A" stroke-width="1.7"/>
+<text x="840" y="552.96" font-family="Helvetica,Arial,sans-serif" font-size="18" font-weight="700" fill="#98610A">Inputs</text>
+<text x="840" y="576.36" font-family="Helvetica,Arial,sans-serif" font-size="18" font-weight="700" fill="#98610A">valid?</text>
+<text x="840" y="603.7" font-family="Helvetica,Arial,sans-serif" font-size="16" font-weight="400" fill="#172B45"></text>
+<polygon points="550,490 670,567.5 550,645 430,567.5" fill="#FFF9ED" stroke="#98610A" stroke-width="1.7"/>
+<text x="490" y="552.96" font-family="Helvetica,Arial,sans-serif" font-size="18" font-weight="700" fill="#98610A">Revision</text>
+<text x="490" y="576.36" font-family="Helvetica,Arial,sans-serif" font-size="18" font-weight="700" fill="#98610A">matches?</text>
+<text x="490" y="603.7" font-family="Helvetica,Arial,sans-serif" font-size="16" font-weight="400" fill="#172B45"></text>
+<rect x="80" y="515" width="280" height="105" rx="10" fill="#EDF8F7" stroke="#087E83" stroke-width="1.5"/>
+<text x="96" y="551.26" font-family="Helvetica,Arial,sans-serif" font-size="18" font-weight="700" fill="#087E83">Commit submitted revision</text>
+<text x="96" y="578.6" font-family="Helvetica,Arial,sans-serif" font-size="16" font-weight="400" fill="#172B45">Record: SUBMITTED</text>
+<text x="96" y="599.4" font-family="Helvetica,Arial,sans-serif" font-size="16" font-weight="400" fill="#172B45">Immutable content + audit</text>
+<rect x="702" y="530" width="36.121999859809875" height="23" rx="3" fill="#FFFFFF" stroke="none"/>
+<rect x="360" y="530" width="36.121999859809875" height="23" rx="3" fill="#FFFFFF" stroke="none"/>
+<rect x="780" y="735" width="280" height="115" rx="10" fill="#FFF2EF" stroke="#AD4141" stroke-width="1.5"/>
+<text x="796" y="776.26" font-family="Helvetica,Arial,sans-serif" font-size="18" font-weight="700" fill="#AD4141">REJECTED: fix and retry</text>
+<text x="796" y="803.6" font-family="Helvetica,Arial,sans-serif" font-size="16" font-weight="400" fill="#172B45">Correct fields, access or lease;</text>
+<text x="796" y="824.4" font-family="Helvetica,Arial,sans-serif" font-size="16" font-weight="400" fill="#172B45">use a fresh mutation after fix</text>
+<rect x="430" y="735" width="280" height="115" rx="10" fill="#FFF9ED" stroke="#98610A" stroke-width="1.5"/>
+<text x="446" y="776.26" font-family="Helvetica,Arial,sans-serif" font-size="18" font-weight="700" fill="#98610A">CONFLICT: reconcile</text>
+<text x="446" y="803.6" font-family="Helvetica,Arial,sans-serif" font-size="16" font-weight="400" fill="#172B45">Keep server, merge, or apply</text>
+<text x="446" y="824.4" font-family="Helvetica,Arial,sans-serif" font-size="16" font-weight="400" fill="#172B45">local data as a new revision</text>
+<rect x="912" y="667" width="29.89199995994568" height="23" rx="3" fill="#FFFFFF" stroke="none"/>
+<rect x="562" y="667" width="29.89199995994568" height="23" rx="3" fill="#FFFFFF" stroke="none"/>
+<rect x="80" y="770" width="280" height="115" rx="10" fill="#EDF8F7" stroke="#087E83" stroke-width="1.5"/>
+<text x="96" y="811.26" font-family="Helvetica,Arial,sans-serif" font-size="18" font-weight="700" fill="#087E83">Publish configured outputs</text>
+<text x="96" y="838.6" font-family="Helvetica,Arial,sans-serif" font-size="16" font-weight="400" fill="#172B45">Separate authorized action</text>
+<text x="96" y="859.4" font-family="Helvetica,Arial,sans-serif" font-size="16" font-weight="400" fill="#172B45">No unresolved trace impact</text>
+<rect x="76" y="678" width="151.2579995393753" height="23" rx="3" fill="#FFFFFF" stroke="none"/>
+<rect x="430" y="960" width="355" height="100" rx="10" fill="#EDF8F7" stroke="#087E83" stroke-width="1.5"/>
+<text x="446" y="993.76" font-family="Helvetica,Arial,sans-serif" font-size="18" font-weight="700" fill="#087E83">Next PPM selects the output</text>
+<text x="446" y="1021.1" font-family="Helvetica,Arial,sans-serif" font-size="16" font-weight="400" fill="#172B45">Active connection + matching code</text>
+<text x="446" y="1041.9" font-family="Helvetica,Arial,sans-serif" font-size="16" font-weight="400" fill="#172B45">Published, current eligible source</text>
+<rect x="1140" y="766" width="456" height="86" rx="10" fill="#FFFFFF" stroke="#2563A6" stroke-width="1.5"/>
+<text x="1156" y="803.16" font-family="Helvetica,Arial,sans-serif" font-size="18" font-weight="700" fill="#2563A6">Checked / FSQA</text>
+<text x="1156" y="830.5" font-family="Helvetica,Arial,sans-serif" font-size="16" font-weight="400" fill="#172B45">Confirm or request correction</text>
+<rect x="1140" y="869" width="456" height="86" rx="10" fill="#FFFFFF" stroke="#2563A6" stroke-width="1.5"/>
+<text x="1156" y="906.16" font-family="Helvetica,Arial,sans-serif" font-size="18" font-weight="700" fill="#2563A6">Reviewed / SUPERVISOR</text>
+<text x="1156" y="933.5" font-family="Helvetica,Arial,sans-serif" font-size="16" font-weight="400" fill="#172B45">Confirm or request correction</text>
+<rect x="1140" y="972" width="456" height="86" rx="10" fill="#FFFFFF" stroke="#2563A6" stroke-width="1.5"/>
+<text x="1156" y="1009.16" font-family="Helvetica,Arial,sans-serif" font-size="18" font-weight="700" fill="#2563A6">Approved / PLANT_MANAGER</text>
+<text x="1156" y="1036.5" font-family="Helvetica,Arial,sans-serif" font-size="16" font-weight="400" fill="#172B45">Confirm or request correction</text>
+<text x="64" y="54.05" font-family="Helvetica,Arial,sans-serif" font-size="15" font-weight="700" fill="#2563A6">PPMS / PROCESS DOCUMENTATION</text>
+<text x="1405.17" y="52.98" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="700" fill="#52647A">27 OCTOBER 2026 / DEFAULTS</text>
+<text x="64" y="128.73" font-family="Helvetica,Arial,sans-serif" font-size="39" font-weight="700" fill="#172B45">One PPM record: entry to downstream use</text>
+<text x="64" y="169.35" font-family="Helvetica,Arial,sans-serif" font-size="18" font-weight="400" fill="#52647A">Personnel entry belongs to Flutter. The existing CI3 API enforces author, device, template, revision and trace checks.</text>
+<text x="64" y="1166.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#52647A">Default seed + current CI3 service rules | Editable source included | See accuracy notes</text>
+<text x="1570.13" y="1166.05" font-family="Helvetica,Arial,sans-serif" font-size="15" font-weight="700" fill="#2563A6">03 / 09</text>
+<text x="82" y="266.05" font-family="Helvetica,Arial,sans-serif" font-size="15" font-weight="700" fill="#52647A">PERSONNEL / FLUTTER CLIENT RESPONSIBILITY</text>
+<text x="708" y="547.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#087E83">Yes</text>
+<text x="366" y="547.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#087E83">Yes</text>
+<text x="918" y="684.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#AD4141">No</text>
+<text x="568" y="684.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#98610A">No</text>
+<text x="82" y="695.05" font-family="Helvetica,Arial,sans-serif" font-size="14" font-weight="400" fill="#087E83">No review prerequisite</text>
+<text x="1138" y="736.05" font-family="Helvetica,Arial,sans-serif" font-size="15" font-weight="700" fill="#52647A">INDEPENDENT GUIDANCE / SUBMITTED REVISION</text>
+<text x="98" y="1108.13" font-family="Helvetica,Arial,sans-serif" font-size="15" font-weight="400" fill="#087E83">Drafts: record ACTIVE / revision DRAFT. Submission and publication are separate. Reviews stay on the exact content revision.</text>
+<text x="1135" y="658.2" font-family="Helvetica,Arial,sans-serif" font-size="16" font-weight="400" fill="#52647A">Each role may act independently.</text>
+<text x="1135" y="679" font-family="Helvetica,Arial,sans-serif" font-size="16" font-weight="400" fill="#52647A">ADMIN may explicitly name any stage.</text>
+</svg>

@@ -157,6 +157,6 @@ def build_source():
 if __name__ == '__main__':
     source = build_source()
     DESTINATION.parent.mkdir(parents=True, exist_ok=True)
-    DESTINATION.write_text(json.dumps(source, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
+    DESTINATION.write_text(json.dumps(source, indent=2, ensure_ascii=False) + '\n', encoding='utf-8', newline='\n')
     print(json.dumps(source['counts'], indent=2))
     print('Unmapped required trace inputs:', json.dumps(source['unmappedRequiredInputs']))
