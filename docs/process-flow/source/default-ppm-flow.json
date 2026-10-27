@@ -1,0 +1,1670 @@
+{
+  "title": "PPMS default PPM process flow",
+  "documentDate": "2026-10-27",
+  "scope": "Checked-in default configuration and current service rules; no live operational data",
+  "counts": {
+    "areas": 7,
+    "forms": 26,
+    "formStatuses": {
+      "ACTIVE": 24,
+      "RESERVED": 2
+    },
+    "connections": 56,
+    "connectionStatuses": {
+      "ACTIVE": 35,
+      "DISABLED": 1,
+      "PENDING_VALIDATION": 17,
+      "RESERVED": 3
+    },
+    "activeMappingsMatchingTemplates": 33
+  },
+  "forms": [
+    {
+      "code": "PPM-001",
+      "title": "EGG PREPARATION",
+      "status": "ACTIVE",
+      "area": "Egg Preparation",
+      "templateVersion": 3,
+      "paperRevision": "004",
+      "templateActive": true,
+      "groups": [
+        {
+          "key": "entries",
+          "label": "Daily Data Entries",
+          "minRows": 1,
+          "maxRows": 200
+        }
+      ],
+      "traceInputs": [],
+      "outputs": [
+        {
+          "key": "eggwhiteProductionCode",
+          "label": "Eggwhite Production Code",
+          "path": "entries[].eggwhiteProductionCode",
+          "sourceType": "MANUAL_EXTERNAL",
+          "status": "ACTIVE",
+          "outputType": "PPM_GENERATED_CODE"
+        },
+        {
+          "key": "eggyolkProductionCode",
+          "label": "Eggyolk Production Code",
+          "path": "entries[].eggyolkProductionCode",
+          "sourceType": "MANUAL_EXTERNAL",
+          "status": "ACTIVE",
+          "outputType": "PPM_GENERATED_CODE"
+        },
+        {
+          "key": "pitcherProductionCode",
+          "label": "Pitcher Production Code",
+          "path": "entries[].pitcherProductionCode",
+          "sourceType": "MANUAL_EXTERNAL",
+          "status": "ACTIVE",
+          "outputType": "PPM_GENERATED_CODE"
+        }
+      ]
+    },
+    {
+      "code": "PPM-002",
+      "title": "EGGWHITES",
+      "status": "ACTIVE",
+      "area": "Egg Preparation",
+      "templateVersion": 3,
+      "paperRevision": "003",
+      "templateActive": true,
+      "groups": [
+        {
+          "key": "entries",
+          "label": "Daily Data Entries",
+          "minRows": 1,
+          "maxRows": 200
+        }
+      ],
+      "traceInputs": [
+        {
+          "path": "entries[].pailCode",
+          "required": true
+        },
+        {
+          "path": "entries[].pitcherCode",
+          "required": true
+        }
+      ],
+      "outputs": [
+        {
+          "key": "pailCode",
+          "label": "Pail Code",
+          "path": "entries[].pailCode",
+          "sourceType": "MANUAL_EXTERNAL",
+          "status": "ACTIVE",
+          "outputType": "CARRIED_OR_EXTERNAL_CODE"
+        },
+        {
+          "key": "pitcherCode",
+          "label": "Pitcher Code",
+          "path": "entries[].pitcherCode",
+          "sourceType": "MANUAL_EXTERNAL",
+          "status": "ACTIVE",
+          "outputType": "CARRIED_OR_EXTERNAL_CODE"
+        }
+      ]
+    },
+    {
+      "code": "PPM-003",
+      "title": "EGGYOLK",
+      "status": "ACTIVE",
+      "area": "Egg Preparation",
+      "templateVersion": 3,
+      "paperRevision": "004",
+      "templateActive": true,
+      "groups": [
+        {
+          "key": "entries",
+          "label": "Daily Data Entries",
+          "minRows": 1,
+          "maxRows": 200
+        }
+      ],
+      "traceInputs": [
+        {
+          "path": "entries[].eggyolkCode",
+          "required": true
+        }
+      ],
+      "outputs": [
+        {
+          "key": "eggyolkCode",
+          "label": "Eggyolk Code",
+          "path": "entries[].eggyolkCode",
+          "sourceType": "MANUAL_EXTERNAL",
+          "status": "ACTIVE",
+          "outputType": "CARRIED_OR_EXTERNAL_CODE"
+        }
+      ]
+    },
+    {
+      "code": "PPM-004",
+      "title": "PEANUT SORTING (RAW)",
+      "status": "ACTIVE",
+      "area": "Peanut Section",
+      "templateVersion": 3,
+      "paperRevision": "004",
+      "templateActive": true,
+      "groups": [
+        {
+          "key": "entries",
+          "label": "Daily Data Entries",
+          "minRows": 1,
+          "maxRows": 200
+        }
+      ],
+      "traceInputs": [
+        {
+          "path": "entries[].rawReceivingReference",
+          "required": true
+        }
+      ],
+      "outputs": [
+        {
+          "key": "sortingCode",
+          "label": "Sorting Code",
+          "path": "entries[].sortingCode",
+          "sourceType": "MANUAL_EXTERNAL",
+          "status": "ACTIVE",
+          "outputType": "PPM_GENERATED_CODE"
+        }
+      ]
+    },
+    {
+      "code": "PPM-005",
+      "title": "PEANUT BLANCHING",
+      "status": "RESERVED",
+      "area": "Peanut Section",
+      "templateVersion": 3,
+      "paperRevision": "004",
+      "templateActive": false,
+      "groups": [
+        {
+          "key": "entries",
+          "label": "Daily Data Entries",
+          "minRows": 1,
+          "maxRows": 200
+        }
+      ],
+      "traceInputs": [
+        {
+          "path": "entries[].sortingCode",
+          "required": true
+        }
+      ],
+      "outputs": []
+    },
+    {
+      "code": "PPM-006",
+      "title": "PEANUT SORTING (PRE-ROASTED)",
+      "status": "RESERVED",
+      "area": "Peanut Section",
+      "templateVersion": 3,
+      "paperRevision": "004",
+      "templateActive": false,
+      "groups": [
+        {
+          "key": "entries",
+          "label": "Daily Data Entries",
+          "minRows": 1,
+          "maxRows": 200
+        }
+      ],
+      "traceInputs": [
+        {
+          "path": "entries[].blanchingCode",
+          "required": true
+        }
+      ],
+      "outputs": []
+    },
+    {
+      "code": "PPM-007",
+      "title": "PEANUT FINAL ROASTING",
+      "status": "ACTIVE",
+      "area": "Peanut Section",
+      "templateVersion": 3,
+      "paperRevision": "004",
+      "templateActive": true,
+      "groups": [
+        {
+          "key": "entries",
+          "label": "Daily Data Entries",
+          "minRows": 1,
+          "maxRows": 200
+        }
+      ],
+      "traceInputs": [
+        {
+          "path": "entries[].sortingCode",
+          "required": true
+        }
+      ],
+      "outputs": [
+        {
+          "key": "finalRoastingCode",
+          "label": "Final Roasting Code",
+          "path": "entries[].finalRoastingCode",
+          "sourceType": "MANUAL_EXTERNAL",
+          "status": "ACTIVE",
+          "outputType": "PPM_GENERATED_CODE"
+        }
+      ]
+    },
+    {
+      "code": "PPM-008",
+      "title": "PEANUT GRINDING",
+      "status": "ACTIVE",
+      "area": "Peanut Section",
+      "templateVersion": 3,
+      "paperRevision": "004",
+      "templateActive": true,
+      "groups": [
+        {
+          "key": "entries",
+          "label": "Daily Data Entries",
+          "minRows": 1,
+          "maxRows": 200
+        }
+      ],
+      "traceInputs": [
+        {
+          "path": "entries[].finalRoastingCode",
+          "required": true
+        }
+      ],
+      "outputs": [
+        {
+          "key": "grindingCode",
+          "label": "Grinding Code",
+          "path": "entries[].grindingCode",
+          "sourceType": "MANUAL_EXTERNAL",
+          "status": "ACTIVE",
+          "outputType": "PPM_GENERATED_CODE"
+        }
+      ]
+    },
+    {
+      "code": "PPM-009",
+      "title": "GROUND PEANUTS",
+      "status": "ACTIVE",
+      "area": "Peanut Section",
+      "templateVersion": 3,
+      "paperRevision": "003",
+      "templateActive": true,
+      "groups": [
+        {
+          "key": "entries",
+          "label": "Daily Data Entries",
+          "minRows": 1,
+          "maxRows": 200
+        }
+      ],
+      "traceInputs": [
+        {
+          "path": "entries[].grindingCode",
+          "required": true
+        }
+      ],
+      "outputs": [
+        {
+          "key": "grindingCode",
+          "label": "Grinding Code",
+          "path": "entries[].grindingCode",
+          "sourceType": "MANUAL_EXTERNAL",
+          "status": "ACTIVE",
+          "outputType": "CARRIED_OR_EXTERNAL_CODE"
+        }
+      ]
+    },
+    {
+      "code": "PPM-010",
+      "title": "SUGAR",
+      "status": "ACTIVE",
+      "area": "Scaling & Mixing",
+      "templateVersion": 3,
+      "paperRevision": "005",
+      "templateActive": true,
+      "groups": [
+        {
+          "key": "entries",
+          "label": "Daily Data Entries",
+          "minRows": 1,
+          "maxRows": 200
+        }
+      ],
+      "traceInputs": [
+        {
+          "path": "entries[].sugarReceivingCode",
+          "required": true
+        }
+      ],
+      "outputs": [
+        {
+          "key": "sugarCode",
+          "label": "Sugar Code",
+          "path": "entries[].sugarCode",
+          "sourceType": "MANUAL_EXTERNAL",
+          "status": "ACTIVE",
+          "outputType": "PPM_GENERATED_CODE"
+        }
+      ]
+    },
+    {
+      "code": "PPM-011",
+      "title": "MIXING - MERINGUE",
+      "status": "ACTIVE",
+      "area": "Scaling & Mixing",
+      "templateVersion": 3,
+      "paperRevision": "005",
+      "templateActive": true,
+      "groups": [
+        {
+          "key": "meringueEntries",
+          "label": "Meringue entries",
+          "minRows": 1,
+          "maxRows": 100
+        },
+        {
+          "key": "mixtureEntries",
+          "label": "Mixture entries",
+          "minRows": 1,
+          "maxRows": 100
+        },
+        {
+          "key": "groundPeanutLots",
+          "label": "Ground Peanut source lots per mixture batch",
+          "minRows": 1,
+          "maxRows": 300
+        }
+      ],
+      "traceInputs": [
+        {
+          "path": "meringueEntries[].eggwhiteCode",
+          "required": true
+        },
+        {
+          "path": "meringueEntries[].sugarCode",
+          "required": true
+        },
+        {
+          "path": "meringueEntries[].vanillaCode",
+          "required": true
+        },
+        {
+          "path": "mixtureEntries[].meringueCode",
+          "required": true
+        },
+        {
+          "path": "groundPeanutLots[].groundPeanutCode",
+          "required": true
+        }
+      ],
+      "outputs": [
+        {
+          "key": "meringueCode",
+          "label": "Meringue Code",
+          "path": "meringueEntries[].meringueCode",
+          "sourceType": "MANUAL_EXTERNAL",
+          "status": "ACTIVE",
+          "outputType": "PPM_GENERATED_CODE"
+        },
+        {
+          "key": "mixingCode",
+          "label": "Batch Code / Mixing Code",
+          "path": "mixtureEntries[].mixingCode",
+          "sourceType": "MANUAL_EXTERNAL",
+          "status": "ACTIVE",
+          "outputType": "PPM_GENERATED_CODE"
+        }
+      ]
+    },
+    {
+      "code": "PPM-012",
+      "title": "FORMING",
+      "status": "ACTIVE",
+      "area": "Forming",
+      "templateVersion": 3,
+      "paperRevision": "006",
+      "templateActive": true,
+      "groups": [
+        {
+          "key": "entries",
+          "label": "Daily Data Entries",
+          "minRows": 1,
+          "maxRows": 200
+        }
+      ],
+      "traceInputs": [
+        {
+          "path": "entries[].mixingCode",
+          "required": true
+        }
+      ],
+      "outputs": [
+        {
+          "key": "formingSessionReference",
+          "label": "Operational Forming Session Reference",
+          "path": "entries[].formingSessionReference",
+          "sourceType": "SYSTEM_GENERATED",
+          "status": "ACTIVE",
+          "outputType": "INTERNAL_OPERATIONAL_REFERENCE"
+        }
+      ]
+    },
+    {
+      "code": "PPM-013",
+      "title": "BAKING",
+      "status": "ACTIVE",
+      "area": "Baking",
+      "templateVersion": 3,
+      "paperRevision": "004",
+      "templateActive": true,
+      "groups": [
+        {
+          "key": "entries",
+          "label": "Daily Data Entries",
+          "minRows": 1,
+          "maxRows": 200
+        }
+      ],
+      "traceInputs": [
+        {
+          "path": "entries[].mixingCode",
+          "required": true
+        }
+      ],
+      "outputs": []
+    },
+    {
+      "code": "PPM-014",
+      "title": "BAKED RECEIVING",
+      "status": "ACTIVE",
+      "area": "Baking",
+      "templateVersion": 3,
+      "paperRevision": "004",
+      "templateActive": true,
+      "groups": [
+        {
+          "key": "entries",
+          "label": "Daily Data Entries",
+          "minRows": 1,
+          "maxRows": 200
+        }
+      ],
+      "traceInputs": [
+        {
+          "path": "entries[].mixingCode",
+          "required": true
+        }
+      ],
+      "outputs": [
+        {
+          "key": "bakedCode",
+          "label": "Baked Code",
+          "path": "entries[].bakedCode",
+          "sourceType": "MANUAL_EXTERNAL",
+          "status": "ACTIVE",
+          "outputType": "PPM_GENERATED_CODE"
+        }
+      ]
+    },
+    {
+      "code": "PPM-015",
+      "title": "PRIMARY PACKING",
+      "status": "ACTIVE",
+      "area": "Packing",
+      "templateVersion": 3,
+      "paperRevision": "004",
+      "templateActive": true,
+      "groups": [
+        {
+          "key": "entries",
+          "label": "Daily Data Entries",
+          "minRows": 1,
+          "maxRows": 200
+        }
+      ],
+      "traceInputs": [
+        {
+          "path": "entries[].bakedCode",
+          "required": true
+        },
+        {
+          "path": "entries[].printedFoilRollCode",
+          "required": true
+        }
+      ],
+      "outputs": [
+        {
+          "key": "consumeBeforeCode",
+          "label": "Consume Before Code",
+          "path": "entries[].consumeBeforeCode",
+          "sourceType": "MANUAL_EXTERNAL",
+          "status": "ACTIVE",
+          "outputType": "PPM_GENERATED_CODE"
+        }
+      ]
+    },
+    {
+      "code": "PPM-016",
+      "title": "PRIMARY PACKING",
+      "status": "ACTIVE",
+      "area": "Packing",
+      "templateVersion": 3,
+      "paperRevision": "005",
+      "templateActive": true,
+      "groups": [
+        {
+          "key": "entries",
+          "label": "Daily Data Entries",
+          "minRows": 1,
+          "maxRows": 200
+        }
+      ],
+      "traceInputs": [
+        {
+          "path": "entries[].bakedCode",
+          "required": true
+        },
+        {
+          "path": "entries[].plainFoilRollCode",
+          "required": true
+        }
+      ],
+      "outputs": [
+        {
+          "key": "consumeBeforeCode",
+          "label": "Consume Before Code",
+          "path": "entries[].consumeBeforeCode",
+          "sourceType": "MANUAL_EXTERNAL",
+          "status": "ACTIVE",
+          "outputType": "PPM_GENERATED_CODE"
+        }
+      ]
+    },
+    {
+      "code": "PPM-017",
+      "title": "SECONDARY PACKING",
+      "status": "ACTIVE",
+      "area": "Packing",
+      "templateVersion": 3,
+      "paperRevision": "003",
+      "templateActive": true,
+      "groups": [
+        {
+          "key": "entries",
+          "label": "Daily Data Entries",
+          "minRows": 1,
+          "maxRows": 200
+        }
+      ],
+      "traceInputs": [
+        {
+          "path": "entries[].consumeBeforeCode",
+          "required": true
+        },
+        {
+          "path": "entries[].packingCode",
+          "required": true
+        }
+      ],
+      "outputs": [
+        {
+          "key": "consumeBeforeCode",
+          "label": "Consume Before Code",
+          "path": "entries[].consumeBeforeCode",
+          "sourceType": "MANUAL_EXTERNAL",
+          "status": "ACTIVE",
+          "outputType": "CARRIED_OR_EXTERNAL_CODE"
+        }
+      ]
+    },
+    {
+      "code": "PPM-018",
+      "title": "TERTIARY PACKING",
+      "status": "ACTIVE",
+      "area": "Packing",
+      "templateVersion": 3,
+      "paperRevision": "003",
+      "templateActive": true,
+      "groups": [
+        {
+          "key": "entries",
+          "label": "Daily Data Entries",
+          "minRows": 1,
+          "maxRows": 200
+        }
+      ],
+      "traceInputs": [
+        {
+          "path": "entries[].consumeBeforeCode",
+          "required": true
+        }
+      ],
+      "outputs": [
+        {
+          "key": "consumeBeforeCode",
+          "label": "Consume Before Code",
+          "path": "entries[].consumeBeforeCode",
+          "sourceType": "MANUAL_EXTERNAL",
+          "status": "ACTIVE",
+          "outputType": "CARRIED_OR_EXTERNAL_CODE"
+        }
+      ]
+    },
+    {
+      "code": "PPM-019",
+      "title": "VANILLA",
+      "status": "ACTIVE",
+      "area": "Scaling & Mixing",
+      "templateVersion": 3,
+      "paperRevision": "002",
+      "templateActive": true,
+      "groups": [
+        {
+          "key": "entries",
+          "label": "Daily Data Entries",
+          "minRows": 1,
+          "maxRows": 200
+        }
+      ],
+      "traceInputs": [],
+      "outputs": [
+        {
+          "key": "vanillaCode",
+          "label": "Vanilla Code",
+          "path": "entries[].vanillaCode",
+          "sourceType": "MANUAL_EXTERNAL",
+          "status": "ACTIVE",
+          "outputType": "PPM_GENERATED_CODE"
+        }
+      ]
+    },
+    {
+      "code": "PPM-020",
+      "title": "FROZEN EGGYOLK",
+      "status": "ACTIVE",
+      "area": "Egg Preparation",
+      "templateVersion": 3,
+      "paperRevision": "003",
+      "templateActive": true,
+      "groups": [
+        {
+          "key": "entries",
+          "label": "Daily Data Entries",
+          "minRows": 1,
+          "maxRows": 200
+        }
+      ],
+      "traceInputs": [
+        {
+          "path": "entries[].eggyolkCode",
+          "required": true
+        },
+        {
+          "path": "entries[].sugarCode",
+          "required": true
+        }
+      ],
+      "outputs": [
+        {
+          "key": "frozenEggyolkCode",
+          "label": "Consume Before Code",
+          "path": "entries[].frozenEggyolkCode",
+          "sourceType": "MANUAL_EXTERNAL",
+          "status": "ACTIVE",
+          "outputType": "PPM_GENERATED_CODE"
+        }
+      ]
+    },
+    {
+      "code": "PPM-021",
+      "title": "RAW PEANUT RECEIVING",
+      "status": "ACTIVE",
+      "area": "Peanut Section",
+      "templateVersion": 3,
+      "paperRevision": "002",
+      "templateActive": true,
+      "groups": [
+        {
+          "key": "entries",
+          "label": "Daily Data Entries",
+          "minRows": 1,
+          "maxRows": 200
+        }
+      ],
+      "traceInputs": [],
+      "outputs": [
+        {
+          "key": "rawReceivingReference",
+          "label": "Internal Receiving Entry Reference",
+          "path": "entries[].rawReceivingReference",
+          "sourceType": "SYSTEM_GENERATED",
+          "status": "ACTIVE",
+          "outputType": "INTERNAL_SOURCE_ENTRY_REFERENCE"
+        }
+      ]
+    },
+    {
+      "code": "PPM-022",
+      "title": "PAN GREASER",
+      "status": "ACTIVE",
+      "area": "Baking",
+      "templateVersion": 3,
+      "paperRevision": "001",
+      "templateActive": true,
+      "groups": [
+        {
+          "key": "entries",
+          "label": "Daily Data Entries",
+          "minRows": 1,
+          "maxRows": 200
+        }
+      ],
+      "traceInputs": [
+        {
+          "path": "entries[].usageOilCode",
+          "required": true
+        }
+      ],
+      "outputs": [
+        {
+          "key": "oilCode",
+          "label": "Oil Code",
+          "path": "entries[].oilCode",
+          "sourceType": "MANUAL_EXTERNAL",
+          "status": "ACTIVE",
+          "outputType": "PPM_GENERATED_CODE"
+        }
+      ]
+    },
+    {
+      "code": "PPM-023",
+      "title": "FORMING",
+      "status": "ACTIVE",
+      "area": "Forming",
+      "templateVersion": 3,
+      "paperRevision": "002",
+      "templateActive": true,
+      "groups": [
+        {
+          "key": "entries",
+          "label": "Daily Data Entries",
+          "minRows": 1,
+          "maxRows": 200
+        }
+      ],
+      "traceInputs": [
+        {
+          "path": "entries[].formingSessionReference",
+          "required": true
+        }
+      ],
+      "outputs": []
+    },
+    {
+      "code": "PPM-024",
+      "title": "PRODUCT CODING",
+      "status": "ACTIVE",
+      "area": "Packing",
+      "templateVersion": 3,
+      "paperRevision": "000",
+      "templateActive": true,
+      "groups": [
+        {
+          "key": "entries",
+          "label": "Daily Data Entries",
+          "minRows": 1,
+          "maxRows": 200
+        }
+      ],
+      "traceInputs": [
+        {
+          "path": "entries[].bakedCode",
+          "required": true
+        },
+        {
+          "path": "entries[].productCode",
+          "required": true
+        },
+        {
+          "path": "entries[].rollCode",
+          "required": true
+        }
+      ],
+      "outputs": [
+        {
+          "key": "productCode",
+          "label": "Product Code",
+          "path": "entries[].productCode",
+          "sourceType": "MANUAL_EXTERNAL",
+          "status": "ACTIVE",
+          "outputType": "CARRIED_OR_EXTERNAL_CODE"
+        },
+        {
+          "key": "rollCode",
+          "label": "Roll Code",
+          "path": "entries[].rollCode",
+          "sourceType": "MANUAL_EXTERNAL",
+          "status": "ACTIVE",
+          "outputType": "CARRIED_OR_EXTERNAL_CODE"
+        }
+      ]
+    },
+    {
+      "code": "PPM-026",
+      "title": "SUGAR RECEIVING",
+      "status": "ACTIVE",
+      "area": "Scaling & Mixing",
+      "templateVersion": 3,
+      "paperRevision": "000",
+      "templateActive": true,
+      "groups": [
+        {
+          "key": "entries",
+          "label": "Daily Data Entries",
+          "minRows": 1,
+          "maxRows": 200
+        }
+      ],
+      "traceInputs": [],
+      "outputs": [
+        {
+          "key": "sugarReceivingCode",
+          "label": "Internal Sugar Receiving Entry Reference",
+          "path": "entries[].sugarReceivingCode",
+          "sourceType": "SYSTEM_GENERATED",
+          "status": "ACTIVE",
+          "outputType": "INTERNAL_SOURCE_ENTRY_REFERENCE"
+        }
+      ]
+    },
+    {
+      "code": "WH-STOCK-RELEASE",
+      "title": "STOCK RELEASING FORM",
+      "status": "ACTIVE",
+      "area": "Warehouse",
+      "templateVersion": 3,
+      "paperRevision": "001",
+      "templateActive": true,
+      "groups": [
+        {
+          "key": "releaseEntries",
+          "label": "Release Entries",
+          "minRows": 1,
+          "maxRows": 200
+        }
+      ],
+      "traceInputs": [
+        {
+          "path": "releaseEntries[].consumeBeforeDate",
+          "required": true
+        }
+      ],
+      "outputs": []
+    }
+  ],
+  "connections": [
+    {
+      "name": "CONN-001",
+      "status": "RESERVED",
+      "source": "PPM-004",
+      "output": "sortingCode",
+      "sourcePath": "entries[].sortingCode",
+      "target": "PPM-005",
+      "input": "sortingCode",
+      "matchesCurrentTemplates": false,
+      "mappingIssues": [
+        "Target path is absent from current trace inputs",
+        "A template is inactive"
+      ],
+      "sameForm": false
+    },
+    {
+      "name": "CONN-002",
+      "status": "RESERVED",
+      "source": "PPM-005",
+      "output": "blanchingCode",
+      "sourcePath": null,
+      "target": "PPM-006",
+      "input": "blanchingCode",
+      "matchesCurrentTemplates": false,
+      "mappingIssues": [
+        "No active source output rule",
+        "Target path is absent from current trace inputs",
+        "A template is inactive"
+      ],
+      "sameForm": false
+    },
+    {
+      "name": "CONN-003",
+      "status": "RESERVED",
+      "source": "PPM-006",
+      "output": "finalSortingCode",
+      "sourcePath": null,
+      "target": "PPM-007",
+      "input": "entries[].sortingCode",
+      "matchesCurrentTemplates": false,
+      "mappingIssues": [
+        "No active source output rule",
+        "A template is inactive"
+      ],
+      "sameForm": false
+    },
+    {
+      "name": "CONN-004",
+      "status": "ACTIVE",
+      "source": "PPM-007",
+      "output": "finalRoastingCode",
+      "sourcePath": "entries[].finalRoastingCode",
+      "target": "PPM-008",
+      "input": "finalRoastingCode",
+      "matchesCurrentTemplates": false,
+      "mappingIssues": [
+        "Target path is absent from current trace inputs"
+      ],
+      "sameForm": false
+    },
+    {
+      "name": "CONN-005",
+      "status": "ACTIVE",
+      "source": "PPM-008",
+      "output": "grindingCode",
+      "sourcePath": "entries[].grindingCode",
+      "target": "PPM-009",
+      "input": "grindingCode",
+      "matchesCurrentTemplates": false,
+      "mappingIssues": [
+        "Target path is absent from current trace inputs"
+      ],
+      "sameForm": false
+    },
+    {
+      "name": "CONN-006",
+      "status": "PENDING_VALIDATION",
+      "source": "PPM-001",
+      "output": "productionCode",
+      "sourcePath": null,
+      "target": "PPM-002",
+      "input": "code",
+      "matchesCurrentTemplates": false,
+      "mappingIssues": [
+        "No active source output rule",
+        "Target path is absent from current trace inputs"
+      ],
+      "sameForm": false
+    },
+    {
+      "name": "CONN-007",
+      "status": "PENDING_VALIDATION",
+      "source": "PPM-001",
+      "output": "productionCode",
+      "sourcePath": null,
+      "target": "PPM-003",
+      "input": "code",
+      "matchesCurrentTemplates": false,
+      "mappingIssues": [
+        "No active source output rule",
+        "Target path is absent from current trace inputs"
+      ],
+      "sameForm": false
+    },
+    {
+      "name": "CONN-008",
+      "status": "PENDING_VALIDATION",
+      "source": "PPM-002",
+      "output": "code",
+      "sourcePath": null,
+      "target": "PPM-011",
+      "input": "eggwhitesCode",
+      "matchesCurrentTemplates": false,
+      "mappingIssues": [
+        "No active source output rule",
+        "Target path is absent from current trace inputs"
+      ],
+      "sameForm": false
+    },
+    {
+      "name": "CONN-009",
+      "status": "PENDING_VALIDATION",
+      "source": "PPM-010",
+      "output": "sugarCode",
+      "sourcePath": "entries[].sugarCode",
+      "target": "PPM-011",
+      "input": "sugarCode",
+      "matchesCurrentTemplates": false,
+      "mappingIssues": [
+        "Target path is absent from current trace inputs"
+      ],
+      "sameForm": false
+    },
+    {
+      "name": "CONN-010",
+      "status": "PENDING_VALIDATION",
+      "source": "PPM-019",
+      "output": "code",
+      "sourcePath": null,
+      "target": "PPM-011",
+      "input": "vanillaCode",
+      "matchesCurrentTemplates": false,
+      "mappingIssues": [
+        "No active source output rule",
+        "Target path is absent from current trace inputs"
+      ],
+      "sameForm": false
+    },
+    {
+      "name": "CONN-014",
+      "status": "PENDING_VALIDATION",
+      "source": "PPM-012",
+      "output": "mixingCode",
+      "sourcePath": null,
+      "target": "PPM-013",
+      "input": "mixingCode",
+      "matchesCurrentTemplates": false,
+      "mappingIssues": [
+        "No active source output rule",
+        "Target path is absent from current trace inputs"
+      ],
+      "sameForm": false
+    },
+    {
+      "name": "CONN-015",
+      "status": "PENDING_VALIDATION",
+      "source": "PPM-013",
+      "output": "mixingCode",
+      "sourcePath": null,
+      "target": "PPM-014",
+      "input": "mixingCode",
+      "matchesCurrentTemplates": false,
+      "mappingIssues": [
+        "No active source output rule",
+        "Target path is absent from current trace inputs"
+      ],
+      "sameForm": false
+    },
+    {
+      "name": "CONN-016",
+      "status": "PENDING_VALIDATION",
+      "source": "PPM-014",
+      "output": "bakedCode",
+      "sourcePath": "entries[].bakedCode",
+      "target": "PPM-015",
+      "input": "bakedCode",
+      "matchesCurrentTemplates": false,
+      "mappingIssues": [
+        "Target path is absent from current trace inputs"
+      ],
+      "sameForm": false
+    },
+    {
+      "name": "CONN-017",
+      "status": "PENDING_VALIDATION",
+      "source": "PPM-014",
+      "output": "bakedCode",
+      "sourcePath": "entries[].bakedCode",
+      "target": "PPM-016",
+      "input": "bakedCode",
+      "matchesCurrentTemplates": false,
+      "mappingIssues": [
+        "Target path is absent from current trace inputs"
+      ],
+      "sameForm": false
+    },
+    {
+      "name": "CONN-018",
+      "status": "PENDING_VALIDATION",
+      "source": "PPM-014",
+      "output": "bakedCode",
+      "sourcePath": "entries[].bakedCode",
+      "target": "PPM-024",
+      "input": "bakedCode",
+      "matchesCurrentTemplates": false,
+      "mappingIssues": [
+        "Target path is absent from current trace inputs"
+      ],
+      "sameForm": false
+    },
+    {
+      "name": "CONN-019",
+      "status": "PENDING_VALIDATION",
+      "source": "PPM-024",
+      "output": "rollCode",
+      "sourcePath": "entries[].rollCode",
+      "target": "PPM-015",
+      "input": "printedFoilRollCode",
+      "matchesCurrentTemplates": false,
+      "mappingIssues": [
+        "Target path is absent from current trace inputs"
+      ],
+      "sameForm": false
+    },
+    {
+      "name": "CONN-020",
+      "status": "PENDING_VALIDATION",
+      "source": "PPM-024",
+      "output": "rollCode",
+      "sourcePath": "entries[].rollCode",
+      "target": "PPM-016",
+      "input": "plainFoilRollCode",
+      "matchesCurrentTemplates": false,
+      "mappingIssues": [
+        "Target path is absent from current trace inputs"
+      ],
+      "sameForm": false
+    },
+    {
+      "name": "CONN-021",
+      "status": "PENDING_VALIDATION",
+      "source": "PPM-015",
+      "output": "consumeBeforeCode",
+      "sourcePath": "entries[].consumeBeforeCode",
+      "target": "PPM-017",
+      "input": "consumeBeforeCode",
+      "matchesCurrentTemplates": false,
+      "mappingIssues": [
+        "Target path is absent from current trace inputs"
+      ],
+      "sameForm": false
+    },
+    {
+      "name": "CONN-022",
+      "status": "PENDING_VALIDATION",
+      "source": "PPM-016",
+      "output": "consumeBeforeCode",
+      "sourcePath": "entries[].consumeBeforeCode",
+      "target": "PPM-017",
+      "input": "consumeBeforeCode",
+      "matchesCurrentTemplates": false,
+      "mappingIssues": [
+        "Target path is absent from current trace inputs"
+      ],
+      "sameForm": false
+    },
+    {
+      "name": "CONN-023",
+      "status": "PENDING_VALIDATION",
+      "source": "PPM-017",
+      "output": "consumeBeforeCode",
+      "sourcePath": "entries[].consumeBeforeCode",
+      "target": "PPM-018",
+      "input": "consumeBeforeCode",
+      "matchesCurrentTemplates": false,
+      "mappingIssues": [
+        "Target path is absent from current trace inputs"
+      ],
+      "sameForm": false
+    },
+    {
+      "name": "CONN-026",
+      "status": "DISABLED",
+      "source": "PPM-004",
+      "output": "sortingCode",
+      "sourcePath": "entries[].sortingCode",
+      "target": "PPM-007",
+      "input": "finalSortingCode",
+      "matchesCurrentTemplates": false,
+      "mappingIssues": [
+        "Target path is absent from current trace inputs"
+      ],
+      "sameForm": false
+    },
+    {
+      "name": "CONN-027",
+      "status": "PENDING_VALIDATION",
+      "source": "PPM-003",
+      "output": "code",
+      "sourcePath": null,
+      "target": "PPM-020",
+      "input": "eggyolkCode",
+      "matchesCurrentTemplates": false,
+      "mappingIssues": [
+        "No active source output rule",
+        "Target path is absent from current trace inputs"
+      ],
+      "sameForm": false
+    },
+    {
+      "name": "CONN-028",
+      "status": "PENDING_VALIDATION",
+      "source": "PPM-010",
+      "output": "sugarCode",
+      "sourcePath": "entries[].sugarCode",
+      "target": "PPM-020",
+      "input": "sugarCode",
+      "matchesCurrentTemplates": false,
+      "mappingIssues": [
+        "Target path is absent from current trace inputs"
+      ],
+      "sameForm": false
+    },
+    {
+      "name": "REV84-FORM-001",
+      "status": "ACTIVE",
+      "source": "PPM-021",
+      "output": "rawReceivingReference",
+      "sourcePath": "entries[].rawReceivingReference",
+      "target": "PPM-004",
+      "input": "entries[].rawReceivingReference",
+      "matchesCurrentTemplates": true,
+      "mappingIssues": [],
+      "sameForm": false
+    },
+    {
+      "name": "REV84-FORM-002",
+      "status": "ACTIVE",
+      "source": "PPM-004",
+      "output": "sortingCode",
+      "sourcePath": "entries[].sortingCode",
+      "target": "PPM-007",
+      "input": "entries[].sortingCode",
+      "matchesCurrentTemplates": true,
+      "mappingIssues": [],
+      "sameForm": false
+    },
+    {
+      "name": "REV84-FORM-003",
+      "status": "ACTIVE",
+      "source": "PPM-007",
+      "output": "finalRoastingCode",
+      "sourcePath": "entries[].finalRoastingCode",
+      "target": "PPM-008",
+      "input": "entries[].finalRoastingCode",
+      "matchesCurrentTemplates": true,
+      "mappingIssues": [],
+      "sameForm": false
+    },
+    {
+      "name": "REV84-FORM-004",
+      "status": "ACTIVE",
+      "source": "PPM-008",
+      "output": "grindingCode",
+      "sourcePath": "entries[].grindingCode",
+      "target": "PPM-009",
+      "input": "entries[].grindingCode",
+      "matchesCurrentTemplates": true,
+      "mappingIssues": [],
+      "sameForm": false
+    },
+    {
+      "name": "REV84-FORM-005",
+      "status": "ACTIVE",
+      "source": "PPM-009",
+      "output": "grindingCode",
+      "sourcePath": "entries[].grindingCode",
+      "target": "PPM-011",
+      "input": "groundPeanutLots[].groundPeanutCode",
+      "matchesCurrentTemplates": true,
+      "mappingIssues": [],
+      "sameForm": false
+    },
+    {
+      "name": "REV84-FORM-006",
+      "status": "ACTIVE",
+      "source": "PPM-001",
+      "output": "eggwhiteProductionCode",
+      "sourcePath": "entries[].eggwhiteProductionCode",
+      "target": "PPM-002",
+      "input": "entries[].pailCode",
+      "matchesCurrentTemplates": true,
+      "mappingIssues": [],
+      "sameForm": false
+    },
+    {
+      "name": "REV84-FORM-007",
+      "status": "ACTIVE",
+      "source": "PPM-001",
+      "output": "pitcherProductionCode",
+      "sourcePath": "entries[].pitcherProductionCode",
+      "target": "PPM-002",
+      "input": "entries[].pitcherCode",
+      "matchesCurrentTemplates": true,
+      "mappingIssues": [],
+      "sameForm": false
+    },
+    {
+      "name": "REV84-FORM-008",
+      "status": "ACTIVE",
+      "source": "PPM-001",
+      "output": "eggyolkProductionCode",
+      "sourcePath": "entries[].eggyolkProductionCode",
+      "target": "PPM-003",
+      "input": "entries[].eggyolkCode",
+      "matchesCurrentTemplates": true,
+      "mappingIssues": [],
+      "sameForm": false
+    },
+    {
+      "name": "REV84-FORM-009",
+      "status": "ACTIVE",
+      "source": "PPM-001",
+      "output": "eggwhiteProductionCode",
+      "sourcePath": "entries[].eggwhiteProductionCode",
+      "target": "PPM-011",
+      "input": "meringueEntries[].eggwhiteCode",
+      "matchesCurrentTemplates": true,
+      "mappingIssues": [],
+      "sameForm": false
+    },
+    {
+      "name": "REV84-FORM-010",
+      "status": "ACTIVE",
+      "source": "PPM-001",
+      "output": "pitcherProductionCode",
+      "sourcePath": "entries[].pitcherProductionCode",
+      "target": "PPM-011",
+      "input": "meringueEntries[].eggwhiteCode",
+      "matchesCurrentTemplates": true,
+      "mappingIssues": [],
+      "sameForm": false
+    },
+    {
+      "name": "REV84-FORM-011",
+      "status": "ACTIVE",
+      "source": "PPM-002",
+      "output": "pailCode",
+      "sourcePath": "entries[].pailCode",
+      "target": "PPM-011",
+      "input": "meringueEntries[].eggwhiteCode",
+      "matchesCurrentTemplates": true,
+      "mappingIssues": [],
+      "sameForm": false
+    },
+    {
+      "name": "REV84-FORM-012",
+      "status": "ACTIVE",
+      "source": "PPM-002",
+      "output": "pitcherCode",
+      "sourcePath": "entries[].pitcherCode",
+      "target": "PPM-011",
+      "input": "meringueEntries[].eggwhiteCode",
+      "matchesCurrentTemplates": true,
+      "mappingIssues": [],
+      "sameForm": false
+    },
+    {
+      "name": "REV84-FORM-013",
+      "status": "ACTIVE",
+      "source": "PPM-026",
+      "output": "sugarReceivingCode",
+      "sourcePath": "entries[].sugarReceivingCode",
+      "target": "PPM-010",
+      "input": "entries[].sugarReceivingCode",
+      "matchesCurrentTemplates": true,
+      "mappingIssues": [],
+      "sameForm": false
+    },
+    {
+      "name": "REV84-FORM-014",
+      "status": "ACTIVE",
+      "source": "PPM-010",
+      "output": "sugarCode",
+      "sourcePath": "entries[].sugarCode",
+      "target": "PPM-011",
+      "input": "meringueEntries[].sugarCode",
+      "matchesCurrentTemplates": true,
+      "mappingIssues": [],
+      "sameForm": false
+    },
+    {
+      "name": "REV84-FORM-015",
+      "status": "ACTIVE",
+      "source": "PPM-019",
+      "output": "vanillaCode",
+      "sourcePath": "entries[].vanillaCode",
+      "target": "PPM-011",
+      "input": "meringueEntries[].vanillaCode",
+      "matchesCurrentTemplates": true,
+      "mappingIssues": [],
+      "sameForm": false
+    },
+    {
+      "name": "REV84-FORM-016",
+      "status": "ACTIVE",
+      "source": "PPM-003",
+      "output": "eggyolkCode",
+      "sourcePath": "entries[].eggyolkCode",
+      "target": "PPM-020",
+      "input": "entries[].eggyolkCode",
+      "matchesCurrentTemplates": true,
+      "mappingIssues": [],
+      "sameForm": false
+    },
+    {
+      "name": "REV84-FORM-017",
+      "status": "ACTIVE",
+      "source": "PPM-010",
+      "output": "sugarCode",
+      "sourcePath": "entries[].sugarCode",
+      "target": "PPM-020",
+      "input": "entries[].sugarCode",
+      "matchesCurrentTemplates": true,
+      "mappingIssues": [],
+      "sameForm": false
+    },
+    {
+      "name": "REV84-FORM-018",
+      "status": "ACTIVE",
+      "source": "PPM-011",
+      "output": "meringueCode",
+      "sourcePath": "meringueEntries[].meringueCode",
+      "target": "PPM-011",
+      "input": "mixtureEntries[].meringueCode",
+      "matchesCurrentTemplates": true,
+      "mappingIssues": [],
+      "sameForm": true
+    },
+    {
+      "name": "REV84-FORM-019",
+      "status": "ACTIVE",
+      "source": "PPM-011",
+      "output": "mixingCode",
+      "sourcePath": "mixtureEntries[].mixingCode",
+      "target": "PPM-012",
+      "input": "entries[].mixingCode",
+      "matchesCurrentTemplates": true,
+      "mappingIssues": [],
+      "sameForm": false
+    },
+    {
+      "name": "REV84-FORM-020",
+      "status": "ACTIVE",
+      "source": "PPM-011",
+      "output": "mixingCode",
+      "sourcePath": "mixtureEntries[].mixingCode",
+      "target": "PPM-013",
+      "input": "entries[].mixingCode",
+      "matchesCurrentTemplates": true,
+      "mappingIssues": [],
+      "sameForm": false
+    },
+    {
+      "name": "REV84-FORM-021",
+      "status": "ACTIVE",
+      "source": "PPM-011",
+      "output": "mixingCode",
+      "sourcePath": "mixtureEntries[].mixingCode",
+      "target": "PPM-014",
+      "input": "entries[].mixingCode",
+      "matchesCurrentTemplates": true,
+      "mappingIssues": [],
+      "sameForm": false
+    },
+    {
+      "name": "REV84-FORM-022",
+      "status": "ACTIVE",
+      "source": "PPM-014",
+      "output": "bakedCode",
+      "sourcePath": "entries[].bakedCode",
+      "target": "PPM-015",
+      "input": "entries[].bakedCode",
+      "matchesCurrentTemplates": true,
+      "mappingIssues": [],
+      "sameForm": false
+    },
+    {
+      "name": "REV84-FORM-023",
+      "status": "ACTIVE",
+      "source": "PPM-014",
+      "output": "bakedCode",
+      "sourcePath": "entries[].bakedCode",
+      "target": "PPM-016",
+      "input": "entries[].bakedCode",
+      "matchesCurrentTemplates": true,
+      "mappingIssues": [],
+      "sameForm": false
+    },
+    {
+      "name": "REV84-FORM-024",
+      "status": "ACTIVE",
+      "source": "PPM-014",
+      "output": "bakedCode",
+      "sourcePath": "entries[].bakedCode",
+      "target": "PPM-024",
+      "input": "entries[].bakedCode",
+      "matchesCurrentTemplates": true,
+      "mappingIssues": [],
+      "sameForm": false
+    },
+    {
+      "name": "REV84-FORM-025",
+      "status": "ACTIVE",
+      "source": "PPM-024",
+      "output": "rollCode",
+      "sourcePath": "entries[].rollCode",
+      "target": "PPM-015",
+      "input": "entries[].printedFoilRollCode",
+      "matchesCurrentTemplates": true,
+      "mappingIssues": [],
+      "sameForm": false
+    },
+    {
+      "name": "REV84-FORM-026",
+      "status": "ACTIVE",
+      "source": "PPM-024",
+      "output": "rollCode",
+      "sourcePath": "entries[].rollCode",
+      "target": "PPM-016",
+      "input": "entries[].plainFoilRollCode",
+      "matchesCurrentTemplates": true,
+      "mappingIssues": [],
+      "sameForm": false
+    },
+    {
+      "name": "REV84-FORM-027",
+      "status": "ACTIVE",
+      "source": "PPM-015",
+      "output": "consumeBeforeCode",
+      "sourcePath": "entries[].consumeBeforeCode",
+      "target": "PPM-017",
+      "input": "entries[].consumeBeforeCode",
+      "matchesCurrentTemplates": true,
+      "mappingIssues": [],
+      "sameForm": false
+    },
+    {
+      "name": "REV84-FORM-028",
+      "status": "ACTIVE",
+      "source": "PPM-016",
+      "output": "consumeBeforeCode",
+      "sourcePath": "entries[].consumeBeforeCode",
+      "target": "PPM-017",
+      "input": "entries[].consumeBeforeCode",
+      "matchesCurrentTemplates": true,
+      "mappingIssues": [],
+      "sameForm": false
+    },
+    {
+      "name": "REV84-FORM-029",
+      "status": "ACTIVE",
+      "source": "PPM-017",
+      "output": "consumeBeforeCode",
+      "sourcePath": "entries[].consumeBeforeCode",
+      "target": "PPM-018",
+      "input": "entries[].consumeBeforeCode",
+      "matchesCurrentTemplates": true,
+      "mappingIssues": [],
+      "sameForm": false
+    },
+    {
+      "name": "REV84-FORM-030",
+      "status": "ACTIVE",
+      "source": "PPM-022",
+      "output": "oilCode",
+      "sourcePath": "entries[].oilCode",
+      "target": "PPM-022",
+      "input": "entries[].usageOilCode",
+      "matchesCurrentTemplates": true,
+      "mappingIssues": [],
+      "sameForm": true
+    },
+    {
+      "name": "REV84-FORM-031",
+      "status": "ACTIVE",
+      "source": "PPM-012",
+      "output": "formingSessionReference",
+      "sourcePath": "entries[].formingSessionReference",
+      "target": "PPM-023",
+      "input": "entries[].formingSessionReference",
+      "matchesCurrentTemplates": true,
+      "mappingIssues": [],
+      "sameForm": false
+    },
+    {
+      "name": "WAREHOUSE-PPM-017-STOCK-RELEASE",
+      "status": "ACTIVE",
+      "source": "PPM-017",
+      "output": "consumeBeforeCode",
+      "sourcePath": "entries[].consumeBeforeCode",
+      "target": "WH-STOCK-RELEASE",
+      "input": "releaseEntries[].consumeBeforeDate",
+      "matchesCurrentTemplates": true,
+      "mappingIssues": [],
+      "sameForm": false
+    },
+    {
+      "name": "WAREHOUSE-PPM-018-STOCK-RELEASE",
+      "status": "ACTIVE",
+      "source": "PPM-018",
+      "output": "consumeBeforeCode",
+      "sourcePath": "entries[].consumeBeforeCode",
+      "target": "WH-STOCK-RELEASE",
+      "input": "releaseEntries[].consumeBeforeDate",
+      "matchesCurrentTemplates": true,
+      "mappingIssues": [],
+      "sameForm": false
+    }
+  ],
+  "unmappedRequiredInputs": [
+    {
+      "form": "PPM-017",
+      "input": "entries[].packingCode"
+    },
+    {
+      "form": "PPM-024",
+      "input": "entries[].productCode"
+    },
+    {
+      "form": "PPM-024",
+      "input": "entries[].rollCode"
+    }
+  ],
+  "sourceSha256": {
+    "database/default_data.sql": "fc783436e98df8b6d7692d7b74956a7b34b816e2d62dad4d77bc3bf54ce17a93",
+    "database/schema.sql": "1bbd82b05b9730cc687abcf69493270a2808aa91ff6f9a301deee28bc633cc59",
+    "database/manifest.json": "b98c6058c830152a8387d0f3df3a949bebc1f98a8e477d6afd7a58ed4aec5dd8",
+    "application/libraries/Ppms_record_service.php": "3e7bb77fb197967db145b45c0414fd76a86b0054c70bb797d30372d94ed584c1",
+    "application/libraries/Ppms_trace_service.php": "90477f1a548b38ad8753ca2aeccd1a0834be39475fd764329f2f52bccff8e3e3",
+    "application/libraries/Ppms_workflow_service.php": "5cdb913d45b8994290dda03dc32e5e72b537f62801b98b897582e8f3adb0ddeb",
+    "application/libraries/Ppms_sync_service.php": "4d1059a6826f57d694ac5dd56287371155c79ccab21eeee41712ab61243ea8ce",
+    "docs/architecture.md": "155e8fb888b996b539cd0f2312f2f2c81e00b9b38834b0d218903f689329a6cb",
+    "docs/flutter-client-contract.md": "fb1e2ed489bd76287a874c2d6a7cd36db4a7a3aebb9a58be002099da170e01c7",
+    "docs/superpowers/specs/2026-10-26-simple-trackable-backend-design.md": "83d4982fe6b0e55c782369965b6601c3bfd7dc2219db5216079d0ba661ffb1b1",
+    "docs/superpowers/plans/2026-10-26-simple-trackable-backend.md": "1c0146c55dc085a0862cf60c84e9faf4034b2fe004d50d712d3b3804ca1e2848"
+  }
+}
