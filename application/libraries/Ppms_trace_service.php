@@ -535,6 +535,17 @@ class Ppms_trace_service
             $this->validateRule($rule, $definition);
         }
     }
+    /** Do not activate a schema that leaves an enabled incoming relationship dangling. */
+    public function validateTemplateConnections($formId, $definition)
+    {
+        $paths = array_fill_keys($this->fieldPaths($this->validator->fields($definition)), TRUE);
+        foreach ($this->store->rows("SELECT id,targetInputKey FROM PpmTraceConnection WHERE targetPpmFormId=? AND status='ACTIVE' ORDER BY id", array($formId)) as $connection) {
+            if (!isset($paths[$connection['targetInputKey']])) {
+                throw new Ppms_problem('TEMPLATE_CONNECTION_TARGET_INVALID', 422,
+                    array('field' => $connection['targetInputKey'], 'connectionId' => $connection['id']));
+            }
+        }
+    }
     public function validateRule($rule, $definition)
     {
         if (($rule['status'] ?? '') !== 'ACTIVE') { return; }

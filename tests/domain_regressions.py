@@ -432,6 +432,42 @@ class DomainRegressions(unittest.TestCase):
         self.api('PUT', path + '/rules', {'rules': [], 'expectedEditHash': published['editHash']}, expected=409)
         self.assertEqual(sql("SELECT COUNT(*) FROM AuditLog WHERE message='CONFIG_CHANGE TraceCodeRule' AND ppmFormId='" + form['form'] + "'"), '1')
 
+    def test_18_publication_preserves_active_connection_targets_and_record_history(self):
+        source = self.new_form({'fields': [{'key': 'code', 'label': 'Code', 'type': 'text'}]}, [self.external_rule()])
+        output = self.publish(self.record(source, {'code': 'CONNECTED-LOT'}))
+        definition = {'schemaVersion': 2, 'sections': [
+            {'key': 'header', 'items': []},
+            {'key': 'main', 'items': [{'key': 'rows', 'label': 'Rows', 'type': 'table', 'fields': [
+                {'key': 'source', 'label': 'Source', 'type': 'trace-code'},
+                {'key': 'note', 'label': 'Note', 'type': 'text'}]}]},
+            {'key': 'summary', 'items': []}]}
+        target = self.new_form(definition)
+        connection = self.connect(source, target, path='rows[].source', approval=False)
+        record = self.record(target, {'rows': [{'source': 'CONNECTED-LOT', 'note': 'Historical entry'}]},
+                             [self.selection(connection, output, path='rows.0.source')])
+        draft = self.api('POST', '/templates/' + target['template'] + '/duplicate', {})
+        changed = json.loads(json.dumps(definition))
+        changed['sections'][1]['items'][0]['fields'].pop(0)
+        saved = self.api('PATCH', '/templates/' + draft['id'],
+                        {'definitionJson': changed, 'expectedEditHash': draft['editHash']})
+        error = self.api('POST', '/templates/' + draft['id'] + '/publish',
+                         {'expectedEditHash': saved['editHash']}, expected=422)
+        self.assertEqual(error['error'], 'TEMPLATE_CONNECTION_TARGET_INVALID')
+        self.assertEqual(error['details']['field'], 'rows[].source')
+        self.assertIsNone(self.api('GET', '/templates/' + draft['id'])['publishedAt'])
+        self.assertEqual(sql("SELECT id FROM PpmTemplateVersion WHERE ppmFormId='" + target['form'] + "' AND isActive=1"), target['template'])
+
+        self.api('PUT', '/forms/' + target['form'] + '/connections', {
+            'sourcePpmFormId': source['form'], 'sourceOutputKey': 'lot', 'targetInputKey': 'rows[].source',
+            'connectionName': 'Retired relationship', 'status': 'DISABLED', 'requiresApprovalBeforeUse': False})
+        published = self.api('POST', '/templates/' + draft['id'] + '/publish', {'expectedEditHash': saved['editHash']})
+        self.assertTrue(published['isActive'])
+        historical = self.api('GET', '/records/' + record['record']['id'])
+        self.assertEqual(historical['record']['templateVersionId'], target['template'])
+        self.assertEqual(historical['revision']['dataJson']['rows'][0]['source'], 'CONNECTED-LOT')
+        self.assertEqual(historical['traceLinks'][0]['sourceTraceOutputId'], output['id'])
+        self.assertEqual(self.api('GET', '/templates/' + target['template'])['definitionJson'], definition)
+
 
 if __name__ == '__main__':
     unittest.main(argv=[__file__] + TEST_ARGS, verbosity=2)

@@ -93,6 +93,7 @@ class Ppms_template_service
             $ci =& get_instance();
             $ci->load->library('ppms_trace_service');
             $ci->ppms_trace_service->validateTemplateRules($id, $template['definitionJson']);
+            $ci->ppms_trace_service->validateTemplateConnections($form, $template['definitionJson']);
             $this->store->execute('UPDATE PpmTemplateVersion SET isActive=0,effectiveTo=UTC_TIMESTAMP(3) WHERE ppmFormId=? AND isActive=1', array($template['ppmFormId']));
             $this->store->execute('UPDATE PpmTemplateVersion SET isActive=1,publishedAt=UTC_TIMESTAMP(3),effectiveFrom=UTC_TIMESTAMP(3),updatedAt=UTC_TIMESTAMP(3) WHERE id=?', array($id));
             $result = $this->view($this->find($id));
