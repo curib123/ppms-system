@@ -295,6 +295,77 @@ class DomainRegressions(unittest.TestCase):
         self.assertEqual(listed['deviceId'], devices[1]['id'])
         self.assertEqual(listed['leaseVersion'], 1)
 
+    def test_13_inactive_form_history_remains_admin_readable_without_writes(self):
+        form = self.new_form({'fields': [{'key': 'name', 'label': 'Name', 'type': 'text'}]})
+        record = self.record(form, {'name': 'Historical record'})
+        listed = next(item for item in self.api('GET', '/forms')['items'] if item['id'] == form['form'])
+        self.api('PATCH', '/forms/' + form['form'], {'expectedUpdatedAt': listed['updatedAt'], 'status': 'INACTIVE'})
+        history = self.api('GET', '/records/' + record['record']['id'] + '/history')
+        self.assertEqual(history['items'][0]['dataJson']['name'], 'Historical record')
+        self.assertEqual(self.api('GET', '/records?formId=' + form['form'])['total'], 1)
+        result = self.api('PATCH', '/records/' + record['record']['id'], {'clientMutationId': secrets.token_hex(16),
+            'baseRevisionNo': 1, 'dataJson': {'name': 'Should remain unchanged'}}, expected=403)
+        self.assertEqual(result['error'], 'FORM_UNAVAILABLE')
+        review = self.api('POST', '/records/' + record['record']['id'] + '/review', {'status': 'APPROVED',
+            'expectedRevisionNo': 1, 'expectedReviewVersion': 0}, expected=403)
+        self.assertEqual(review['error'], 'FORM_UNAVAILABLE')
+        self.api('GET', '/records/' + record['record']['id'] + '/history', user='outsider', expected=403)
+        self.assertEqual(self.api('GET', '/records/' + record['record']['id'])['record']['currentRevisionNo'], 1)
+
+    def test_14_numeric_roundtrip_preserves_readonly_value_and_publication(self):
+        form = self.new_form({'fields': [{'key': 'code', 'label': 'Code', 'type': 'text'},
+            {'key': 'fixed', 'label': 'Fixed quantity', 'type': 'number', 'readOnly': True, 'defaultValue': 1.0}]}, [self.external_rule()])
+        original = self.record(form, {'code': 'ROUNDTRIP', 'fixed': 1.0})
+        output = self.publish(original)
+        echoed = self.edit(original, {'code': 'ROUNDTRIP', 'fixed': 1})
+        self.assertEqual(echoed['revision']['dataHash'], original['revision']['dataHash'])
+        self.assertEqual(self.publish(echoed)['id'], output['id'])
+        self.assertEqual(sql("SELECT status FROM PpmTraceOutput WHERE id='" + output['id'] + "'"), 'PUBLISHED')
+
+    def test_15_large_history_uses_byte_bound_and_cursor_without_skips(self):
+        form = self.new_form({'fields': [{'key': 'name', 'label': 'Name', 'type': 'text'},
+            {'key': 'rows', 'label': 'Rows', 'type': 'table', 'maxRows': 100,
+             'fields': [{'key': 'note', 'label': 'Note', 'type': 'text'}]}]})
+        values = {'name': 'Revision 1', 'rows': [{'note': 'x' * 12000} for _ in range(100)]}
+        record = self.record(form, values)
+        for revision in range(2, 6):
+            values['name'] = 'Revision ' + str(revision)
+            record = self.edit(record, values)
+        self.assertEqual(record['historyTotal'], 5)
+        self.assertTrue(record['historyHasMore'])
+        self.assertEqual(record['revisions'], [])
+        self.assertEqual(len(record['revision']['dataJson']['rows']), 100)
+        seen = []
+        cursor = None
+        while True:
+            path = '/records/' + record['record']['id'] + '/history?limit=100'
+            if cursor is not None:
+                path += '&beforeRevisionNo=' + str(cursor)
+            page = self.api('GET', path)
+            self.assertEqual(len(page['items']), 1, 'Each large record should exceed the default multi-item page budget.')
+            self.assertEqual(page['total'], 5)
+            seen.extend(item['revisionNo'] for item in page['items'])
+            if not page['hasMore']:
+                self.assertIsNone(page['nextBeforeRevisionNo'])
+                break
+            cursor = page['nextBeforeRevisionNo']
+            self.assertEqual(cursor, seen[-1])
+            self.assertLess(len(seen), 6)
+        self.assertEqual(seen, [5, 4, 3, 2, 1])
+        second = self.record(form, values)
+        listed = self.api('GET', '/records?formId=' + form['form'] + '&limit=100')
+        self.assertTrue(listed['summary'])
+        self.assertEqual(len(listed['items']), 2)
+        self.assertTrue(all('dataJson' not in item['revision'] for item in listed['items']))
+        first_page = self.api('GET', '/records?formId=' + form['form'] + '&summary=false&limit=100')
+        self.assertEqual(len(first_page['items']), 1)
+        self.assertTrue(first_page['hasMore'])
+        self.assertEqual(first_page['nextOffset'], 1)
+        next_page = self.api('GET', '/records?formId=' + form['form'] + '&summary=false&limit=100&offset=' + str(first_page['nextOffset']))
+        self.assertFalse(next_page['hasMore'])
+        self.assertEqual({item['record']['id'] for item in first_page['items'] + next_page['items']},
+            {record['record']['id'], second['record']['id']})
+
 
 if __name__ == '__main__':
     unittest.main(argv=[__file__] + TEST_ARGS, verbosity=2)

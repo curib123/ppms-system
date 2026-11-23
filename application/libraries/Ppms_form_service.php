@@ -15,12 +15,34 @@ class Ppms_form_service
     }
     public function listing($actor)
     {
-        $forms = $this->store->rows('SELECT f.*,l.deviceId,l.leaseVersion,l.revokedAt AS leaseRevokedAt FROM PpmForm f
-            LEFT JOIN PpmFormDeviceLease l ON l.ppmFormId=f.id ORDER BY f.sortOrder,f.ppmCode');
+        $forms = $this->store->rows('SELECT * FROM PpmForm ORDER BY sortOrder,ppmCode');
+        $leases = array();
+        foreach ($this->store->rows('SELECT l.ppmFormId,l.deviceId,l.leaseVersion,l.revokedAt AS leaseRevokedAt
+            FROM PpmFormDeviceLease l JOIN ClientDevice d ON d.id=l.deviceId
+            WHERE l.revokedAt IS NULL AND d.revokedAt IS NULL ORDER BY l.ppmFormId,l.deviceId') as $lease) {
+            $leases[$lease['ppmFormId']][] = $lease;
+        }
         $items = array();
         foreach ($forms as $form) {
+            // Concurrent devices share form definitions, never a last-writer
+            // pointer. Clients select their own device's versioned membership.
+            $form['leases'] = $leases[$form['id']] ?? array();
+            $single = count($form['leases']) === 1 ? $form['leases'][0] : NULL;
+            $form['deviceId'] = $single['deviceId'] ?? NULL;
+            $form['leaseVersion'] = $single['leaseVersion'] ?? NULL;
+            $form['leaseRevokedAt'] = NULL;
             try {
                 $this->auth->access($actor, $form['id']);
+                $form['permissions'] = array('canView' => TRUE);
+                foreach (array('canCreate','canEdit','canPublish') as $permission) {
+                    try { $this->auth->access($actor, $form['id'], $permission); $form['permissions'][$permission] = TRUE; }
+                    catch (Ppms_problem $error) { if ($error->status !== 403) { throw $error; } $form['permissions'][$permission] = FALSE; }
+                }
+                $form['assignments'] = $this->store->rows("SELECT a.*,p.name AS areaName,p.code AS areaCode FROM AreaPpmAssignment a JOIN ProductionArea p ON p.id=a.areaId
+                    WHERE a.ppmFormId=? AND a.isActive=1 AND p.status='ACTIVE' AND a.effectiveFrom<=UTC_TIMESTAMP(3)
+                    AND (a.effectiveTo IS NULL OR a.effectiveTo>UTC_TIMESTAMP(3)) ORDER BY p.code", array($form['id']));
+                $active = $this->store->row('SELECT id FROM PpmTemplateVersion WHERE ppmFormId=? AND isActive=1 AND publishedAt IS NOT NULL', array($form['id']));
+                $form['activeTemplateId'] = $active['id'] ?? NULL;
                 $items[] = $form;
             } catch (Ppms_problem $error) {
                 if ($error->status !== 403) { throw $error; }
@@ -28,6 +50,23 @@ class Ppms_form_service
             }
         }
         return array('items' => $items);
+    }
+    public function update($actor, $id, $input)
+    {
+        $this->auth->admin($actor);
+        return $this->store->transaction(function () use ($actor, $id, $input) {
+            $old = $this->store->lockForm($id);
+            if (($input['expectedUpdatedAt'] ?? NULL) !== $old['updatedAt']) { throw new Ppms_problem('FORM_CHANGED', 409); }
+            $title = isset($input['title']) ? Ppms_values::text($input, 'title', 512) : $old['title'];
+            $status = $input['status'] ?? $old['status'];
+            if (!in_array($status, array('ACTIVE','INACTIVE','RESERVED'), TRUE)) { throw new Ppms_problem('INVALID_FORM_STATUS'); }
+            $description = array_key_exists('description', $input) ? ($input['description'] === NULL || $input['description'] === '' ? NULL : Ppms_values::text($input, 'description', 4000)) : $old['description'];
+            $sort = isset($input['sortOrder']) ? Ppms_values::integer($input, 'sortOrder', 0, 1000000) : $old['sortOrder'];
+            $this->store->execute('UPDATE PpmForm SET title=?,status=?,description=?,sortOrder=?,updatedAt=UTC_TIMESTAMP(3) WHERE id=?', array($title, $status, $description, $sort, $id));
+            $result = $this->store->row('SELECT * FROM PpmForm WHERE id=?', array($id));
+            $this->store->audit($actor, 'CONFIG_CHANGE', 'PpmForm', $id, $result, array('ppmFormId' => $id));
+            return $result;
+        });
     }
     public function create($actor, $input)
     {

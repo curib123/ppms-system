@@ -167,18 +167,7 @@ class Ppms_form_engine
     }
     private function equal($left, $right)
     {
-        // JSON numbers have one semantic domain across PHP and JavaScript.
-        if ((is_int($left) || is_float($left)) && (is_int($right) || is_float($right))) { return $left == $right; }
-        if (is_object($left) && is_object($right)) {
-            $left = get_object_vars($left); $right = get_object_vars($right);
-            ksort($left, SORT_STRING); ksort($right, SORT_STRING);
-        }
-        if (is_array($left) && is_array($right)) {
-            if (array_keys($left) !== array_keys($right)) { return FALSE; }
-            foreach ($left as $key => $value) { if (!$this->equal($value, $right[$key])) { return FALSE; } }
-            return TRUE;
-        }
-        return $left === $right;
+        return Ppms_values::equivalent($left, $right);
     }
 
     private function evaluate($expression, $root, $local, $scope)

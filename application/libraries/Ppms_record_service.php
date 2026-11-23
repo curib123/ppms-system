@@ -24,30 +24,40 @@ class Ppms_record_service
         return $record;
     }
     /** Compact current projection used by every feed; history is paginated. */
-    public function projection($actor, $id, $authorize = TRUE)
+    public function projection($actor, $id, $authorize = TRUE, $summary = FALSE)
     {
         $record = $this->find($id);
         if ($authorize) { $this->auth->access($actor, $record['ppmFormId']); }
-        $revision = $this->revision($record);
+        $revision = $summary ? $this->store->row('SELECT id,recordId,revisionNo,status,dataHash,isTraceCritical,createdAt,submittedAt,correctionReason
+            FROM PpmRecordRevision WHERE recordId=? AND revisionNo=?', array($id, $record['currentRevisionNo'])) : $this->revision($record);
         $review = $this->store->row('SELECT * FROM ReviewReference WHERE recordId=?', array($id));
         if ($review) { $review['version'] = (int) $review['version']; $review['isCurrent'] = (int) $review['reviewedRevisionNo'] === $record['currentRevisionNo']; }
-        $impacts = $this->revalidations($actor, $record['ppmFormId'], $id, $authorize);
-        return array('record' => $record, 'revision' => $revision,
-            'traceLinks' => $this->store->rows('SELECT * FROM PpmTraceLink WHERE downstreamRevisionId=? ORDER BY downstreamInputKey,id', array($revision['id'])),
-            'revalidations' => $impacts['items'], 'revalidationTotal' => $impacts['total'],
-            'pendingRevalidationCount' => $impacts['pending'],
+        $result = array('record' => $record, 'revision' => $revision,
             'openConflictCount' => (int) $this->store->row("SELECT COUNT(*) AS n FROM SyncConflict WHERE recordId=? AND status='OPEN'", array($id))['n'],
             'reviewReference' => $review ?: array('recordId' => $id, 'reviewerUserId' => NULL, 'reviewerName' => '', 'reviewerPosition' => '',
                 'status' => 'PENDING_REVIEW', 'reviewedAt' => NULL, 'remarks' => NULL, 'version' => 0, 'reviewedRevisionNo' => NULL, 'isCurrent' => FALSE),
             'deleted' => $record['archivedAt'] !== NULL);
+        if ($summary) {
+            $result['summary'] = TRUE;
+            $result['pendingRevalidationCount'] = (int) $this->store->row("SELECT COUNT(*) AS n FROM TraceRevalidationItem i
+                JOIN PpmTraceLink l ON l.id=i.traceLinkId JOIN PpmRecordRevision v ON v.id=l.downstreamRevisionId
+                WHERE v.recordId=? AND i.status<>'RESOLVED'", array($id))['n'];
+            return $result;
+        }
+        $impacts = $this->revalidations($actor, $record['ppmFormId'], $id, $authorize);
+        return $result + array('traceLinks' => $this->store->rows('SELECT * FROM PpmTraceLink WHERE downstreamRevisionId=? ORDER BY downstreamInputKey,id', array($revision['id'])),
+            'revalidations' => $impacts['items'], 'revalidationTotal' => $impacts['total'], 'pendingRevalidationCount' => $impacts['pending']);
     }
     public function view($actor, $id)
     {
         $result = $this->projection($actor, $id);
-        $history = $this->history($actor, $id, array('page' => 1, 'limit' => 50));
-        $result['revisions'] = array_reverse($history['items']);
-        $result['historyTotal'] = $history['total'];
-        $result['historyHasMore'] = $history['total'] > count($history['items']);
+        // Retain a small compatibility window without loading fifty large
+        // documents. Full history uses its own byte-bounded cursor endpoint.
+        $history = $this->historyWindow($id, 50, 0, NULL, 262144, FALSE);
+        $result['revisions'] = array_reverse($history);
+        $result['historyTotal'] = (int) $this->store->row('SELECT COUNT(*) AS n FROM PpmRecordRevision WHERE recordId=?', array($id))['n'];
+        $result['historyHasMore'] = $result['historyTotal'] > count($history);
+        $result['historyNextBeforeRevisionNo'] = $history && $result['historyHasMore'] ? end($history)['revisionNo'] : NULL;
         return $result;
     }
     public function history($actor, $id, $query = array())
@@ -56,9 +66,33 @@ class Ppms_record_service
         $this->auth->access($actor, $record['ppmFormId']);
         $page = max(1, min(1000000, (int) ($query['page'] ?? 1)));
         $limit = max(1, min(100, (int) ($query['limit'] ?? 50)));
+        $budget = max(16384, min(4194304, (int) ($query['maxBytes'] ?? 1048576)));
+        $before = isset($query['beforeRevisionNo']) ? (int) $query['beforeRevisionNo'] : NULL;
+        if ($before !== NULL && ($before < 1 || (string) $before !== (string) $query['beforeRevisionNo'])) { throw new Ppms_problem('INVALID_HISTORY_CURSOR'); }
         $total = (int) $this->store->row('SELECT COUNT(*) AS n FROM PpmRecordRevision WHERE recordId=?', array($id))['n'];
-        $rows = $this->store->rows('SELECT * FROM PpmRecordRevision WHERE recordId=? ORDER BY revisionNo DESC LIMIT ? OFFSET ?', array($id, $limit, ($page - 1) * $limit));
-        return array('items' => $rows, 'page' => $page, 'limit' => $limit, 'total' => $total);
+        $rows = $this->historyWindow($id, $limit, $before === NULL ? ($page - 1) * $limit : 0, $before, $budget, TRUE);
+        $last = $rows ? end($rows)['revisionNo'] : NULL;
+        $more = $last !== NULL && (bool) $this->store->row('SELECT id FROM PpmRecordRevision WHERE recordId=? AND revisionNo<? LIMIT 1', array($id, $last));
+        return array('items' => $rows, 'page' => $page, 'limit' => $limit, 'total' => $total,
+            'hasMore' => $more, 'nextBeforeRevisionNo' => $more ? $last : NULL, 'byteLimit' => $budget);
+    }
+    private function historyWindow($id, $limit, $offset, $before, $budget, $allowLargeFirst)
+    {
+        // Size metadata is read before any payload is decoded. Reserve room for
+        // JSON keys, identifiers, timestamps and escaped correction remarks.
+        $candidates = $this->store->rows('SELECT id,revisionNo,OCTET_LENGTH(dataJson) AS dataBytes,
+            OCTET_LENGTH(COALESCE(correctionReason,\'\')) AS reasonBytes FROM PpmRecordRevision
+            WHERE recordId=? AND (? IS NULL OR revisionNo<?) ORDER BY revisionNo DESC LIMIT ? OFFSET ?',
+            array($id, $before, $before, $limit, $offset));
+        $selected = array(); $bytes = 0;
+        foreach ($candidates as $candidate) {
+            $size = (int) $candidate['dataBytes'] + (int) $candidate['reasonBytes'] + 4096;
+            if ($bytes + $size > $budget && ($selected || !$allowLargeFirst)) { break; }
+            if ($size > 4194304) { throw new Ppms_problem('HISTORY_ITEM_TOO_LARGE', 413); }
+            $selected[] = $candidate['id']; $bytes += $size;
+        }
+        if (!$selected) { return array(); }
+        return $this->store->rows('SELECT * FROM PpmRecordRevision WHERE id IN ('.implode(',', array_fill(0, count($selected), '?')).') ORDER BY revisionNo DESC', $selected);
     }
     public function listing($actor, $query = array())
     {
@@ -73,7 +107,11 @@ class Ppms_record_service
         }
         $page = max(1, min(1000000, (int) ($query['page'] ?? 1)));
         $limit = max(1, min(100, (int) ($query['limit'] ?? 25)));
-        if (!$forms) { return array('items' => array(), 'page' => $page, 'limit' => $limit, 'total' => 0); }
+        $offset = isset($query['offset']) ? (int) $query['offset'] : ($page - 1) * $limit;
+        if ($offset < 0 || $offset > 100000000 || (isset($query['offset']) && (string) $offset !== (string) $query['offset'])) { throw new Ppms_problem('INVALID_RECORD_OFFSET'); }
+        $summary = ($query['summary'] ?? 'true') !== 'false';
+        $budget = max(16384, min(4194304, (int) ($query['maxBytes'] ?? 1048576)));
+        if (!$forms) { return array('items' => array(), 'page' => $page, 'limit' => $limit, 'total' => 0, 'summary' => $summary, 'hasMore' => FALSE, 'nextOffset' => NULL); }
         $text = trim((string) ($query['q'] ?? ''));
         if (mb_strlen($text) > 191) { throw new Ppms_problem('INVALID_SEARCH'); }
         $where = ' FROM PpmRecord r JOIN AreaPpmAssignment a ON a.id=r.areaPpmAssignmentId LEFT JOIN ReviewReference w ON w.recordId=r.id WHERE a.ppmFormId IN ('.implode(',', array_fill(0, count($forms), '?')).')';
@@ -89,10 +127,21 @@ class Ppms_record_service
             if (!empty($query[$key])) { $where .= ' AND r.productionDate'.$operator.'?'; $args[] = Ppms_values::date($query[$key]).($key === 'to' ? ' 23:59:59.999' : ' 00:00:00'); }
         }
         $total = (int) $this->store->row('SELECT COUNT(*) AS n'.$where, $args)['n'];
-        $rows = $this->store->rows('SELECT r.id'.$where.' ORDER BY r.updatedAt DESC,r.id LIMIT ? OFFSET ?', array_merge($args, array($limit, ($page - 1) * $limit)));
-        $items = array();
-        foreach ($rows as $row) { $items[] = $this->projection($actor, $row['id']); }
-        return array('items' => $items, 'page' => $page, 'limit' => $limit, 'total' => $total);
+        $size = $summary ? '' : ',(SELECT OCTET_LENGTH(v.dataJson) FROM PpmRecordRevision v WHERE v.recordId=r.id AND v.revisionNo=r.currentRevisionNo) AS dataBytes';
+        $rows = $this->store->rows('SELECT r.id'.$size.$where.' ORDER BY r.updatedAt DESC,r.id LIMIT ? OFFSET ?', array_merge($args, array($limit, $offset)));
+        $items = array(); $bytes = 0;
+        foreach ($rows as $row) {
+            if (!$summary && (int) $row['dataBytes'] > 4194304) { throw new Ppms_problem('RECORD_ITEM_TOO_LARGE', 413); }
+            if (!$summary && $items && $bytes + (int) $row['dataBytes'] > $budget) { break; }
+            $item = $this->projection($actor, $row['id'], TRUE, $summary);
+            $size = strlen(Ppms_values::json($item));
+            if ($size > 4194304) { throw new Ppms_problem('RECORD_ITEM_TOO_LARGE', 413); }
+            if ($items && $bytes + $size > $budget) { break; }
+            $items[] = $item; $bytes += $size;
+        }
+        $more = $offset + count($items) < $total;
+        return array('items' => $items, 'page' => $page, 'limit' => $limit, 'total' => $total,
+            'summary' => $summary, 'hasMore' => $more, 'nextOffset' => $more ? $offset + count($items) : NULL, 'byteLimit' => $budget);
     }
     public function revalidations($actor, $form, $recordId = NULL, $authorize = TRUE, $query = array())
     {

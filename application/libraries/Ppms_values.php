@@ -27,6 +27,21 @@ class Ppms_values
         return $value;
     }
     public static function hash($value) { return hash('sha256', self::json(self::canonical($value))); }
+    /** JSON numbers share a semantic domain; receipt identity remains byte-stable above. */
+    public static function equivalent($left, $right)
+    {
+        if ((is_int($left) || is_float($left)) && (is_int($right) || is_float($right))) { return $left == $right; }
+        if (is_object($left) && is_object($right)) {
+            $left = get_object_vars($left); $right = get_object_vars($right);
+            ksort($left, SORT_STRING); ksort($right, SORT_STRING);
+        }
+        if (is_array($left) && is_array($right)) {
+            if (array_keys($left) !== array_keys($right)) { return FALSE; }
+            foreach ($left as $key => $value) { if (!self::equivalent($value, $right[$key])) { return FALSE; } }
+            return TRUE;
+        }
+        return $left === $right;
+    }
     public static function text($input, $key, $max = 191)
     {
         $value = $input[$key] ?? NULL;

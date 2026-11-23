@@ -97,7 +97,9 @@ class Ppms_form_validator
         $this->engine = new Ppms_form_engine();
         $prepared = $this->engine->prepare($fields, Ppms_values::object($data));
         $this->validateData($fields, $prepared, $complete, '', $previous, $prepared, $serverPaths);
-        return $prepared;
+        // Browsers encode 1.0 as 1. Preserve the recorded JSON representation
+        // when no semantic value changed, avoiding false trace retirement.
+        return $previous instanceof stdClass && Ppms_values::equivalent($prepared, $previous) ? $previous : $prepared;
     }
     private function validateData($fields, $data, $complete, $prefix, $previous, $root, $serverPaths)
     {
@@ -111,9 +113,9 @@ class Ppms_form_validator
             $path = $prefix.$key;
             $value = $data->$key ?? NULL;
             $protected = ($field->readOnly ?? FALSE) && !isset($field->calculation) && !in_array($path, $serverPaths, TRUE);
-            if ($protected && $previous && Ppms_values::hash($value) !== Ppms_values::hash($previous->$key ?? NULL)) { $this->invalid($path, 'READ_ONLY_FIELD'); }
+            if ($protected && $previous && !Ppms_values::equivalent($value, $previous->$key ?? NULL)) { $this->invalid($path, 'READ_ONLY_FIELD'); }
             if ($protected && !$previous && property_exists($data, $key)
-                && (!property_exists($field, 'defaultValue') || Ppms_values::hash($value) !== Ppms_values::hash($field->defaultValue))) { $this->invalid($path, 'READ_ONLY_FIELD'); }
+                && (!property_exists($field, 'defaultValue') || !Ppms_values::equivalent($value, $field->defaultValue))) { $this->invalid($path, 'READ_ONLY_FIELD'); }
             $empty = $value === NULL || $value === '' || ($value === array() && in_array($field->type, array('repeatable','table','multiselect'), TRUE));
             $engine = $this->engine ?? new Ppms_form_engine();
             $scope = preg_replace('/\.\d+(?=\.|$)/', '[]', $prefix);
@@ -131,14 +133,18 @@ class Ppms_form_validator
             }
             if (in_array($field->type, array('repeatable','table'), TRUE)) {
                 if (!is_array($value) || count($value) > ($field->maxRows ?? 100) || ($complete && $visible && count($value) < ($field->minRows ?? 0))) { $this->invalid($path, 'INVALID_ROW_COUNT'); }
+                $matchedRows = array();
                 foreach ($value as $index => $row) {
                     $oldRow = $previous->$key[$index] ?? NULL;
                     if (($field->allowRemoval ?? FALSE) && isset($previous->$key) && is_array($previous->$key)) {
                         $signature = $this->protectedSignature($field->fields, $row, $path.'.'.$index.'.', $serverPaths);
                         if ($signature !== array()) {
                             $oldRow = NULL;
-                            foreach ($previous->$key as $candidate) {
-                                if (Ppms_values::hash($signature) === Ppms_values::hash($this->protectedSignature($field->fields, $candidate, $path.'.'.$index.'.', $serverPaths))) { $oldRow = $candidate; break; }
+                            foreach ($previous->$key as $oldIndex => $candidate) {
+                                if (isset($matchedRows[$oldIndex])) { continue; }
+                                if (Ppms_values::equivalent($signature, $this->protectedSignature($field->fields, $candidate, $path.'.'.$index.'.', $serverPaths))) {
+                                    $oldRow = $candidate; $matchedRows[$oldIndex] = TRUE; break;
+                                }
                             }
                         }
                     }
