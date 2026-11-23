@@ -1,4 +1,6 @@
 /** Encrypted local vault and durable, original-author synchronization. No bearer token is stored. */
+import { createUuid as uuid } from './uuid.js';
+
 export const SyncStatus = Object.freeze({SAVED_LOCALLY:'SAVED_LOCALLY',PENDING_SYNC:'PENDING_SYNC',SYNCING:'SYNCING',SYNCED:'SYNCED',FAILED:'FAILED',CONFLICT:'CONFLICT'});
 const DB_NAME = 'ppms-offline-v1';
 const ENCODER = new TextEncoder();
@@ -6,7 +8,6 @@ const DECODER = new TextDecoder();
 const KDF_ITERATIONS = 600000;
 const dirty = value => value && value.status !== SyncStatus.SYNCED;
 const clone = value => structuredClone(value);
-const uuid = () => crypto.randomUUID();
 const message = (code, details) => Object.assign(new Error(code), {code,error:code,details});
 const bytes = value => ENCODER.encode(JSON.stringify(value)).byteLength;
 const encode64 = value => {const data=new Uint8Array(value);let text='';for(let i=0;i<data.length;i+=16384)text+=String.fromCharCode(...data.subarray(i,i+16384));return btoa(text);};
