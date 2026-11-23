@@ -1,7 +1,7 @@
 name: PPMS verification
 on:
   push:
-    branches: [master, 'fix/**']
+    branches: [master]
   pull_request:
   workflow_dispatch:
 permissions:

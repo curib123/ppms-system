@@ -40,8 +40,9 @@ pinch, pan and fullscreen behavior must be accepted on the deployment's devices.
 - Python 3 for administration helpers and tests. Node 24 and npm are needed only
   for development tests; the applications have no production Node build step.
 
-Implementation verification locally uses PHP 8.4.27 and MariaDB 11.8.6. A declared
-CI target is not a passing result until the associated workflow has completed.
+Local verification uses PHP 8.4.27 and MariaDB 11.8.6. The declared backend matrix,
+native Chromium offline storage, application browser scenarios and backup/restore
+checks have passing results linked in [the acceptance map](docs/audit-remediation.md).
 See [the operational guide](docs/operations.md) for release and device acceptance.
 
 ## New installation

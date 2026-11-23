@@ -67,10 +67,44 @@ revision to the displayed draft, along with separate editor identities and local
 generation guards. A newer remote feed or another tab's receipt cannot silently
 rebase stale local input or replace an unqueued draft.
 
-Local Chromium could not start because this execution environment denied its
-socket operation. No local browser screenshots, physical keyboard, gesture or
-fullscreen acceptance is claimed. Real browser and additional PHP/database
-combinations are configured in the CI workflow and need their own passing results.
+Local Chromium could not start because the execution environment denied its
+socket operation. Browser acceptance was therefore executed in GitHub Actions
+against the real migrated API and database.
+
+### CI and browser verification
+
+The complete backend runner passed on PHP 8.3 / MariaDB 10.11, PHP 8.4 / MariaDB
+11.8 and PHP 8.4 / MySQL 8.4 in
+[the initial matrix run](https://github.com/curib123/ppms-system/actions/runs/45106299545).
+That run also passed all 46 offline checks in Chromium with native IndexedDB and
+WebCrypto. Its UI test stopped on an ambiguous test selector for two valid
+New record controls; the selector was scoped to the primary workspace action.
+
+[The corrected browser run](https://github.com/curib123/ppms-system/actions/runs/45106611258)
+passed the native offline suite, all seven application acceptance scenarios and
+the actual backup/restore checks. The application scenarios exercise:
+
+- Visual creation and publication of a reusable three-section form.
+- Record entry, computed totals, reference approval and editing after approval.
+- Fullscreen, two-finger touch input, focus, dropdown selection and typing.
+- Encrypted offline reload, reconnection, committed receipts and old templates.
+- Two authorized personnel devices with preserved conflicts and explicit resolution.
+- A remote update arriving while an older local editor is dirty.
+- A 1,000-row form rendering 40 rows while preserving the focused input node.
+
+Screenshot inspection then identified an intrinsic-width layout defect and a
+stale approval badge that those functional assertions did not cover. The editor
+now uses a definite width derived from the schema, clips the scaled scroll
+spacer, opens small screens at a readable scale, and refreshes the review badge
+after an accepted edit. Additional browser assertions check document/scroll
+geometry, mobile input font size, zoom preservation and the Pending Review badge.
+The latest complete result is available in the
+[pull request checks](https://github.com/curib123/ppms-system/pull/3/checks).
+
+Screenshots and `ui-results.json` are uploaded as the run's
+`ppms-browser-evidence` artifact. Browser touch events and mobile viewport
+emulation do not verify a physical Android/iOS on-screen keyboard. Real-device
+acceptance and production-volume profiling remain deployment requirements.
 
 ### Deployment acceptance
 
