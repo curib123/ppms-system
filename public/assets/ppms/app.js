@@ -21,6 +21,7 @@ import {
   confirmAction,
 } from "./ui.js";
 import { OfflineStore, SyncEngine } from "./offline.js";
+import { createUuid } from "./uuid.js";
 import { getThemePreference, isDarkTheme, setThemePreference } from "./theme.js";
 import { FormBuilder } from "./builder.js";
 import { openRecord } from "./records.js";
@@ -355,7 +356,7 @@ export class Workspace {
     const key = "ppms-device-uuid:" + this.user.id;
     let deviceUuid = localStorage.getItem(key);
     if (!deviceUuid) {
-      deviceUuid = crypto.randomUUID();
+      deviceUuid = createUuid();
       localStorage.setItem(key, deviceUuid);
     }
     const device = await this.api.request("/devices", {

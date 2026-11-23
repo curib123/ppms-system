@@ -17,6 +17,7 @@ import {
 import { clone, defaultData, fieldsOf } from "./schema.js";
 import { FormRenderer } from "./renderer.js";
 import { DocumentViewport } from "./viewport.js";
+import { createUuid } from "./uuid.js";
 
 function plantDate(zone = "Asia/Manila") {
   const parts = new Intl.DateTimeFormat("en", {
@@ -30,15 +31,12 @@ function plantDate(zone = "Asia/Manila") {
     .join("-");
 }
 export function openRecord(app, { form, context, template, view = null }) {
-  app.cleanup?.();
-  app.main.replaceChildren();
-  app.main.dataset.screenLabel = `${app.mode} record editor`;
   const mobile = app.mode === "mobile";
-  const editorSessionId = crypto.randomUUID();
+  const editorSessionId = createUuid();
   let expectedLocalEditVersion = Number(view?.localEditVersion || 0);
   let record = view?.record ||
     view?.server?.record || {
-      id: crypto.randomUUID(),
+      id: createUuid(),
       ppmFormId: form.id,
       templateVersionId: template.id,
       currentRevisionNo: 0,
@@ -46,6 +44,10 @@ export function openRecord(app, { form, context, template, view = null }) {
       areaPpmAssignmentId: context.areaAssignments?.[0]?.id,
       status: "ACTIVE",
     };
+  // Keep the current screen intact if this browser cannot create secure IDs.
+  app.cleanup?.();
+  app.main.replaceChildren();
+  app.main.dataset.screenLabel = `${app.mode} record editor`;
   let revision = view?.revision || view?.server?.revision;
   // This version belongs to the data displayed in the editor. A newer server
   // projection must never make stale local contents appear current.
@@ -348,7 +350,7 @@ export function openRecord(app, { form, context, template, view = null }) {
   const autosave = debounce(persist, 650);
   function payload(operation) {
     const mutation = {
-      clientMutationId: crypto.randomUUID(),
+      clientMutationId: createUuid(),
       recordId: record.id,
       operationType: operation,
       baseRevisionNo: dataBaseRevisionNo,
@@ -470,7 +472,7 @@ export function openRecord(app, { form, context, template, view = null }) {
             path: `/records/${record.id}/submit`,
             method: "POST",
             body: {
-              clientMutationId: crypto.randomUUID(),
+              clientMutationId: createUuid(),
               baseRevisionNo: dataBaseRevisionNo,
             },
             stage: "submit",
@@ -743,12 +745,12 @@ export function openRecord(app, { form, context, template, view = null }) {
           const trigger = event.currentTarget;
           trigger.disabled = true;
           reason.disabled = true;
-          deletionRequest ||= {
-            clientMutationId: crypto.randomUUID(),
-            baseRevisionNo: dataBaseRevisionNo,
-            reason: reason.value,
-          };
           try {
+            deletionRequest ||= {
+              clientMutationId: createUuid(),
+              baseRevisionNo: dataBaseRevisionNo,
+              reason: reason.value,
+            };
             const response = await app.api.request(`/records/${record.id}`, {
               method: "DELETE",
               body: deletionRequest,
@@ -762,7 +764,10 @@ export function openRecord(app, { form, context, template, view = null }) {
             app.navigate("records");
           } catch (error) {
             showError(error);
-            if (!error.ambiguous && error.status && error.status < 500) {
+            if (
+              !deletionRequest ||
+              (!error.ambiguous && error.status && error.status < 500)
+            ) {
               deletionRequest = null;
               reason.disabled = false;
             }
@@ -1232,25 +1237,25 @@ async function conflictDialog(
         localRenderer.validate(false).length
       )
         return;
-      pendingResolution ||= {
-        clientMutationId: crypto.randomUUID(),
-        baseRevisionNo: Number(current.record.currentRevisionNo),
-        conflictId,
-        resolutionType: type,
-        reason: reason.value,
-        ...(type === "MANUAL_MERGE"
-          ? {
-              dataJson: localRenderer.getData(),
-              traceSelections: localRenderer.getSelections(),
-            }
-          : {}),
-      };
       resolving = true;
       localRenderer.root.inert = true;
       reason.disabled = true;
       for (const action of actions.querySelectorAll("button"))
         action.disabled = true;
       try {
+        pendingResolution ||= {
+          clientMutationId: createUuid(),
+          baseRevisionNo: Number(current.record.currentRevisionNo),
+          conflictId,
+          resolutionType: type,
+          reason: reason.value,
+          ...(type === "MANUAL_MERGE"
+            ? {
+                dataJson: localRenderer.getData(),
+                traceSelections: localRenderer.getSelections(),
+              }
+            : {}),
+        };
         let outcome;
         if (app.mode === "mobile") {
           if (!queuedMutationId) {

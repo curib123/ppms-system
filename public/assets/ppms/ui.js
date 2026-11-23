@@ -100,7 +100,11 @@ export function errorMessage(error) {
     return `An active connection uses ${error.details?.field || "a removed field"}. Restore the field or update Connections before publishing.`;
   if (error?.error === "TEMPLATE_CONNECTION_SOURCE_INVALID")
     return `An active connection needs the ${error.details?.outputKey || "missing"} trace output. Restore its output rule or update Connections before publishing.`;
-  const templateMessages = {
+  const operationMessages = {
+    SECURE_RANDOM_UNAVAILABLE:
+      "This browser cannot generate secure record IDs. Use a current browser over HTTPS, then try again.",
+    SECURE_OFFLINE_STORAGE_UNAVAILABLE:
+      "Encrypted offline storage requires HTTPS or localhost and a browser with Web Crypto and IndexedDB support. Open PPMS using its HTTPS address.",
     TEMPLATE_CHANGED:
       "Another session changed this draft. Your edits are still here. Open the latest version before saving or publishing.",
     TEMPLATE_PRECONDITION_REQUIRED:
@@ -108,8 +112,8 @@ export function errorMessage(error) {
     PUBLISHED_TEMPLATE_IMMUTABLE:
       "Published templates are locked. Duplicate this version to make changes safely.",
   };
-  if (Object.hasOwn(templateMessages, error?.error || error?.message))
-    return templateMessages[error.error || error.message];
+  if (Object.hasOwn(operationMessages, error?.error || error?.message))
+    return operationMessages[error.error || error.message];
   return String(
     error?.details?.field
       ? `${error.error || error.message}: ${error.details.field}`

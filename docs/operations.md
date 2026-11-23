@@ -50,6 +50,20 @@ After upgrade, require HTTP 200 from `/ready`. `/health` only demonstrates basel
 reference connectivity. Run smoke checks for login, an existing pinned record,
 a new revision, a trace lookup, and receipt replay. Then resume writes.
 
+The shared UUID helper uses native `crypto.randomUUID()` when available and
+cryptographically secure `crypto.getRandomValues()` otherwise. This supports
+record creation in browsers where `randomUUID` is absent, including HTTP LAN
+addresses. IDs remain UUIDv4; saved records, registered devices and pending retry
+requests keep their existing identifiers. If neither secure API is available,
+PPMS reports an error instead of generating weak identifiers. This compatibility
+fallback does not replace HTTPS or the Web Crypto requirement for encrypted
+offline storage.
+
+After deploying a frontend update, save work, close all PPMS tabs/windows, then
+reopen PPMS so its waiting service worker can activate the new shell. Do not clear
+site data to resolve an old cached script: it also contains unsynchronized
+records. The update keeps IndexedDB and its pending queue intact.
+
 ## First use
 
 Open `/admin` (also the root URL), sign in, and create or edit a form. Use the shared

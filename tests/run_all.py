@@ -31,7 +31,7 @@ for suite in ('integration.py', 'migrations.py', 'api_integration.py', 'platform
     commands.append([sys.executable, 'tests/' + suite] + php_args)
 if args.operations:
     commands.append([sys.executable, 'tests/operations.py'] + php_args)
-commands += [['node', 'tests/schema_client.mjs'], ['node', 'tests/builder_model.mjs'], ['node', 'tests/offline_client.mjs', '--node']]
+commands += [['node', 'tests/schema_client.mjs'], ['node', 'tests/builder_model.mjs'], ['node', 'tests/uuid_client.mjs'], ['node', 'tests/offline_client.mjs', '--node']]
 if args.browser:
     commands += [['node', 'tests/offline_client.mjs'], [sys.executable, 'tests/ui_integration.py'] + php_args]
 for command in commands:
