@@ -535,14 +535,21 @@ class Ppms_trace_service
             $this->validateRule($rule, $definition);
         }
     }
-    /** Do not activate a schema that leaves an enabled incoming relationship dangling. */
-    public function validateTemplateConnections($formId, $definition)
+    /** Do not activate a schema/rule set that leaves an enabled relationship dangling. */
+    public function validateTemplateConnections($formId, $definition, $templateId)
     {
         $paths = array_fill_keys($this->fieldPaths($this->validator->fields($definition)), TRUE);
         foreach ($this->store->rows("SELECT id,targetInputKey FROM PpmTraceConnection WHERE targetPpmFormId=? AND status='ACTIVE' ORDER BY id", array($formId)) as $connection) {
             if (!isset($paths[$connection['targetInputKey']])) {
                 throw new Ppms_problem('TEMPLATE_CONNECTION_TARGET_INVALID', 422,
                     array('field' => $connection['targetInputKey'], 'connectionId' => $connection['id']));
+            }
+        }
+        $outputs = array_fill_keys(array_column($this->store->rows("SELECT outputKey FROM TraceCodeRule WHERE templateVersionId=? AND status='ACTIVE'", array($templateId)), 'outputKey'), TRUE);
+        foreach ($this->store->rows("SELECT id,sourceOutputKey FROM PpmTraceConnection WHERE sourcePpmFormId=? AND status='ACTIVE' ORDER BY id", array($formId)) as $connection) {
+            if (!isset($outputs[$connection['sourceOutputKey']])) {
+                throw new Ppms_problem('TEMPLATE_CONNECTION_SOURCE_INVALID', 422,
+                    array('outputKey' => $connection['sourceOutputKey'], 'connectionId' => $connection['id']));
             }
         }
     }

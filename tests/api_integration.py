@@ -366,7 +366,10 @@ class PpmApiIntegration(unittest.TestCase):
         self.assertEqual(sql("SELECT currentRevisionNo FROM PpmRecord WHERE id='source-lot'"), '4')
 
     def test_13_concurrent_publication_reads_after_the_form_lock(self):
-        draft = self.api('POST', '/forms/' + self.form + '/templates', {'definitionJson': self.definition})
+        # Keep the output rule required by the active relationship established
+        # above; this test exercises publication locking, not invalid layouts.
+        draft = self.api('POST', '/templates/' + self.source_template + '/duplicate',
+                         {'versionLabel': 'Concurrent publication'})
         with socket.socket() as sock:
             sock.bind(('127.0.0.1', 0))
             port = sock.getsockname()[1]

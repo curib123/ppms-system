@@ -468,6 +468,36 @@ class DomainRegressions(unittest.TestCase):
         self.assertEqual(historical['traceLinks'][0]['sourceTraceOutputId'], output['id'])
         self.assertEqual(self.api('GET', '/templates/' + target['template'])['definitionJson'], definition)
 
+    def test_19_recovered_layout_cannot_drop_outputs_required_by_active_connections(self):
+        definition = {'fields': [{'key': 'code', 'label': 'Code', 'type': 'text'}]}
+        rule = self.external_rule()
+        source = self.new_form(definition, [rule])
+        target = self.new_form({'fields': [{'key': 'source', 'label': 'Source', 'type': 'trace-code'}]})
+        connection = self.connect(source, target, approval=False)
+        original = self.record(source, {'code': 'RECOVERY-LOT'})
+        output = self.publish(original)
+        downstream = self.record(target, {'source': 'RECOVERY-LOT'}, [self.selection(connection, output)])
+        # Conflict recovery saves only the administrator's local layout. It must
+        # neither copy unseen rules nor silently publish without required outputs.
+        recovered = self.api('POST', '/forms/' + source['form'] + '/templates',
+                             {'definitionJson': definition, 'versionLabel': 'Recovered local layout'})
+        path = '/templates/' + recovered['id']
+        self.assertEqual(self.api('GET', path + '/rules')['items'], [])
+        error = self.api('POST', path + '/publish', {'expectedEditHash': recovered['editHash']}, expected=422)
+        self.assertEqual(error['error'], 'TEMPLATE_CONNECTION_SOURCE_INVALID')
+        self.assertEqual(error['details']['outputKey'], 'lot')
+        self.assertEqual(sql("SELECT id FROM PpmTemplateVersion WHERE ppmFormId='" + source['form'] + "' AND isActive=1"), source['template'])
+        disabled = self.api('PUT', path + '/rules', {'rules': [dict(rule, status='DISABLED')],
+                            'expectedEditHash': recovered['editHash']})
+        self.api('POST', path + '/publish', {'expectedEditHash': disabled['editHash']}, expected=422)
+        reviewed = self.api('PUT', path + '/rules', {'rules': [rule], 'expectedEditHash': disabled['editHash']})
+        published = self.api('POST', path + '/publish', {'expectedEditHash': reviewed['editHash']})
+        self.assertTrue(published['isActive'])
+        self.assertEqual(self.api('GET', '/records/' + original['record']['id'])['record']['templateVersionId'], source['template'])
+        historical = self.api('GET', '/records/' + downstream['record']['id'])
+        self.assertEqual(historical['traceLinks'][0]['sourceTraceOutputId'], output['id'])
+        self.assertEqual(historical['revision']['dataJson']['source'], 'RECOVERY-LOT')
+
 
 if __name__ == '__main__':
     unittest.main(argv=[__file__] + TEST_ARGS, verbosity=2)
