@@ -22,7 +22,8 @@ The reference is an instruction bundle, not a production runtime dependency.
 | `public/assets/ppms/theme.js` | System/light/dark display preference and browser theme metadata |
 | `public/assets/ppms/styles.css` | Common stylesheet entry point |
 | `base.css` / `controls.css` | Shared buttons, fields, feedback, search and searchable choices |
-| `workspace.css` / `admin.css` | Navigation, lists, administration and builder layouts |
+| `workspace.css` / `admin.css` | Navigation, lists and administration layouts |
+| `builder.css` | Visual form palette, layout canvas, field inspector and preview |
 | `auth.css` / `system.css` | Authentication, setup and error states |
 | `document.css` / `responsive.css` | Interactive forms, print, mobile and reduced-motion layouts |
 | `scripts/sync_theme_assets.py` | Generate PWA icons and manifest colors from the theme |
@@ -124,6 +125,48 @@ Use the existing shared native `select()` for small status/action lists. Dynamic
 form cells and trace selectors inside the zoomable document retain native
 controls, preserving the existing focus, keyboard, pinch and edit behavior.
 
+## Visual form builder
+
+The builder uses one definition and the production renderer for every template.
+Its three fixed sections remain Header, Main content and Summary; administrators
+configure their contents without writing JSON or application code.
+The design canvas shares the white-paper palette with form documents, while the
+palette, settings panel and surrounding workspace follow the application theme.
+
+The field palette, layout canvas and selected-field settings provide the main
+editing workflow. Drag a palette field into a section or a table's columns, then
+select it to edit its label, options, help text or required state. Drag handles
+reorder existing items. Add buttons and move controls provide equivalent keyboard
+and touch-friendly actions. The live preview uses the same `FormRenderer` and
+`DocumentViewport` as saved records, including white paper and dark fullscreen.
+
+Structural operations live in `builder-model.js`; `builder.js` owns presentation,
+selection, bounded undo/redo history and the save lifecycle. Field keys are
+generated automatically and existing keys/types remain stable. Moving a field
+between scopes or deleting a referenced field can break calculations or
+conditions, so the builder rejects those operations. Top-level section moves
+preserve the data path; column reordering preserves the parent table and key.
+The server remains authoritative for complete schema validation.
+
+The inspector preserves the focused input during typing. Preview updates are
+scheduled independently of the saved template, and preview values never create
+records. Undo is scoped to builder actions; normal text input keeps native undo.
+Leaving a dirty builder requires acknowledgement, and closing the browser tab
+uses its unsaved-changes warning. All preview observers/listeners and pending
+updates are disposed when the workspace changes screens.
+
+Saving uses the complete template `editHash`; successful saves preserve the
+current editor instead of remounting it. A stale save retains the local draft and
+shows a clear conflict. Saving a separate draft is an explicit recovery action,
+not an automatic overwrite. This recovery copies the local layout and document
+details into a separate draft; administrators review its trace outputs before
+publishing. It does not copy another session's unseen rules. Publication checks
+that active relationships still have their target fields and source outputs.
+Publishing is a deliberate, version-checked action;
+published versions can only be duplicated for further editing. Trace-output
+configuration uses the same version check and advances the token only after the
+administrator's own rule changes have committed.
+
 ## Screen coverage
 
 | Surface | Shared controls |
@@ -134,7 +177,7 @@ controls, preserving the existing focus, keyboard, pinch and edit behavior.
 | Synchronization | Searchable batch-status filter, common notices and recovery actions |
 | Traceability | Search, result rows and tree presentation |
 | Trace-source dialog | Shared source search and result actions |
-| Form builder | Searchable field type, calculation and condition options |
+| Form builder | Shared field palette controls, field inspector, searchable advanced calculation and condition options |
 | Record/create/assignment dialogs | Searchable form, area, person and device choices |
 | Settings/account | Shared fields, actions, dialogs and appearance preference |
 | Login/offline unlock/setup/errors | Common tokens, text, controls and feedback surfaces |

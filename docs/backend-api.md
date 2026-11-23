@@ -50,10 +50,10 @@ checksums, signing configuration and timezone; `/health` is only baseline livene
 | `GET /forms/{id}/templates` | Bounded `page,limit,summary=true`; default 10 / max 20; summary omits definitions |
 | `GET /templates/{id}` | Exact authorized historical/published template for a pinned record |
 | `POST /forms/{id}/templates` | Create draft `{definitionJson,...documentMetadata}` |
-| `PATCH /templates/{id}` | Draft-only change with `expectedDefinitionHash` |
+| `PATCH /templates/{id}` | Draft-only change with `expectedEditHash` |
 | `POST /templates/{id}/duplicate` | Create a new draft from a reusable version |
-| `POST /templates/{id}/publish` | Semantic validation then immutable publication |
-| `GET/PUT /templates/{id}/rules` | Read/replace trace rules, writes only while draft |
+| `POST /templates/{id}/publish` | `{expectedEditHash}`; semantic validation then immutable publication |
+| `GET/PUT /templates/{id}/rules` | Read/replace draft trace rules; PUT requires `{rules,expectedEditHash}` |
 | `GET/PUT /forms/{id}/connections` | Read/configure source relationships; max 64 active incoming connections |
 | `GET /forms/{id}/trace-inputs` | Bounded eligible source choices, connections and outputs |
 | `GET /records` | Authorized metadata search: `ppmFormId` (or `formId`), `q,status,reviewStatus,page,limit,includeDeleted`; follow `nextOffset` |
@@ -92,6 +92,48 @@ role enum. Assignments add explicit form permissions. Reviewer area access requi
 an active production area and a currently effective form-area assignment. A current
 assignment grants access to historical records in that form; expired assignments do
 not independently grant current review authority.
+
+## Safe template editing
+
+Full template responses include `editHash`, an opaque concurrency token covering
+the schema, editable document metadata, version label and semantic trace rules.
+Keep the token from the snapshot the administrator actually reviewed. For a
+draft PATCH, send `expectedEditHash` alongside the complete `definitionJson` and
+any document metadata being changed. Publishing sends only the reviewed token:
+
+```json
+{
+  "expectedEditHash": "token-from-the-opened-template"
+}
+```
+
+Sending a metadata value as `null` clears it; omitting that metadata property
+preserves its stored value. Use the returned `editHash` after a successful update.
+Publishing does not implicitly accept newer content.
+
+`GET /templates/{id}/rules` returns `{items,editHash}` from one coherent snapshot.
+Compare this token with the opened template before editing rules. A successful
+rules PUT returns `{items,editHash}` with the next token, allowing that same
+builder to continue editing its own saved changes.
+
+All three writes check the precondition under the form's transaction lock. A
+missing token returns HTTP **428** (`TEMPLATE_PRECONDITION_REQUIRED`); a stale
+token returns HTTP **409** (`TEMPLATE_CHANGED`) without applying the write.
+Keep unsaved edits and explicitly compare the latest draft or save a separate
+draft. Do not fetch a new token and automatically retry the old write.
+
+`definitionHash` remains the schema identity for existing records and caches; it
+is no longer sufficient as a template-write precondition. Older administration
+clients must adopt `expectedEditHash`. Personnel record and offline-sync
+contracts are unchanged. Published templates remain immutable, and existing
+records keep their exact `templateVersionId` when a newer version is published.
+Publication also validates active incoming connections against the new schema.
+Removing a connected target returns HTTP **422**
+(`TEMPLATE_CONNECTION_TARGET_INVALID`) with `details.field`; restore that field
+or explicitly update the connection before publishing. An active outgoing
+connection also requires its source output rule; omitting or disabling that rule
+returns **422** (`TEMPLATE_CONNECTION_SOURCE_INVALID`) with `details.outputKey`.
+Draft saving and existing record history remain available.
 
 ## Three-section dynamic schema
 
