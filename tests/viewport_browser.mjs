@@ -175,6 +175,190 @@ async function mouseEditing(page) {
   assert.ok(await scaleOf(page) < enlarged, "Mouse wheel must also zoom out");
 }
 
+async function touchKeyboardEditing({ newPage, base, artifacts }) {
+  const { page } = await newPage(true);
+  await page.goto(base + "/admin");
+  await page.evaluate(async () => {
+    const { FormRenderer } = await import("/assets/ppms/renderer.js");
+    const { DocumentViewport } = await import("/assets/ppms/viewport.js");
+    const { newDefinition } = await import("/assets/ppms/schema.js");
+    const { el } = await import("/assets/ppms/ui.js");
+    const definition = newDefinition("Touch keyboard register");
+    definition.sections[0].items.push(
+      { key: "operator", label: "Operator", type: "text" },
+      { key: "shift", label: "Shift", type: "select", options: ["DAY", "NIGHT"] },
+    );
+    definition.sections[1].items[0].fields = [
+      { key: "reference", label: "Reference", type: "text", readOnly: true },
+      { key: "notes", label: "Notes", type: "textarea" },
+      { key: "quantity", label: "Quantity", type: "number" },
+    ];
+    const renderer = new FormRenderer({ definition, data: {
+      productionDate: "2026-11-23", operator: "Touch operator", shift: "DAY",
+      entries: Array.from({ length: 18 }, (_, i) => ({
+        reference: `R${i + 1}`, notes: `Production notes ${i + 1}`, quantity: i + 1,
+      })),
+    } });
+    const viewer = new DocumentViewport(renderer.root, { title: "Touch keyboard acceptance" });
+    window.__ppmsKeyboardAcceptance = { renderer, viewer, nativeRequests: 0 };
+    // A touch editor must choose app fullscreen before consulting the native API.
+    // Calling the API is counted even if the browser would grant the request.
+    viewer.root.requestFullscreen = () => {
+      window.__ppmsKeyboardAcceptance.nativeRequests++;
+      return Promise.reject(new DOMException("Native API should not be requested on touch", "NotAllowedError"));
+    };
+    document.getElementById("app").replaceChildren(
+      el("main", { class: "workspace", id: "workspace" }, viewer.root));
+    const add = viewer.root.querySelector(".table-toolbar button");
+    add.addEventListener("click", () => {
+      window.__ppmsKeyboardAcceptance.focusDuringAddClick = document.activeElement?.dataset.path;
+    });
+  });
+  await settle(page);
+  await setTheme(page, "dark");
+  await page.getByRole("button", { name: "Fullscreen form", exact: true }).tap();
+  await page.locator(".document-viewer.fallback-fullscreen").waitFor();
+  assert.equal(await page.evaluate(() => document.fullscreenElement), null);
+  assert.equal(await page.evaluate(() => window.__ppmsKeyboardAcceptance.nativeRequests), 0,
+    "Touch editing must use app fullscreen so native keyboard activation stays available");
+  const colors = { scheme: "dark", mode: "touch", ...await assertPaper(page, true) };
+  // Keep a non-default zoom while ensuring this three-column textarea fits
+  // inside the narrower visual viewport without asking the viewer to refit.
+  await page.getByRole("button", { name: "Zoom out", exact: true }).tap();
+  const editingScale = await scaleOf(page);
+
+  const operator = page.locator('.form-document [data-path="operator"]');
+  await operator.scrollIntoViewIfNeeded();
+  await operator.tap();
+  assert.equal(await operator.evaluate(node => document.activeElement === node), true);
+  assert.ok(await operator.evaluate(node => Number.parseFloat(getComputedStyle(node).fontSize)) >= 16,
+    "Touch inputs need a readable native font without browser focus zoom");
+  await page.keyboard.press("ControlOrMeta+A");
+  await page.keyboard.type("Fullscreen touch operator");
+  assert.equal(await operator.inputValue(), "Fullscreen touch operator");
+
+  const shift = page.locator('.form-document [data-path="shift"]');
+  await shift.scrollIntoViewIfNeeded();
+  await shift.tap();
+  assert.equal(await shift.evaluate(node => document.activeElement === node), true,
+    "A touch dropdown must retain its native focus action");
+  // Native mobile picker chrome is device-owned; verify its selection reaches
+  // the production renderer without claiming headless OS picker/keyboard QA.
+  await shift.selectOption("NIGHT");
+  await page.keyboard.press("Escape");
+  assert.equal(await shift.inputValue(), "NIGHT");
+  assert.equal(await page.locator(".document-viewer.fallback-fullscreen").count(), 1);
+
+  const quantity = page.locator('.form-document [data-path="entries.0.quantity"]');
+  await quantity.scrollIntoViewIfNeeded();
+  await quantity.tap();
+  assert.equal(await quantity.evaluate(node => document.activeElement === node), true);
+  assert.equal(await quantity.getAttribute("inputmode"), "decimal");
+  await page.keyboard.press("ControlOrMeta+A");
+  await page.keyboard.type("12.5");
+  assert.equal(await quantity.inputValue(), "12.5");
+  assert.equal(await scaleOf(page), editingScale, "Native touch editing must not reset form zoom");
+
+  await page.getByRole("button", { name: "Add row", exact: true }).scrollIntoViewIfNeeded();
+  await page.getByRole("button", { name: "Add row", exact: true }).tap();
+  const notes = page.locator('.form-document [data-path="entries.18.notes"]');
+  assert.equal(await page.evaluate(() => window.__ppmsKeyboardAcceptance.focusDuringAddClick),
+    "entries.18.notes", "Add row must focus its first writable field during the originating click");
+  assert.equal(await notes.evaluate(node => document.activeElement === node), true,
+    "The read-only first column must not capture new-row focus");
+  await page.keyboard.type("Added while fullscreen");
+  await page.keyboard.press("ControlOrMeta+Home");
+  await page.keyboard.down("Shift");
+  for (let i = 0; i < 5; i++) await page.keyboard.press("ArrowRight");
+  await page.keyboard.up("Shift");
+  const selection = await notes.evaluate(node => ({ start: node.selectionStart, end: node.selectionEnd }));
+  assert.equal(selection.start, 0);
+  assert.equal(selection.end - selection.start, 5);
+
+  // Simulate only the platform's visual-viewport geometry. The real layout
+  // viewport remains unchanged, as on browsers where an OS keyboard overlays
+  // it. This verifies layout/focus behavior, not a physical software keyboard.
+  const layoutBefore = await page.evaluate(() => ({ width: innerWidth, height: innerHeight }));
+  await page.evaluate(() => {
+    const state = window.__ppmsKeyboardAcceptance;
+    state.focused = document.activeElement;
+    state.visualDescriptors = Object.fromEntries(["width", "height", "offsetLeft", "offsetTop"]
+      .map(key => [key, Object.getOwnPropertyDescriptor(visualViewport, key)]));
+    state.visual = { width: 360, height: 270, offsetLeft: 20, offsetTop: 36 };
+    for (const key of Object.keys(state.visual))
+      Object.defineProperty(visualViewport, key, { configurable: true, get: () => state.visual[key] });
+    visualViewport.dispatchEvent(new Event("resize"));
+    visualViewport.dispatchEvent(new Event("scroll"));
+  });
+  try {
+    await page.waitForFunction(() => {
+      const state = window.__ppmsKeyboardAcceptance;
+      const viewer = state.viewer.root.getBoundingClientRect();
+      const viewport = state.viewer.viewport.getBoundingClientRect();
+      const input = state.focused.getBoundingClientRect();
+      return Math.abs(viewer.height - visualViewport.height) < 2 &&
+        Math.abs(viewer.top - visualViewport.offsetTop) < 2 &&
+        Math.abs(viewer.left - visualViewport.offsetLeft) < 2 &&
+        Math.abs(viewer.width - visualViewport.width) < 2 &&
+        input.top >= viewport.top - 1 && input.bottom <= viewport.bottom + 1 &&
+        input.left >= viewport.left - 1 && input.right <= viewport.right + 1;
+    });
+    assert.deepEqual(await page.evaluate(() => ({ width: innerWidth, height: innerHeight })), layoutBefore,
+      "The keyboard regression must shrink only the visual viewport");
+    assert.equal(await notes.evaluate(node => document.activeElement === node), true);
+    assert.deepEqual(await notes.evaluate(node => ({ start: node.selectionStart, end: node.selectionEnd })), selection,
+      "Keyboard geometry changes must preserve the current text selection");
+    assert.equal(await notes.inputValue(), "Added while fullscreen");
+    assert.equal(await scaleOf(page), editingScale, "Opening the keyboard must not refit the form");
+    assert.ok((await scrollOf(page)).top > 200, "A bottom-row edit must not jump to the top");
+    const horizontal = (await scrollOf(page)).left;
+    await page.evaluate(() => {
+      window.__ppmsKeyboardAcceptance.visual.height = 250;
+      visualViewport.dispatchEvent(new Event("resize"));
+    });
+    await page.waitForFunction(() => {
+      const { viewer, focused } = window.__ppmsKeyboardAcceptance;
+      const bounds = viewer.viewport.getBoundingClientRect(), input = focused.getBoundingClientRect();
+      return Math.abs(viewer.root.getBoundingClientRect().height - 250) < 2 &&
+        input.top >= bounds.top - 1 && input.bottom <= bounds.bottom + 1;
+    });
+    assert.equal((await scrollOf(page)).left, horizontal,
+      "A keyboard height change must not move a horizontally visible field");
+    await page.keyboard.type("Typed");
+    assert.equal(await notes.inputValue(), "Typed while fullscreen");
+    await page.screenshot({ path: `${artifacts}/mobile-fullscreen-keyboard-viewport.png` });
+  } finally {
+    await page.evaluate(() => {
+      const state = window.__ppmsKeyboardAcceptance;
+      for (const [key, descriptor] of Object.entries(state.visualDescriptors)) {
+        if (descriptor) Object.defineProperty(visualViewport, key, descriptor);
+        else delete visualViewport[key];
+      }
+      visualViewport.dispatchEvent(new Event("resize"));
+      visualViewport.dispatchEvent(new Event("scroll"));
+    });
+  }
+  await page.waitForFunction(() =>
+    Math.abs(document.querySelector(".document-viewer").getBoundingClientRect().height - visualViewport.height) < 2);
+  assert.equal(await notes.evaluate(node => document.activeElement === node), true);
+  assert.equal(await notes.inputValue(), "Typed while fullscreen");
+  assert.equal(await scaleOf(page), editingScale, "Dismissing the keyboard must preserve form zoom");
+  await page.getByRole("button", { name: "Exit fullscreen", exact: true }).tap();
+  await page.locator(".document-viewer.fallback-fullscreen").waitFor({ state: "detached" });
+  const data = await page.evaluate(() => window.__ppmsKeyboardAcceptance.renderer.getData());
+  assert.equal(data.operator, "Fullscreen touch operator");
+  assert.equal(data.shift, "NIGHT");
+  assert.equal(data.entries[0].quantity, 12.5);
+  assert.equal(data.entries.length, 19);
+  assert.equal(data.entries[18].notes, "Typed while fullscreen");
+  assert.equal(await scaleOf(page), editingScale, "Leaving fullscreen must retain the editing zoom");
+  return { colors, checks: [
+    "touch app fullscreen preserves native text, numeric and dropdown focus without requesting native fullscreen",
+    "adding a fullscreen table row focuses its first writable field synchronously for continued touch typing",
+    "simulated keyboard visual-viewport resize reveals a bottom-row input while preserving focus, selection, data and zoom",
+  ] };
+}
+
 export async function verifyViewport({ newPage, base, artifacts }) {
   const { page } = await newPage();
   // Leave horizontal room to pan after the first zoom without clamping its
@@ -266,5 +450,8 @@ export async function verifyViewport({ newPage, base, artifacts }) {
     await assertPaper(page, false);
   }
   checks.push("embedded mouse scrolling and modifier zoom coexist with dark fallback fullscreen and Escape recovery inside a dialog");
+  const touch = await touchKeyboardEditing({ newPage, base, artifacts });
+  checks.push(...touch.checks);
+  colors.push(touch.colors);
   return { checks, colors };
 }
