@@ -150,6 +150,7 @@ each mutation with its revision, audit and receipt.
 - [Shared architecture and data-integrity invariants](docs/offline-dynamic-backend.md)
 - [Deployment, device recovery, backup and restore](docs/operations.md)
 - [Audit findings, repairs and acceptance map](docs/audit-remediation.md)
+- [Centralized red theme and reusable UI components](docs/design-system.md)
 - [Original database conversion and default-data provenance](database/README.md)
 
 ## Verification
