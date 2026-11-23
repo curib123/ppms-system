@@ -22,68 +22,57 @@ class Ppms_workflow_service
         $this->trace = $ci->ppms_trace_service;
         $this->validator = $ci->ppms_form_validator;
     }
+    /** Review references describe a decision; they never lock record editing. */
     public function review($actor, $id, $input)
     {
-        $action = Ppms_values::text($input, 'action');
-        $reason = Ppms_values::text($input, 'reason', 2000);
-        if (!in_array($action, array('APPROVE','RETURN'), TRUE)) { throw new Ppms_problem('INVALID_REVIEW_ACTION'); }
+        $status = $input['status'] ?? (($input['action'] ?? '') === 'APPROVE' ? 'APPROVED' : (($input['action'] ?? '') === 'RETURN' ? 'RETURNED_FOR_REVISION' : NULL));
+        if (!in_array($status, array('PENDING_REVIEW','UNDER_REVIEW','APPROVED','RETURNED_FOR_REVISION'), TRUE)) { throw new Ppms_problem('INVALID_REVIEW_STATUS'); }
         $form = $this->records->find($id)['ppmFormId'];
-        return $this->store->transaction(function () use ($actor, $id, $input, $action, $reason, $form) {
-            $this->store->lockForm($form);
+        return $this->store->transaction(function () use ($actor, $id, $input, $status, $form) {
+            $lockedForm = $this->store->lockForm($form);
+            if ($lockedForm['status'] !== 'ACTIVE') { throw new Ppms_problem('FORM_UNAVAILABLE', 403); }
             $this->auth->access($actor, $form);
-            $device = Ppms_values::text($input, 'deviceId');
-            $this->devices->lease($form, $device, Ppms_values::integer($input, 'leaseVersion', 1));
-            $record = $this->records->find($id);
-            $base = Ppms_values::integer($input, 'baseRevisionNo', 1);
-            if ($record['currentRevisionNo'] !== $base) { throw new Ppms_problem('REVISION_CHANGED', 409); }
-            $steps = array('SUBMITTED' => array('FSQA','FSQA_REVIEW','FSQA_APPROVED','ACTIVE'),
-                'RETURNED_TO_FSQA' => array('FSQA','FSQA_REVIEW','FSQA_APPROVED','ACTIVE'),
-                'FSQA_APPROVED' => array('SUPERVISOR','SUPERVISOR_REVIEW','SUPERVISOR_APPROVED','RETURNED_TO_FSQA'),
-                'SUPERVISOR_APPROVED' => array('PLANT_MANAGER','PLANT_MANAGER_REVIEW','CLOSED','FSQA_APPROVED'));
-            $step = $steps[$record['status']] ?? NULL;
-            if (!$step || $record['archivedAt']) { throw new Ppms_problem('RECORD_NOT_REVIEWABLE', 409); }
             $user = $this->auth->user($actor['id']);
-            if ($user['role'] !== 'ADMIN' && $user['role'] !== $step[0]) { throw new Ppms_problem('REVIEW_ROLE_REQUIRED', 403); }
-            $old = $this->records->revision($record);
-            $template = $this->store->row('SELECT definitionJson FROM PpmTemplateVersion WHERE id=?', array($record['templateVersionId']));
-            if ($action === 'APPROVE') {
-                $this->validator->payload($template['definitionJson'], $old['dataJson'], TRUE);
-                if ($this->store->row('SELECT i.id FROM TraceRevalidationItem i JOIN PpmTraceLink l ON l.id=i.traceLinkId
-                    JOIN PpmRecordRevision v ON v.id=l.downstreamRevisionId WHERE v.recordId=? AND i.status<>\'RESOLVED\' LIMIT 1', array($id))) { throw new Ppms_problem('REVALIDATION_REQUIRED', 409); }
+            if (!in_array($user['role'], array('ADMIN','FSQA','SUPERVISOR','PLANT_MANAGER'), TRUE)) { throw new Ppms_problem('REVIEW_ROLE_REQUIRED', 403); }
+            $record = $this->records->find($id);
+            if ($record['archivedAt']) { throw new Ppms_problem('RECORD_ARCHIVED', 409); }
+            $base = Ppms_values::integer(array('base' => $input['expectedRevisionNo'] ?? $input['baseRevisionNo'] ?? NULL), 'base', 1);
+            if ($record['currentRevisionNo'] !== $base) { throw new Ppms_problem('REVISION_CHANGED', 409); }
+            $old = $this->store->row('SELECT * FROM ReviewReference WHERE recordId=? FOR UPDATE', array($id));
+            $expected = Ppms_values::integer(array('version' => $input['expectedReviewVersion'] ?? 0), 'version', 0);
+            if ($expected !== (int) ($old['version'] ?? 0)) { throw new Ppms_problem('REVIEW_CHANGED', 409); }
+            $reviewerId = $input['reviewerUserId'] ?? $actor['id'];
+            if ($reviewerId !== $actor['id']) { $this->auth->admin($actor); }
+            $reviewer = $this->auth->user($reviewerId);
+            if (!in_array($reviewer['role'], array('ADMIN','FSQA','SUPERVISOR','PLANT_MANAGER'), TRUE)) { throw new Ppms_problem('REVIEW_ROLE_REQUIRED', 403); }
+            $this->auth->access($reviewer, $form);
+            $name = isset($input['reviewerName']) ? Ppms_values::text($input, 'reviewerName') : mb_substr($reviewer['displayName'], 0, 191);
+            $position = isset($input['reviewerPosition']) && $input['reviewerPosition'] !== '' ? Ppms_values::text($input, 'reviewerPosition') : $reviewer['role'];
+            $remarks = $input['remarks'] ?? $input['reason'] ?? '';
+            if (!is_string($remarks) || mb_strlen($remarks) > 2000) { throw new Ppms_problem('INVALID_REVIEW_REMARKS'); }
+            $reviewed = in_array($status, array('APPROVED','RETURNED_FOR_REVISION'), TRUE) ? Ppms_values::now() : NULL;
+            $version = $expected + 1;
+            $this->store->execute('INSERT INTO ReviewReference (recordId,reviewerUserId,reviewerName,reviewerPosition,status,reviewedAt,remarks,version,reviewedRevisionNo,updatedBy)
+                VALUES (?,?,?,?,?,?,?,?,?,?) ON DUPLICATE KEY UPDATE reviewerUserId=VALUES(reviewerUserId),reviewerName=VALUES(reviewerName),
+                reviewerPosition=VALUES(reviewerPosition),status=VALUES(status),reviewedAt=VALUES(reviewedAt),remarks=VALUES(remarks),
+                version=VALUES(version),reviewedRevisionNo=VALUES(reviewedRevisionNo),updatedBy=VALUES(updatedBy),updatedAt=UTC_TIMESTAMP(3)',
+                array($id, $reviewerId, $name, $position, $status, $reviewed, $remarks, $version, $base, $actor['id']));
+            $action = $status === 'APPROVED' ? 'APPROVE' : ($status === 'RETURNED_FOR_REVISION' ? 'RETURN' : 'UPDATE');
+            if ($action !== 'UPDATE') {
+                $this->store->insert('WorkflowEvent', array('id' => Ppms_values::id(), 'recordId' => $id,
+                    'revisionId' => $this->records->revision($record)['id'], 'action' => $action, 'actorId' => $actor['id'], 'reason' => $remarks));
             }
-            $status = $step[$action === 'APPROVE' ? 2 : 3];
-            $revisionId = Ppms_values::id();
-            $this->store->insert('PpmRecordRevision', array('id' => $revisionId, 'recordId' => $id, 'revisionNo' => $base + 1,
-                'status' => $action === 'APPROVE' ? ($status === 'CLOSED' ? 'CLOSED' : 'APPROVED') : 'CORRECTED',
-                'dataJson' => Ppms_values::json($old['dataJson']), 'dataHash' => $old['dataHash'],
-                'createdById' => $actor['id'], 'correctionReason' => $action === 'RETURN' ? $reason : NULL,
-                'approvedAt' => $action === 'APPROVE' ? Ppms_values::now() : NULL));
-            $context = array('deviceId' => $device, 'recordId' => $id, 'ppmFormId' => $record['ppmFormId'], 'baseRevisionNo' => $base);
-            if ($action === 'APPROVE') {
-                $this->trace->link($actor, $record['ppmFormId'], $revisionId, $old['dataJson'], $template['definitionJson'], array(), $old['id'], $context);
-            } else {
-                // A returned record retains historical source links for correction;
-                // the normal submit path must validate its next source selections.
-                foreach ($this->store->rows('SELECT * FROM PpmTraceLink WHERE downstreamRevisionId=?', array($old['id'])) as $link) {
-                    $this->store->insert('PpmTraceLink', array('id' => Ppms_values::id(), 'connectionId' => $link['connectionId'],
-                        'sourceTraceOutputId' => $link['sourceTraceOutputId'], 'downstreamRevisionId' => $revisionId,
-                        'downstreamInputKey' => $link['downstreamInputKey'], 'selectedById' => $actor['id']));
-                }
-                $this->trace->retire($actor, $record, $revisionId, $reason, $context);
+            $this->store->audit($actor, $action, 'ReviewReference', $id, array('reviewerUserId' => $reviewerId,
+                'reviewerName' => $name, 'reviewerPosition' => $position, 'status' => $status, 'remarks' => $remarks,
+                'version' => $version, 'reviewedRevisionNo' => $base), array('recordId' => $id, 'ppmFormId' => $form, 'baseRevisionNo' => $base));
+            if ($record['createdById'] !== $actor['id']) {
+                $this->store->insert('Notification', array('id' => Ppms_values::id(), 'recipientId' => $record['createdById'],
+                    'type' => 'WORKFLOW', 'severity' => 'INFO', 'title' => 'Form review updated',
+                    'message' => $name.' marked the review '.strtolower(str_replace('_', ' ', $status)).'.',
+                    'entityType' => 'PpmRecord', 'entityId' => $id, 'dedupeKey' => 'review:'.$id.':'.$version));
             }
-            $this->store->execute('UPDATE PpmRecord SET currentRevisionNo=?,status=?,closedAt=?,updatedAt=UTC_TIMESTAMP(3) WHERE id=?', array($base + 1, $status, $status === 'CLOSED' ? Ppms_values::now() : NULL, $id));
-            $eventAction = $status === 'CLOSED' ? 'CLOSE' : $action;
-            $this->store->insert('WorkflowEvent', array('id' => Ppms_values::id(), 'recordId' => $id, 'revisionId' => $revisionId,
-                'step' => $step[1], 'action' => $eventAction, 'actorId' => $actor['id'], 'reason' => $reason));
-            $this->store->audit($actor, $eventAction, 'PpmRecord', $id, array('status' => $status, 'reason' => $reason), $context);
             $view = $this->records->view($actor, $id);
-            $this->store->event($record['ppmFormId'], 'RECORD_REVISION', $view, $id, $revisionId);
-            // Approval can make an existing exact-revision output newly eligible.
-            if ($action === 'APPROVE') {
-                foreach ($this->store->rows('SELECT * FROM PpmTraceOutput WHERE recordId=? AND status IN (\'PUBLISHED\',\'LINKED_DOWNSTREAM\')', array($id)) as $output) {
-                    $this->store->event($record['ppmFormId'], 'TRACE_OUTPUT_PUBLISHED', $this->trace->outputView($output), $id, $output['revisionId'], $output['outputKey']);
-                }
-            }
+            $this->store->event($form, 'RECORD_REVISION', $this->records->projection($actor, $id), $id, $view['revision']['id']);
             return $view;
         });
     }
@@ -97,24 +86,25 @@ class Ppms_workflow_service
         $form = $this->records->find($item['recordId'])['ppmFormId'];
         return $this->store->transaction(function () use ($actor, $itemId, $input, $notes, $decision, $item, $form) {
             $this->store->row('SELECT id FROM TraceRevalidation WHERE id=? FOR UPDATE', array($item['revalidationId']));
-            $this->store->lockForm($form);
+            $lockedForm = $this->store->lockForm($form);
+            if ($lockedForm['status'] !== 'ACTIVE') { throw new Ppms_problem('FORM_UNAVAILABLE', 403); }
             $this->auth->access($actor, $form);
             $role = $this->auth->user($actor['id'])['role'];
             if (!in_array($role, array('ADMIN','FSQA','SUPERVISOR','PLANT_MANAGER'), TRUE)) { throw new Ppms_problem('REVALIDATION_REVIEWER_REQUIRED', 403); }
-            $device = Ppms_values::text($input, 'deviceId');
-            $this->devices->lease($form, $device, Ppms_values::integer($input, 'leaseVersion', 1));
+            $device = $input['deviceId'] ?? NULL;
+            if ($device !== NULL) { $this->devices->lease($form, $device, Ppms_values::integer($input, 'leaseVersion', 1)); }
             $currentItem = $this->store->row('SELECT status FROM TraceRevalidationItem WHERE id=? FOR UPDATE', array($itemId));
             if ($currentItem['status'] === 'RESOLVED') { throw new Ppms_problem('REVALIDATION_ALREADY_RESOLVED', 409); }
             $record = $this->records->find($item['recordId']);
             if ($record['currentRevisionNo'] !== Ppms_values::integer($input, 'baseRevisionNo', 1)) { throw new Ppms_problem('REVISION_CHANGED', 409); }
             if ($decision === 'ACCEPT_HISTORICAL') {
-                if ($record['status'] !== 'CLOSED') { throw new Ppms_problem('HISTORICAL_ACCEPTANCE_REQUIRES_CLOSED_RECORD', 409); }
+                if ($record['status'] === 'ACTIVE') { throw new Ppms_problem('HISTORICAL_ACCEPTANCE_REQUIRES_SUBMITTED_RECORD', 409); }
             } elseif ($decision === 'REPLACED_SOURCE') {
                 $replacement = $this->store->row('SELECT o.id FROM PpmTraceLink l JOIN PpmRecordRevision v ON v.id=l.downstreamRevisionId
                     JOIN PpmTraceOutput o ON o.id=l.sourceTraceOutputId JOIN PpmTraceConnection c ON c.id=l.connectionId
                     JOIN PpmRecord s ON s.id=o.recordId WHERE v.recordId=? AND v.revisionNo=? AND l.downstreamInputKey=? AND o.id<>?
                     AND o.status IN (\'PUBLISHED\',\'LINKED_DOWNSTREAM\') AND c.status=\'ACTIVE\' AND s.archivedAt IS NULL
-                    AND (c.requiresApprovalBeforeUse=0 OR s.status IN (\'FSQA_APPROVED\',\'SUPERVISOR_APPROVED\',\'CLOSED\')) LIMIT 1',
+                    LIMIT 1',
                     array($record['id'], $record['currentRevisionNo'], $item['downstreamInputKey'], $item['sourceTraceOutputId']));
                 if (!$replacement) { throw new Ppms_problem('ELIGIBLE_REPLACEMENT_REQUIRED', 409); }
             } else { throw new Ppms_problem('INVALID_REVALIDATION_DECISION'); }
@@ -125,6 +115,8 @@ class Ppms_workflow_service
             }
             $this->store->audit($actor, 'REVALIDATION_RESOLVED', 'TraceRevalidationItem', $itemId, array('decision' => $decision, 'notes' => $notes),
                 array('recordId' => $record['id'], 'ppmFormId' => $record['ppmFormId'], 'deviceId' => $device, 'baseRevisionNo' => $record['currentRevisionNo']));
+            $view = $this->records->view($actor, $record['id']);
+            $this->store->event($form, 'RECORD_REVISION', $this->records->projection($actor, $record['id']), $record['id'], $view['revision']['id']);
             return array('id' => $itemId, 'status' => 'RESOLVED');
         });
     }
