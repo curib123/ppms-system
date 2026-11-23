@@ -58,6 +58,12 @@ $validator->payload($table,obj(array('rows'=>array(array('reference'=>'second'))
 reject(function () use ($validator,$table) { $validator->payload($table,obj(array('rows'=>array(array('reference'=>'invented')))),FALSE,obj(array('rows'=>array(array('reference'=>'first'),array('reference'=>'second'))))); }, 'READ_ONLY_FIELD');
 reject(function () use ($validator,$table) { $validator->payload($table,obj(array('rows'=>array(array('reference'=>'first'),array('reference'=>'first')))),FALSE,obj(array('rows'=>array(array('reference'=>'first'))))); }, 'READ_ONLY_FIELD');
 reject(function () use ($validator) { $validator->definition(obj(array('fields'=>array(array('key'=>'constructor','label'=>'Unsafe','type'=>'text'))))); }, 'DUPLICATE_OR_INVALID_FIELD_KEY');
+reject(function () use ($validator) {
+    // The expression engine traverses fields, so scalar fields cannot hide an
+    // unvalidated subtree that bypasses key, type, depth, and count validation.
+    $validator->definition(obj(array('fields'=>array(array('key'=>'note','label'=>'Note','type'=>'text',
+        'fields'=>array(array('key'=>'constructor','label'=>'Hidden','type'=>'number','calculation'=>array('value'=>7))))))));
+}, 'FIELD_CHILDREN_REQUIRE_CONTAINER');
 $datetime = obj(array('fields'=>array(array('key'=>'at','label'=>'At','type'=>'datetime'))));
 foreach (array('2026-11-23T12:00:00+99:99','2026-11-23T12:00:00+14:01','2026-11-23T12:00:00-25:00','2026-02-30T12:00:00Z') as $value) {
     reject(function () use ($validator,$datetime,$value) { $validator->payload($datetime,obj(array('at'=>$value))); }, 'INVALID_DATETIME');

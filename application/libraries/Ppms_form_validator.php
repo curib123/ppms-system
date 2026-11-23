@@ -52,6 +52,9 @@ class Ppms_form_validator
             foreach (array('required', 'readOnly', 'traceCritical', 'allowRemoval') as $flag) {
                 if (isset($field->$flag) && !is_bool($field->$flag)) { throw new Ppms_problem('INVALID_FIELD_FLAG'); }
             }
+            if (property_exists($field, 'fields') && !in_array($field->type, array('repeatable','table','group'), TRUE)) {
+                throw new Ppms_problem('FIELD_CHILDREN_REQUIRE_CONTAINER');
+            }
             if (in_array($field->type, array('repeatable','table','group'), TRUE)) {
                 $this->validateFields($field->fields ?? NULL, $depth + 1);
                 foreach (array('minRows', 'maxRows') as $bound) {
