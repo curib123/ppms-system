@@ -145,6 +145,21 @@ export class DocumentViewport {
         e.preventDefault();
         e.stopPropagation();
       }, { ...options, capture: true });
+    // Middle-button navigation must not trigger Linux primary-selection paste,
+    // browser autoscroll or link opening. Those defaults can precede auxclick
+    // and are not consistently canceled by preventDefault on pointerdown alone.
+    for (const type of ["mousedown", "mouseup", "auxclick"])
+      this.viewport.addEventListener(type, (e) => {
+        if (e.button !== 1) return;
+        e.preventDefault();
+        this.guardMiddlePaste();
+      }, { ...options, capture: true });
+    for (const type of ["paste", "beforeinput"])
+      this.viewport.addEventListener(type, (e) => {
+        if (this.drag?.button !== 1 && !this.middlePasteGuard) return;
+        if (type === "paste" || e.inputType?.startsWith("insertFromPaste"))
+          e.preventDefault();
+      }, { ...options, capture: true });
     window.addEventListener("blur", () => {
       this.endDrag();
       this.points.clear();
@@ -341,6 +356,7 @@ export class DocumentViewport {
   }
   endDrag(released = false) {
     const drag = this.drag;
+    if (released && drag?.button === 1) this.guardMiddlePaste();
     this.drag = null;
     this.viewport.classList.remove("dragging");
     if (drag && this.viewport.hasPointerCapture(drag.pointerId))
@@ -350,6 +366,11 @@ export class DocumentViewport {
       clearTimeout(this.clickTimer);
       this.clickTimer = setTimeout(() => { this.suppressClick = false; }, 0);
     }
+  }
+  guardMiddlePaste() {
+    this.middlePasteGuard = true;
+    clearTimeout(this.middlePasteTimer);
+    this.middlePasteTimer = setTimeout(() => { this.middlePasteGuard = false; }, 0);
   }
   reveal(input) {
     if (!input?.isConnected) return;
@@ -419,6 +440,7 @@ export class DocumentViewport {
     this.endDrag();
     clearTimeout(this.revealTimer);
     clearTimeout(this.clickTimer);
+    clearTimeout(this.middlePasteTimer);
     this.controller.abort();
     this.observer.disconnect();
     if (document.fullscreenElement === this.root) document.exitFullscreen().catch(() => {});
