@@ -69,11 +69,9 @@
 @media (max-width: 680px) {
   .login-layout {
     grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: auto 1fr;
   }
   .login-visual {
-    height: clamp(130px, 36vw, 220px);
-    background-position: center 64%;
+    display: none;
   }
   .login-form {
     align-self: start;

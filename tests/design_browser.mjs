@@ -162,6 +162,11 @@ export async function verifyDesignSystem({
   checks.push("shared searchable form filter and record search return real API results and empty states");
 
   const { page: controls } = await newPage();
+  const cover = controls.waitForResponse((response) =>
+    new URL(response.url()).pathname === "/assets/ppms/login-cover.webp");
+  await controls.goto(base + "/admin");
+  assert.ok((await cover).ok(), "Desktop login cover could not be loaded");
+  assert.ok(await controls.locator(".login-visual").isVisible(), "Desktop login cover must be visible");
   await controlFixture(controls, base);
   const area = controls.getByRole("combobox", { name: "Production area", exact: true });
   const fixture = controls.locator("#control-fixture");
@@ -216,11 +221,10 @@ export async function verifyDesignSystem({
 
   // Separate mobile context avoids disturbing the offline conflict fixture.
   const { page: touch } = await newPage(true);
-  const cover = touch.waitForResponse((response) =>
-    new URL(response.url()).pathname === "/assets/ppms/login-cover.webp");
   await touch.goto(base + "/mobile");
-  assert.ok((await cover).ok(), "Login cover could not be loaded");
-  assert.ok(await touch.locator(".login-visual").isVisible(), "Login cover must be visible on mobile");
+  const mobileCover = touch.locator(".login-visual");
+  await mobileCover.waitFor({ state: "attached" });
+  assert.ok(await mobileCover.isHidden(), "Mobile login cover must be hidden");
   for (const scheme of ["light", "dark"]) {
     await assertSharedTheme(touch, scheme);
     await touch.screenshot({ path: `${artifacts}/mobile-login-${scheme}.png`, fullPage: true });

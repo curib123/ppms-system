@@ -1,7 +1,7 @@
 /* Cache only the public application shell. API responses and credentials never enter Cache Storage. */
 const SCOPE=new URL(self.registration.scope).pathname;
 const CACHE_PREFIX=`ppms-shell-${encodeURIComponent(SCOPE)}-`;
-const CACHE=`${CACHE_PREFIX}v4`;
+const CACHE=`${CACHE_PREFIX}v5`;
 const SHELL=['mobile','admin','manifest.webmanifest','assets/ppms/app.js','assets/ppms/api.js',
   'assets/ppms/schema.js','assets/ppms/renderer.js','assets/ppms/viewport.js','assets/ppms/builder.js',
   'assets/ppms/ui.js','assets/ppms/dom.js','assets/ppms/controls.js','assets/ppms/theme.js',
