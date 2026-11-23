@@ -129,7 +129,9 @@ class SetupIntegration(unittest.TestCase):
         try:
             with tempfile.TemporaryDirectory() as directory:
                 copy = Path(directory) / 'app'
-                shutil.copytree(ROOT, copy, ignore=shutil.ignore_patterns('.git', '*.log', '__pycache__', 'local.php'))
+                shutil.copytree(ROOT, copy, ignore=shutil.ignore_patterns(
+                    '.git', '*.log', '__pycache__', 'local.php', 'node_modules',
+                    '.quality', 'playwright-report', 'test-results'))
                 seed = copy / 'database/default_data.sql'
                 seed.write_text(seed.read_text() + '\nINSERT INTO `missing_table` VALUES (1);\n', encoding='utf-8')
                 manifest = copy / 'database/manifest.json'

@@ -386,13 +386,13 @@ $config['encryption_key'] = ppms_config('APP_ENCRYPTION_KEY');
 |
 */
 $config['sess_driver'] = 'files';
-$config['sess_cookie_name'] = 'ci_session';
+$config['sess_cookie_name'] = 'ppms_admin_session';
 $config['sess_samesite'] = 'Lax';
 $config['sess_expiration'] = 7200;
-$config['sess_save_path'] = APPPATH.'sessions';
+$config['sess_save_path'] = ppms_config('APP_SESSION_PATH', APPPATH.'sessions');
 $config['sess_match_ip'] = FALSE;
 $config['sess_time_to_update'] = 300;
-$config['sess_regenerate_destroy'] = FALSE;
+$config['sess_regenerate_destroy'] = TRUE;
 
 /*
 |--------------------------------------------------------------------------
@@ -413,7 +413,7 @@ $config['sess_regenerate_destroy'] = FALSE;
 $config['cookie_prefix']	= '';
 $config['cookie_domain']	= '';
 $config['cookie_path']		= '/';
-$config['cookie_secure']	= FALSE;
+$config['cookie_secure']	= is_https() || strtolower((string) parse_url($config['base_url'], PHP_URL_SCHEME)) === 'https';
 $config['cookie_httponly'] 	= TRUE;
 $config['cookie_samesite'] 	= 'Lax';
 
@@ -460,8 +460,8 @@ $config['global_xss_filtering'] = FALSE;
 | 'csrf_exclude_uris' = Array of URIs which ignore CSRF checks
 */
 $config['csrf_protection'] = TRUE;
-$config['csrf_token_name'] = 'csrf_test_name';
-$config['csrf_cookie_name'] = 'csrf_cookie_name';
+$config['csrf_token_name'] = 'ppms_csrf_token';
+$config['csrf_cookie_name'] = 'ppms_csrf';
 $config['csrf_expire'] = 7200;
 $config['csrf_regenerate'] = TRUE;
 // The JSON API accepts only explicit bearer headers, never cookie authentication.

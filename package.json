@@ -1,0 +1,19 @@
+{
+  "name": "ppms-admin-assets",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Development-only asset build and browser checks for the CI3 admin panel",
+  "scripts": {
+    "build:admin": "node scripts/build_admin.mjs",
+    "test:admin": "playwright test"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.64.1",
+    "@tailwindcss/cli": "4.3.3",
+    "jquery": "3.7.1",
+    "tailwindcss": "4.3.3"
+  }
+}
