@@ -277,7 +277,7 @@ export function openRecord(app, { form, context, template, view = null }) {
     el("div", { class: "back-row" }, backButton, more),
     title,
     editorMeta,
-    syncNotice,
+    ...(syncNotice ? [syncNotice] : []),
     errorPanel,
     viewport.root,
     footer,
@@ -557,6 +557,7 @@ export function openRecord(app, { form, context, template, view = null }) {
           true,
         );
       renderer.setReview(review);
+      reviewBadge.replaceChildren(badge(review.status));
       productionDate.disabled =
         area.disabled =
         batch.disabled =

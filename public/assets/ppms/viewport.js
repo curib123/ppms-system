@@ -185,7 +185,10 @@ export class DocumentViewport {
     this.observer.observe(this.stage);
     requestAnimationFrame(() => {
       this.measure();
-      this.fit(false);
+      if (this.viewport.clientWidth < 600) {
+        const box = this.viewport.getBoundingClientRect();
+        this.zoom(1, box.left, box.top);
+      } else this.fit(false);
     });
   }
   measure() {
@@ -282,9 +285,11 @@ export class DocumentViewport {
     if (box.bottom > visibleBottom)
       this.viewport.scrollTop += box.bottom - visibleBottom;
     if (box.top < top) this.viewport.scrollTop -= top - box.top;
-    if (box.right > area.right - 16)
+    if (box.width > area.width - 32)
+      this.viewport.scrollLeft += box.left - area.left - 16;
+    else if (box.right > area.right - 16)
       this.viewport.scrollLeft += box.right - area.right + 16;
-    if (box.left < area.left + 16)
+    else if (box.left < area.left + 16)
       this.viewport.scrollLeft -= area.left + 16 - box.left;
   }
   async fullscreen() {

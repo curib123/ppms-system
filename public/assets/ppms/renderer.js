@@ -69,6 +69,36 @@ export class FormRenderer {
       mark(fieldsOf(definition), this.data);
     }
     this.root = el("article", { class: "form-document" });
+    // Give percentage-width tables and fractional grid columns a definite
+    // containing width. Intrinsic max-content sizing can otherwise inflate the
+    // document as nested controls and columns resolve one another's widths.
+    const tableWidth = (fields) => {
+      let width = 0;
+      for (const field of fields || []) {
+        if (["table", "repeatable"].includes(field.type)) {
+          const columns = (field.fields || []).reduce(
+            (total, column) =>
+              total +
+              Math.max(
+                column.type === "group" ? 480 : 180,
+                column.type === "textarea"
+                  ? 240
+                  : ["trace-code", "datetime"].includes(column.type)
+                    ? 220
+                    : tableWidth(column.fields),
+              ),
+            0,
+          );
+          width = Math.max(width, columns + 170);
+        } else if (field.fields)
+          width = Math.max(width, tableWidth(field.fields));
+      }
+      return width;
+    };
+    this.root.style.setProperty(
+      "--document-width",
+      `${Math.max(1030, tableWidth(fieldsOf(definition)))}px`,
+    );
     const meta = [
       metadata.documentNumber,
       metadata.revisionNumber ? `Rev ${metadata.revisionNumber}` : null,

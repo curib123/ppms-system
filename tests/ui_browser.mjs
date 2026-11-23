@@ -82,7 +82,10 @@ async function openForm(page, code) {
     .filter({ hasText: code })
     .getByRole("button", { name: "Open form", exact: true })
     .click();
-  await page.locator("#workspace > .section-heading").getByRole("button", { name: "New record", exact: true }).waitFor();
+  await page
+    .locator("#workspace > .section-heading")
+    .getByRole("button", { name: "New record", exact: true })
+    .waitFor();
 }
 async function openListedRecord(page, id) {
   await page
@@ -108,6 +111,57 @@ async function fillRecord(page, description, quantity) {
       .textContent(),
     String(quantity),
   );
+}
+async function documentGeometry(page, { mobile = false } = {}) {
+  await page.evaluate(
+    () =>
+      new Promise((resolve) =>
+        requestAnimationFrame(() => requestAnimationFrame(resolve)),
+      ),
+  );
+  const dimensions = await page.locator(".document-viewer").evaluate((node) => {
+    const form = node.querySelector(".form-document"),
+      viewport = node.querySelector(".document-viewport");
+    const input = form.querySelector("input"),
+      bounds = form.getBoundingClientRect();
+    return {
+      width: form.offsetWidth,
+      stageWidth: node.querySelector(".document-stage").offsetWidth,
+      visibleWidth: bounds.width,
+      viewportWidth: viewport.clientWidth,
+      scrollWidth: viewport.scrollWidth,
+      scale:
+        Number(node.querySelector(".zoom-label").value.replace("%", "")) / 100,
+      inputFont: Number.parseFloat(getComputedStyle(input).fontSize),
+    };
+  });
+  assert.equal(
+    dimensions.width,
+    1030,
+    "A two-column form must not expand through intrinsic table/grid sizing",
+  );
+  assert.equal(dimensions.stageWidth, 1030);
+  assert.ok(
+    Math.abs(dimensions.visibleWidth - dimensions.width * dimensions.scale) < 6,
+  );
+  assert.ok(
+    dimensions.scrollWidth <=
+      Math.max(
+        dimensions.viewportWidth,
+        Math.ceil(dimensions.visibleWidth) + 32,
+      ) +
+        32,
+    "Unscaled content leaked outside the zoom spacer",
+  );
+  assert.ok(dimensions.scale >= 0.9, "The initial form must remain readable");
+  if (mobile) {
+    assert.equal(dimensions.scale, 1);
+    assert.ok(
+      dimensions.inputFont >= 16,
+      "Mobile input text must avoid focus auto-zoom",
+    );
+  }
+  return dimensions;
 }
 async function pinch(page) {
   const viewport = page.locator(".document-viewport");
@@ -241,8 +295,12 @@ try {
   );
 
   await openForm(admin, code);
-  await admin.locator("#workspace > .section-heading").getByRole("button", { name: "New record", exact: true }).click();
+  await admin
+    .locator("#workspace > .section-heading")
+    .getByRole("button", { name: "New record", exact: true })
+    .click();
   await fillRecord(admin, "Desktop production entry", 7);
+  await documentGeometry(admin);
   await admin
     .getByLabel("Batch identifier", { exact: true })
     .fill("UI-DESKTOP");
@@ -299,6 +357,26 @@ try {
     (await api(`/records/${recordId}`)).reviewReference.isCurrent,
     false,
   );
+  await until(
+    async () =>
+      (await admin
+        .locator(".record-heading .status-pending-review")
+        .count()) === 1,
+    "The record header did not refresh its review status after the edit",
+  );
+  assert.equal(
+    await admin
+      .locator("#workspace")
+      .evaluate((node) =>
+        [...node.childNodes].some(
+          (child) =>
+            child.nodeType === Node.TEXT_NODE &&
+            child.textContent.trim() === "null",
+        ),
+      ),
+    false,
+  );
+  await documentGeometry(admin);
   await admin.screenshot({
     path: `${artifacts}/record-review.png`,
     fullPage: true,
@@ -321,8 +399,12 @@ try {
   const { page: mobile, context: mobileContext } = await newPage(true);
   const aliceDevice = await deviceFor(mobile, "alice", form.id);
   await openForm(mobile, code);
-  await mobile.locator("#workspace > .section-heading").getByRole("button", { name: "New record", exact: true }).click();
+  await mobile
+    .locator("#workspace > .section-heading")
+    .getByRole("button", { name: "New record", exact: true })
+    .click();
   await fillRecord(mobile, "Offline personnel entry", 4);
+  await documentGeometry(mobile, { mobile: true });
   await mobile
     .getByLabel("Batch identifier", { exact: true })
     .fill("UI-OFFLINE");
@@ -342,6 +424,7 @@ try {
     "Fullscreen did not open",
   );
   await pinch(mobile);
+  const pinchedScale = await mobile.locator(".zoom-label").textContent();
   const description = mobile.locator(
     '.form-document [data-path="entries.0.description"]',
   );
@@ -362,7 +445,24 @@ try {
     "NIGHT",
   );
   const zoomAfterTyping = await mobile.locator(".zoom-label").textContent();
-  assert.notEqual(zoomAfterTyping, "100%", "Editing reset zoom");
+  assert.equal(
+    zoomAfterTyping,
+    pinchedScale,
+    "Editing reset the pinch zoom level",
+  );
+  assert.ok(
+    await description.evaluate((node) => {
+      const bounds = node.getBoundingClientRect(),
+        viewport = node.closest(".document-viewport").getBoundingClientRect();
+      return (
+        bounds.right > viewport.left &&
+        bounds.left < viewport.right &&
+        bounds.bottom > viewport.top &&
+        bounds.top < viewport.bottom
+      );
+    }),
+    "The active field is outside the fullscreen viewport",
+  );
   await mobile.screenshot({ path: `${artifacts}/mobile-fullscreen.png` });
   await mobile
     .getByRole("button", { name: /Fullscreen form|Exit fullscreen/ })

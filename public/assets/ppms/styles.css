@@ -1152,6 +1152,7 @@ input[type="number"] {
 .document-spacer {
   position: relative;
   min-width: 0;
+  overflow: clip;
 }
 .document-stage {
   transform-origin: top left;
@@ -1179,7 +1180,7 @@ input[type="number"] {
   height: calc(100dvh - 54px);
 }
 .form-document {
-  width: max-content;
+  width: var(--document-width, 1030px);
   min-width: 1030px;
   background: white;
   box-shadow: 0 3px 18px #1b44351a;
@@ -2159,6 +2160,11 @@ input[type="number"] {
   }
 }
 @media (max-width: 600px) {
+  .document-field input:not([type="checkbox"]),
+  .document-field textarea,
+  .document-field select {
+    font-size: 16px;
+  }
   :root {
     font-size: 14px;
   }
