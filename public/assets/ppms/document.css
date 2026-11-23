@@ -198,7 +198,8 @@
     background: var(--dark-document-canvas);
   }
 }
-.form-document {
+.form-document,
+.builder-canvas {
   /* Scope the complete paper palette so nested inputs/statuses never inherit dark text roles. */
   color-scheme: light;
   --ink: var(--paper-ink);
@@ -235,13 +236,15 @@
   --info: var(--paper-info);
   --info-soft: var(--paper-info-soft);
   --info-border: var(--paper-info-border);
+  background: var(--surface);
+  color: var(--ink);
+}
+.form-document {
   width: var(--document-width, 1030px);
   min-width: 1030px;
-  background: var(--surface);
   box-shadow: var(--shadow-document);
   border: 1px solid var(--line);
   padding: 34px;
-  color: var(--ink);
 }
 .form-document-heading {
   display: flex;

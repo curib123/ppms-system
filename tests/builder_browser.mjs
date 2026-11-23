@@ -200,6 +200,11 @@ export async function verifyBuilder({ newPage, login, api, artifacts }) {
 
   for (const scheme of ["light", "dark"]) {
     themes.push({ screen: "visual-builder", ...await assertSharedTheme(page, scheme) });
+    assert.deepEqual(await page.locator(".builder-canvas").evaluate((node) => ({
+      background: getComputedStyle(node).backgroundColor,
+      colorScheme: getComputedStyle(node).colorScheme,
+    })), { background: "rgb(255, 255, 255)", colorScheme: "light" },
+    "The visual form layout must stay white in both application themes");
     await page.screenshot({ path: `${artifacts}/visual-builder-${scheme}.png`, fullPage: true });
   }
   await page.setViewportSize({ width: 412, height: 915 });
