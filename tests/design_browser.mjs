@@ -216,11 +216,33 @@ export async function verifyDesignSystem({
 
   // Separate mobile context avoids disturbing the offline conflict fixture.
   const { page: touch } = await newPage(true);
+  const cover = touch.waitForResponse((response) =>
+    new URL(response.url()).pathname === "/assets/ppms/login-cover.webp");
   await touch.goto(base + "/mobile");
+  assert.ok((await cover).ok(), "Login cover could not be loaded");
+  assert.ok(await touch.locator(".login-visual").isVisible(), "Login cover must be visible on mobile");
   for (const scheme of ["light", "dark"]) {
     await assertSharedTheme(touch, scheme);
     await touch.screenshot({ path: `${artifacts}/mobile-login-${scheme}.png`, fullPage: true });
   }
+  const themeToggle = touch.getByRole("button", { name: "Dark mode", exact: true });
+  const username = touch.getByLabel("Username", { exact: true });
+  await username.fill("operator");
+  assert.equal(await themeToggle.getAttribute("aria-pressed"), "true");
+  const toggleBox = await themeToggle.boundingBox();
+  assert.ok(toggleBox.width >= 44 && toggleBox.height >= 44, "Theme toggle must be touch-sized");
+  await themeToggle.tap();
+  assert.equal(await themeToggle.getAttribute("aria-pressed"), "false");
+  assert.equal(await username.inputValue(), "operator");
+  await assertSharedTheme(touch, "light");
+  await touch.emulateMedia({ colorScheme: "dark" });
+  await touch.reload();
+  assert.equal(await themeToggle.getAttribute("aria-pressed"), "false");
+  await themeToggle.press("Space");
+  assert.equal(await themeToggle.getAttribute("aria-pressed"), "true");
+  await touch.reload();
+  assert.equal(await themeToggle.getAttribute("aria-pressed"), "true");
+  await touch.evaluate(async () => (await import("/assets/ppms/theme.js")).setThemePreference("system"));
   await controlFixture(touch, base);
   const touchArea = touch.getByRole("combobox", { name: "Production area", exact: true });
   await touchArea.tap();

@@ -29,6 +29,8 @@ const paths = {
   warning: "M12 3L2 21h20z M12 9v5 M12 17v1",
   menu: "M4 6h16 M4 12h16 M4 18h16",
   mobile: "M7 2h10v20H7z M10 18h4",
+  sun: "M16 12a4 4 0 1 1-8 0 4 4 0 0 1 8 0z M12 2v2 M12 20v2 M2 12h2 M20 12h2 M5 5l1.5 1.5 M17.5 17.5 19 19 M19 5l-1.5 1.5 M6.5 17.5 5 19",
+  moon: "M20.8 14.6A9 9 0 0 1 9.4 3.2a9 9 0 1 0 11.4 11.4z",
   calendar: "M4 5h16v16H4z M8 2v6 M16 2v6 M4 10h16",
   save: "M4 3h13l4 4v14H3V3z M7 3v6h10V3 M7 21v-8h10v8",
 };

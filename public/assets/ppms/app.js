@@ -21,7 +21,7 @@ import {
   confirmAction,
 } from "./ui.js";
 import { OfflineStore, SyncEngine } from "./offline.js";
-import { getThemePreference, setThemePreference } from "./theme.js";
+import { getThemePreference, isDarkTheme, setThemePreference } from "./theme.js";
 import { FormBuilder } from "./builder.js";
 import { openRecord } from "./records.js";
 import {
@@ -81,8 +81,20 @@ export class Workspace {
   login() {
     this.cleanup?.();
     this.engine?.stop();
-    this.cleanup = null;
     appHost.replaceChildren();
+    const themeToggle = iconButton("Dark mode", "moon", () => {
+      setThemePreference(isDarkTheme() ? "light" : "dark");
+    }, { class: "icon-button login-theme-toggle" });
+    const updateThemeToggle = () => {
+      const dark = isDarkTheme();
+      themeToggle.setAttribute("aria-pressed", String(dark));
+      themeToggle.title = dark ? "Switch to light mode" : "Switch to dark mode";
+      themeToggle.replaceChildren(icon(dark ? "sun" : "moon"));
+    };
+    const themeEvents = new AbortController();
+    document.addEventListener("ppms:themechange", updateThemeToggle, { signal: themeEvents.signal });
+    this.cleanup = () => themeEvents.abort();
+    updateThemeToggle();
     const username = textInput("", {
         name: "username",
         autoComplete: "username",
@@ -110,9 +122,12 @@ export class Workspace {
       { class: "login-form" },
       el(
         "div",
-        { class: "brand" },
-        el("span", { class: "brand-mark" }, "P"),
-        el("span", {}, "PPMS"),
+        { class: "login-header" },
+        el("div", { class: "brand" },
+          el("span", { class: "brand-mark", "aria-hidden": "true" }, "P"),
+          el("span", {}, "PPMS"),
+        ),
+        themeToggle,
       ),
       el(
         "span",
@@ -121,7 +136,7 @@ export class Workspace {
           ? "PERSONNEL WORKSPACE"
           : "ADMINISTRATION & REVIEW",
       ),
-      el("h1", {}, "Production, connected."),
+      el("h1", {}, "Sign in"),
       el(
         "p",
         { class: "login-description" },
@@ -170,7 +185,6 @@ export class Workspace {
             ? "Administration and review"
             : "Personnel mobile app",
         ),
-        el("span", {}, "One production record. One shared system."),
       ),
     );
     form.addEventListener("submit", async (event) => {
@@ -216,34 +230,11 @@ export class Workspace {
           class: "login-layout",
           "data-screen-label": `${this.mode} sign-in`,
         },
-        el(
-          "aside",
-          { class: "login-visual", "aria-hidden": "true" },
-          el("div", { class: "login-visual-grid" }),
-          el(
-            "div",
-            { class: "login-visual-copy" },
-            el("span", { class: "eyebrow" }, "FORM TO FLOOR"),
-            el("h2", {}, "Every detail.", el("br"), "Every connection."),
-            el("p", {}, "Flexible forms. Clear reviews. Reliable records."),
-            el(
-              "div",
-              { class: "visual-document" },
-              el("div", { class: "visual-document-bar" }),
-              ...Array.from({ length: 5 }, () =>
-                el(
-                  "div",
-                  { class: "visual-document-row" },
-                  ...Array.from({ length: 4 }, () => el("i")),
-                ),
-              ),
-            ),
-          ),
-        ),
+        el("div", { class: "login-visual", "aria-hidden": "true" }),
         form,
       ),
     );
-    requestAnimationFrame(() => username.focus());
+    username.focus({ preventScroll: true });
   }
   async unlockOffline(username, passphrase, error) {
     try {
@@ -379,6 +370,8 @@ export class Workspace {
     await this.store.put("settings", "device", device);
   }
   async enter() {
+    this.cleanup?.();
+    this.cleanup = null;
     this.shell();
     try {
       if (this.api.token) {

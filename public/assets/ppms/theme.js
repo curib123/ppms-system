@@ -9,6 +9,10 @@ export function getThemePreference() {
   return preference;
 }
 
+export function isDarkTheme() {
+  return preference === "dark" || (preference === "system" && media.matches);
+}
+
 function applyTheme() {
   const root = document.documentElement;
   if (preference === "system") delete root.dataset.theme;
@@ -21,8 +25,7 @@ function applyTheme() {
   }
   meta.content = getComputedStyle(root).getPropertyValue("--primary").trim();
   document.dispatchEvent(new CustomEvent("ppms:themechange", {
-    detail: { preference, dark: preference === "dark" ||
-      (preference === "system" && media?.matches) },
+    detail: { preference, dark: isDarkTheme() },
   }));
 }
 

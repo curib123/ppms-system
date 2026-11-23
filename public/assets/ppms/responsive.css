@@ -86,24 +86,6 @@
   .field-grid.four {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-  .login-visual {
-    padding: 40px;
-  }
-  .login-layout {
-    grid-template-columns: 1fr 1fr;
-  }
-  .login-visual h2 {
-    font-size: 40px;
-  }
-  .login-form {
-    padding: 35px 28px;
-  }
-  .login-form .brand {
-    margin-bottom: 35px;
-  }
-  .login-form h1 {
-    font-size: 27px;
-  }
   .metric-row {
     grid-template-columns: repeat(3, 1fr);
   }
@@ -391,27 +373,6 @@
   .save-message {
     font-size: var(--text-tiny);
     min-height: 15px;
-  }
-  .login-layout {
-    display: block;
-    min-height: 100dvh;
-  }
-  .login-visual {
-    display: none;
-  }
-  .login-form {
-    padding: 40px 27px;
-    width: 100%;
-    max-width: 460px;
-  }
-  .login-form .brand {
-    margin-bottom: 38px;
-  }
-  .login-form h1 {
-    font-size: 31px;
-  }
-  .login-footer {
-    margin-top: 24px;
   }
   .builder-title-grid {
     grid-template-columns: 1fr;

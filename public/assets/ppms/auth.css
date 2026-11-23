@@ -1,72 +1,13 @@
 /* PPMS shared auth styles. Colors come from theme.css. */
 .login-layout {
   display: grid;
-  grid-template-columns: minmax(350px, 1fr) minmax(380px, 1fr);
+  grid-template-columns: minmax(0, 1.15fr) minmax(340px, 1fr);
   min-height: 100vh;
   min-height: 100dvh;
   background: var(--surface);
 }
 .login-visual {
-  position: relative;
-  overflow: hidden;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 70px;
-  background: var(--brand-dark);
-  color: var(--on-primary);
-}
-.login-visual-grid {
-  display: none;
-}
-.login-visual-copy {
-  position: relative;
-  width: min(460px, 100%);
-}
-.login-visual .eyebrow {
-  color: var(--brand-muted);
-  margin-bottom: 25px;
-  font-size: var(--text-xs);
-}
-.login-visual h2 {
-  font-size: clamp(35px, 4.1vw, 64px);
-  font-weight: 570;
-  letter-spacing: -2px;
-  line-height: 1.11;
-  margin-bottom: 22px;
-}
-.login-visual p {
-  font-size: var(--text-body);
-  color: var(--brand-muted);
-}
-.visual-document {
-  border: 1px solid var(--brand-line);
-  border-radius: var(--radius-lg);
-  padding: 20px;
-  margin-top: 60px;
-  background: var(--brand-overlay);
-  box-shadow: none;
-}
-.visual-document-bar {
-  width: 42%;
-  height: 10px;
-  background: var(--brand-detail);
-  border-radius: var(--radius-xs);
-  margin-bottom: 22px;
-}
-.visual-document-row {
-  display: grid;
-  grid-template-columns: 1.7fr 1fr 1fr 1fr;
-  gap: 10px;
-  margin-top: 10px;
-}
-.visual-document-row i {
-  height: 24px;
-  border: 1px solid var(--brand-line);
-  border-radius: var(--radius-xs);
-}
-.visual-document-row:nth-child(odd) i {
-  background: var(--brand-overlay);
+  background: var(--brand-dark) url("./login-cover.webp") 76% center / cover no-repeat;
 }
 .login-form {
   align-self: center;
@@ -75,8 +16,19 @@
   width: 100%;
   max-width: 470px;
 }
-.login-form .brand {
-  margin-bottom: 49px;
+.login-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  margin-bottom: var(--space-8);
+}
+.login-theme-toggle {
+  width: var(--control-height);
+  height: var(--control-height);
+  border-color: var(--line);
+  background: var(--surface-soft);
+  color: var(--ink);
 }
 .login-form h1 {
   font-size: 31px;
@@ -103,16 +55,33 @@
   font-size: var(--text-xs);
 }
 .login-footer {
-  display: flex;
-  flex-direction: column;
-  gap: 25px;
   text-align: center;
   margin-top: 20px;
   font-size: var(--text-sm);
 }
-.login-footer span {
-  font-size: var(--text-tiny);
-  color: var(--muted);
+
+@media (max-width: 850px) {
+  .login-form {
+    padding: 35px 28px;
+  }
+}
+
+@media (max-width: 680px) {
+  .login-layout {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto 1fr;
+  }
+  .login-visual {
+    height: clamp(130px, 36vw, 220px);
+    background-position: center 64%;
+  }
+  .login-form {
+    align-self: start;
+    padding: var(--space-6) var(--space-5) var(--space-8);
+  }
+  .login-header {
+    margin-bottom: var(--space-5);
+  }
 }
 .initial-loader {
   min-height: 70vh;
