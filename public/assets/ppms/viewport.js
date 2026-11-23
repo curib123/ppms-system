@@ -170,7 +170,7 @@ export class DocumentViewport {
       (e) => {
         if (e.target.matches("input,select,textarea,button")) {
           this.focused = e.target;
-          requestAnimationFrame(() => this.reveal(e.target));
+          this.visualResize();
         }
       },
       options,
@@ -195,10 +195,16 @@ export class DocumentViewport {
       options,
     );
     this.visualResize = () => {
-      clearTimeout(this.revealTimer);
-      if (this.focused && document.activeElement === this.focused)
-        this.revealTimer = setTimeout(() => this.reveal(this.focused), 80);
+      if (this.viewportFrame !== undefined) return;
+      this.viewportFrame = requestAnimationFrame(() => {
+        this.viewportFrame = undefined;
+        if (!this.root.isConnected) return;
+        this.syncVisibleBounds();
+        if (this.focused && document.activeElement === this.focused)
+          this.reveal(this.focused);
+      });
     };
+    window.addEventListener("resize", this.visualResize, options);
     window.visualViewport?.addEventListener(
       "resize",
       this.visualResize,
@@ -372,27 +378,44 @@ export class DocumentViewport {
     clearTimeout(this.middlePasteTimer);
     this.middlePasteTimer = setTimeout(() => { this.middlePasteGuard = false; }, 0);
   }
+  syncVisibleBounds() {
+    // A phone keyboard may shrink only the visual viewport, leaving vh/dvh and
+    // fixed-position layout unchanged. Shrink the scroller itself so even the
+    // final table row has enough scroll range to remain above the keyboard.
+    if (this.root.classList.contains("fallback-fullscreen")) {
+      const visible = window.visualViewport;
+      this.root.style.setProperty("--document-visible-left", `${visible?.offsetLeft || 0}px`);
+      this.root.style.setProperty("--document-visible-top", `${visible?.offsetTop || 0}px`);
+      this.root.style.setProperty("--document-visible-width", `${visible?.width || window.innerWidth}px`);
+      this.root.style.setProperty("--document-visible-height", `${visible?.height || window.innerHeight}px`);
+    } else {
+      for (const edge of ["left", "top", "width", "height"])
+        this.root.style.removeProperty(`--document-visible-${edge}`);
+    }
+  }
   reveal(input) {
-    if (!input?.isConnected) return;
+    if (!input?.isConnected || !this.viewport.contains(input) ||
+      document.activeElement !== input) return;
     const area = this.viewport.getBoundingClientRect(),
-      box = input.getBoundingClientRect();
-    const visibleBottom =
-      Math.min(
-        area.bottom,
-        window.visualViewport
-          ? window.visualViewport.offsetTop + window.visualViewport.height
-          : window.innerHeight,
-      ) - 28;
-    const top = Math.max(area.top + 16, window.visualViewport?.offsetTop || 0);
-    if (box.bottom > visibleBottom)
-      this.viewport.scrollTop += box.bottom - visibleBottom;
-    if (box.top < top) this.viewport.scrollTop -= top - box.top;
-    if (box.width > area.width - 32)
-      this.viewport.scrollLeft += box.left - area.left - 16;
-    else if (box.right > area.right - 16)
-      this.viewport.scrollLeft += box.right - area.right + 16;
-    else if (box.left < area.left + 16)
-      this.viewport.scrollLeft -= area.left + 16 - box.left;
+      box = input.getBoundingClientRect(), visible = window.visualViewport;
+    const top = Math.max(area.top, visible?.offsetTop || 0) + 16;
+    const bottom = Math.min(area.bottom,
+      visible ? visible.offsetTop + visible.height : window.innerHeight) - 16;
+    const left = Math.max(area.left, visible?.offsetLeft || 0) + 16;
+    const right = Math.min(area.right,
+      visible ? visible.offsetLeft + visible.width : window.innerWidth) - 16;
+    if (bottom <= top || right <= left) return;
+    if (box.height > bottom - top)
+      this.viewport.scrollTop += box.top - top;
+    else if (box.bottom > bottom)
+      this.viewport.scrollTop += box.bottom - bottom;
+    else if (box.top < top) this.viewport.scrollTop -= top - box.top;
+    if (box.width > right - left)
+      this.viewport.scrollLeft += box.left - left;
+    else if (box.right > right)
+      this.viewport.scrollLeft += box.right - right;
+    else if (box.left < left)
+      this.viewport.scrollLeft -= left - box.left;
   }
   isFullscreen() {
     return document.fullscreenElement === this.root ||
@@ -410,7 +433,9 @@ export class DocumentViewport {
       " Pinch with two fingers on touch screens. Shift + drag selects text.";
     this.toolbarLabel.title = help;
     this.viewport.setAttribute("aria-label", "Scrollable form. " + help);
+    this.syncVisibleBounds();
     this.measure();
+    if (active) this.visualResize();
     if (this.fullscreenActive && !active) this.onExit?.();
     this.fullscreenActive = active;
   }
@@ -423,6 +448,10 @@ export class DocumentViewport {
         this.root.classList.remove("fallback-fullscreen");
       } else if (document.fullscreenElement === this.root) {
         try { await document.exitFullscreen(); } catch { /* Browser Escape remains available. */ }
+      } else if (navigator.maxTouchPoints > 0 || window.matchMedia("(any-pointer: coarse)").matches) {
+        // Keep native controls in the page on touch devices. Some mobile
+        // browsers exit or restrict native fullscreen when a keyboard opens.
+        this.root.classList.add("fallback-fullscreen");
       } else {
         try {
           if (!this.root.requestFullscreen) throw new Error("Fullscreen API unavailable");
@@ -438,7 +467,7 @@ export class DocumentViewport {
   }
   destroy() {
     this.endDrag();
-    clearTimeout(this.revealTimer);
+    cancelAnimationFrame(this.viewportFrame);
     clearTimeout(this.clickTimer);
     clearTimeout(this.middlePasteTimer);
     this.controller.abort();

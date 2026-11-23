@@ -151,6 +151,8 @@
 .document-viewer:fullscreen,
 .document-viewer.is-fullscreen,
 .document-viewer.fallback-fullscreen {
+  display: flex;
+  flex-direction: column;
   border-radius: 0;
   border: 0;
   background: var(--document-canvas);
@@ -159,13 +161,23 @@
 }
 .document-viewer.fallback-fullscreen {
   position: fixed;
-  inset: 0;
+  inset: auto;
+  left: var(--document-visible-left, 0px);
+  top: var(--document-visible-top, 0px);
+  width: var(--document-visible-width, 100vw);
+  height: var(--document-visible-height, 100dvh);
   z-index: 1500;
+}
+.document-viewer:is(:fullscreen, .is-fullscreen, .fallback-fullscreen) .document-toolbar {
+  flex: 0 0 auto;
 }
 .document-viewer:fullscreen .document-viewport,
 .document-viewer.is-fullscreen .document-viewport,
 .document-viewer.fallback-fullscreen .document-viewport {
-  height: calc(100dvh - 54px);
+  flex: 1 1 auto;
+  height: auto;
+  min-height: 0;
+  min-width: 0;
 }
 /* Fullscreen is a dark viewing surface, independent of the account's appearance. */
 @media screen {
