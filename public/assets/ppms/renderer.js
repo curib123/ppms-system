@@ -874,14 +874,16 @@ export class FormRenderer {
           ),
         ),
       ),
-      reference.reviewedRevisionNo && reference.isCurrent === false
-        ? el(
-            "p",
-            { class: "review-stale" },
-            `Reviewed revision ${reference.reviewedRevisionNo}. Newer edits have not been reviewed.`,
-          )
-        : null,
-      reference.remarks ? el("p", {}, reference.remarks) : null,
+      ...(reference.reviewedRevisionNo && reference.isCurrent === false
+        ? [
+            el(
+              "p",
+              { class: "review-stale" },
+              `Reviewed revision ${reference.reviewedRevisionNo}. Newer edits have not been reviewed.`,
+            ),
+          ]
+        : []),
+      ...(reference.remarks ? [el("p", {}, reference.remarks)] : []),
     );
   }
 }
