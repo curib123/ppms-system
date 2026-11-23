@@ -53,10 +53,24 @@ export async function assertSharedTheme(page, scheme = "light") {
       tokenPresent: root.getPropertyValue("--primary").trim().length > 0,
       primaryButtons: [...document.querySelectorAll(".button.primary")]
         .filter((button) => !button.disabled)
-        .map((button) => ({
-          background: getComputedStyle(button).backgroundColor,
-          text: getComputedStyle(button).color,
-        })),
+        .map((button) => {
+          // White paper and the fullscreen workspace intentionally own scoped
+          // palettes. Ordinary page buttons must still use the root theme.
+          const scope = button.closest(".form-document") ||
+            button.closest(".document-viewer:is(:fullscreen,.is-fullscreen,.fallback-fullscreen)");
+          let scopedPrimary, scopedText;
+          if (scope) {
+            const sample = document.createElement("span");
+            sample.style.backgroundColor = "var(--primary)";
+            sample.style.color = "var(--on-primary)";
+            scope.append(sample);
+            scopedPrimary = getComputedStyle(sample).backgroundColor;
+            scopedText = getComputedStyle(sample).color;
+            sample.remove();
+          }
+          return { background: getComputedStyle(button).backgroundColor,
+            text: getComputedStyle(button).color, scopedPrimary, scopedText };
+        }),
       overflow: document.documentElement.scrollWidth > innerWidth + 1,
     };
     probe.remove();
@@ -71,8 +85,8 @@ export async function assertSharedTheme(page, scheme = "light") {
   assert.ok(contrast(colors.muted, colors.surface) >= 4.5, "Secondary text contrast");
   assert.ok(contrast(colors.onPrimary, colors.primary) >= 4.5, "Primary button contrast");
   for (const button of colors.primaryButtons) {
-    assert.equal(button.background, colors.primary, "A page has a divergent primary button");
-    assert.equal(button.text, colors.onPrimary, "Primary text must use its semantic token");
+    assert.equal(button.background, button.scopedPrimary || colors.primary, "A page has a divergent primary button");
+    assert.equal(button.text, button.scopedText || colors.onPrimary, "Primary text must use its semantic token");
   }
   assert.equal(colors.overflow, false, "Page overflow must stay inside its document/table scroller");
   return { scheme, primary: colors.primary, canvas: colors.canvas };
