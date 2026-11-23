@@ -115,11 +115,22 @@ export async function verifyBuilder({ newPage, login, api, artifacts }) {
   await inspector.getByLabel("Help text", { exact: true }).fill("Notes entered by personnel");
   assert.equal(await card(page, textKey).getAttribute("data-field-key"), textKey,
     "Changing a label must not rename a stored field key");
+  const invalidLabel = inspector.getByLabel("Field label", { exact: true });
+  await invalidLabel.fill("");
+  const invalidNode = await invalidLabel.elementHandle();
+  await card(page, "entries[].quantity").getByRole("button", { name: "Configure Quantity", exact: true }).click();
+  await settle(page);
+  assert.ok(await invalidNode.evaluate((node) => node.isConnected && node === document.activeElement),
+    "Selecting another field must not silently discard an invalid unfinished label");
+  assert.equal(await invalidLabel.inputValue(), "");
+  assert.equal(await page.locator(".builder-field.is-selected").getAttribute("data-field-path"), textKey);
+  await invalidLabel.fill("Batch notes");
+  await invalidNode.dispose();
 
-  const columnsBefore = await keys(page, "entries");
+  const columnsBefore = await keys(page, "field:entries");
   await drag(page, page.locator('.builder-palette [data-palette-type="number"]'),
-    slot(page, "entries", columnsBefore.length));
-  const columnsAfter = await keys(page, "entries");
+    slot(page, "field:entries", columnsBefore.length));
+  const columnsAfter = await keys(page, "field:entries");
   assert.equal(columnsAfter.length, columnsBefore.length + 1);
   const numberKey = columnsAfter.find((key) => !columnsBefore.includes(key));
   assert.ok(numberKey);
@@ -127,18 +138,18 @@ export async function verifyBuilder({ newPage, login, api, artifacts }) {
   await inspector.getByLabel("Field label", { exact: true }).fill("Net weight");
   await inspector.getByLabel("Help text", { exact: true }).fill("Measured weight");
   await drag(page, card(page, `entries[].${numberKey}`).getByRole("button", { name: "Drag Net weight", exact: true }),
-    slot(page, "entries", 0));
-  assert.deepEqual(await keys(page, "entries"), [numberKey, ...columnsBefore],
+    slot(page, "field:entries", 0));
+  assert.deepEqual(await keys(page, "field:entries"), [numberKey, ...columnsBefore],
     "Dragging a column must change its order without changing the existing columns");
   const handle = card(page, `entries[].${numberKey}`).getByRole("button", { name: "Drag Net weight", exact: true });
   await handle.focus();
   await handle.press("Alt+ArrowDown");
   await settle(page);
-  assert.deepEqual(await keys(page, "entries"), [columnsBefore[0], numberKey, columnsBefore[1]]);
+  assert.deepEqual(await keys(page, "field:entries"), [columnsBefore[0], numberKey, columnsBefore[1]]);
   assert.equal(await handle.evaluate((node) => node === document.activeElement), true,
     "Keyboard reordering must keep its handle focused for the next move");
   await card(page, `entries[].${numberKey}`).getByRole("button", { name: "Move field down", exact: true }).click();
-  assert.deepEqual(await keys(page, "entries"), [...columnsBefore, numberKey]);
+  assert.deepEqual(await keys(page, "field:entries"), [...columnsBefore, numberKey]);
 
   const summaryBefore = await keys(page, "summary");
   await drag(page, card(page, textKey).getByRole("button", { name: "Drag Batch notes", exact: true }),
@@ -148,7 +159,7 @@ export async function verifyBuilder({ newPage, login, api, artifacts }) {
     "Moving a root field between sections must retain its stable key");
   await drag(page, card(page, "entries[].quantity").getByRole("button", { name: "Drag Quantity", exact: true }),
     slot(page, "header", headerBefore.length));
-  assert.deepEqual(await keys(page, "entries"), [...columnsBefore, numberKey],
+  assert.deepEqual(await keys(page, "field:entries"), [...columnsBefore, numberKey],
     "A column cannot silently become a root field and break its data path");
   assert.deepEqual(await keys(page, "header"), headerBefore);
   checks.push("real palette and field drags add and reorder visual fields while keyboard controls preserve stable data paths");
@@ -234,7 +245,7 @@ export async function verifyBuilder({ newPage, login, api, artifacts }) {
   assert.deepEqual(section(saved.definitionJson, "summary").items.map((item) => item.key), [...summaryBefore, textKey]);
   await page.locator(".back-row").getByRole("button", { name: "Forms", exact: true }).click();
   await reopen(page, code, "Visual builder v1");
-  assert.deepEqual(await keys(page, "entries"), [...columnsBefore, numberKey]);
+  assert.deepEqual(await keys(page, "field:entries"), [...columnsBefore, numberKey]);
   inspector = await configure(page, textKey);
   assert.equal(await inspector.getByLabel("Field label", { exact: true }).inputValue(), "Batch notes");
   assert.equal(await inspector.getByLabel("Required field", { exact: true }).isChecked(), true);
@@ -243,7 +254,8 @@ export async function verifyBuilder({ newPage, login, api, artifacts }) {
   const current = await api(`/templates/${saved.id}`);
   await inspector.getByLabel("Field label", { exact: true }).fill("Local unsaved label");
   const remote = await api(`/templates/${saved.id}`, {
-    method: "PATCH", body: { versionLabel: "Remote revision", expectedEditHash: current.editHash },
+    method: "PATCH", body: { definitionJson: current.definitionJson,
+      versionLabel: "Remote revision", expectedEditHash: current.editHash },
   });
   assert.notEqual(remote.editHash, current.editHash);
   const conflict = page.waitForResponse((response) =>
