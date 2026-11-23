@@ -1486,14 +1486,16 @@ export async function showRelationships(app, form) {
     showError(error);
   }
 }
-export async function showTraceRules(app, form, template) {
+export async function showTraceRules(app, form, template, onSaved = () => {}) {
   if (!template) return;
   try {
-    let rules =
-      (await app.api.request(`/templates/${template.id}/rules`)).items || [];
+    const snapshot = await app.api.request(`/templates/${template.id}/rules`);
+    if (!template.publishedAt && snapshot.editHash !== template.editHash)
+      throw Object.assign(new Error("TEMPLATE_CHANGED"), { error: "TEMPLATE_CHANGED" });
+    let rules = snapshot.items || [];
     const content = el("div");
     const locked = !!template.publishedAt;
-    let d;
+    let d, saving = false;
     const render = () => {
       content.replaceChildren();
       for (const [rIndex, rule] of rules.entries())
@@ -1545,6 +1547,7 @@ export async function showTraceRules(app, form, template) {
         );
     };
     d = modal("Trace outputs · " + form.ppmCode, content, [], { wide: true });
+    d.addEventListener("cancel", (event) => { if (saving) event.preventDefault(); });
     if (!locked)
       d.querySelector(".dialog-actions").append(
         button(
@@ -1562,22 +1565,32 @@ export async function showTraceRules(app, form, template) {
         ),
         button(
           "Save rules",
-          async () => {
+          async (event) => {
+            if (saving) return;
+            const trigger = event.currentTarget;
+            saving = true;
+            d.inert = true;
             try {
+              trigger.disabled = true;
               const cleaned = rules.map((r) => ({
                 ...r,
                 requiresUniqueBusinessCode: !!Number(
                   r.requiresUniqueBusinessCode,
                 ),
               }));
-              await app.api.request(`/templates/${template.id}/rules`, {
+              const saved = await app.api.request(`/templates/${template.id}/rules`, {
                 method: "PUT",
-                body: { rules: cleaned },
+                body: { rules: cleaned, expectedEditHash: snapshot.editHash },
               });
+              onSaved({ editHash: saved.editHash });
               d.close();
               notify("Trace output rules saved");
             } catch (error) {
               showError(error);
+            } finally {
+              saving = false;
+              d.inert = false;
+              trigger.disabled = false;
             }
           },
           { kind: "primary" },
