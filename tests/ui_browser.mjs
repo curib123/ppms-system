@@ -82,7 +82,7 @@ async function openForm(page, code) {
     .filter({ hasText: code })
     .getByRole("button", { name: "Open form", exact: true })
     .click();
-  await page.getByRole("button", { name: "New record", exact: true }).waitFor();
+  await page.locator("#workspace > .section-heading").getByRole("button", { name: "New record", exact: true }).waitFor();
 }
 async function openListedRecord(page, id) {
   await page
@@ -241,7 +241,7 @@ try {
   );
 
   await openForm(admin, code);
-  await admin.getByRole("button", { name: "New record", exact: true }).click();
+  await admin.locator("#workspace > .section-heading").getByRole("button", { name: "New record", exact: true }).click();
   await fillRecord(admin, "Desktop production entry", 7);
   await admin
     .getByLabel("Batch identifier", { exact: true })
@@ -321,7 +321,7 @@ try {
   const { page: mobile, context: mobileContext } = await newPage(true);
   const aliceDevice = await deviceFor(mobile, "alice", form.id);
   await openForm(mobile, code);
-  await mobile.getByRole("button", { name: "New record", exact: true }).click();
+  await mobile.locator("#workspace > .section-heading").getByRole("button", { name: "New record", exact: true }).click();
   await fillRecord(mobile, "Offline personnel entry", 4);
   await mobile
     .getByLabel("Batch identifier", { exact: true })
