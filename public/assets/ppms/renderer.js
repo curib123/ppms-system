@@ -340,10 +340,12 @@ export class FormRenderer {
     wrapper.append(
       label,
       control,
-      field.unit ? el("span", { class: "field-unit" }, field.unit) : null,
-      field.helpText && !inTable
-        ? el("span", { class: "field-hint" }, field.helpText)
-        : null,
+      ...(field.unit
+        ? [el("span", { class: "field-unit" }, field.unit)]
+        : []),
+      ...(field.helpText && !inTable
+        ? [el("span", { class: "field-hint" }, field.helpText)]
+        : []),
       issue,
     );
     if (

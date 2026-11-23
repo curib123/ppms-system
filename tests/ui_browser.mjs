@@ -98,6 +98,19 @@ async function openListedRecord(page, id) {
     .waitFor();
 }
 async function fillRecord(page, description, quantity) {
+  assert.equal(
+    await page
+      .locator('.form-document [data-path="productionDate"]')
+      .inputValue(),
+    await page.locator('.record-identification input[type="date"]').inputValue(),
+    "A new form must initialize its production date from record identification",
+  );
+  assert.match(
+    await page
+      .locator('.form-document [data-path="productionDate"]')
+      .inputValue(),
+    /^\d{4}-\d{2}-\d{2}$/,
+  );
   await page
     .locator('.form-document [data-path="entries.0.description"]')
     .fill(description);
@@ -118,6 +131,19 @@ async function documentGeometry(page, { mobile = false } = {}) {
       new Promise((resolve) =>
         requestAnimationFrame(() => requestAnimationFrame(resolve)),
       ),
+  );
+  assert.deepEqual(
+    await page.locator("#workspace").evaluate((node) => {
+      const walker = document.createTreeWalker(node, NodeFilter.SHOW_TEXT);
+      const placeholders = [];
+      while (walker.nextNode()) {
+        const text = walker.currentNode.textContent.trim();
+        if (/^(?:null|undefined)+$/.test(text)) placeholders.push(text);
+      }
+      return placeholders;
+    }),
+    [],
+    "Optional fields must not render missing values as literal text",
   );
   const dimensions = await page.locator(".document-viewer").evaluate((node) => {
     const form = node.querySelector(".form-document"),
@@ -300,6 +326,9 @@ try {
     .getByRole("button", { name: "New record", exact: true })
     .click();
   await fillRecord(admin, "Desktop production entry", 7);
+  const initialProductionDate = await admin
+    .locator('.form-document [data-path="productionDate"]')
+    .inputValue();
   await documentGeometry(admin);
   await admin
     .getByLabel("Batch identifier", { exact: true })
@@ -323,6 +352,24 @@ try {
   assert.equal(
     (await api(`/records/${recordId}`)).revision.dataJson.totalQuantity,
     7,
+  );
+  assert.equal(
+    (await api(`/records/${recordId}`)).revision.dataJson.productionDate,
+    initialProductionDate,
+  );
+  const submittedResponse = admin.waitForResponse(
+    (response) =>
+      response.url().endsWith(`/api/v1/records/${recordId}/submit`) &&
+      response.request().method() === "POST",
+  );
+  await admin.getByRole("button", { name: "Submit record", exact: true }).click();
+  assert.equal((await (await submittedResponse).json()).result.status, "APPLIED");
+  await until(
+    async () =>
+      (await admin.locator(".save-message").textContent()).includes(
+        "Submitted to the server",
+      ),
+    "The required production date did not allow a complete record to submit",
   );
   await admin
     .locator(".back-row")

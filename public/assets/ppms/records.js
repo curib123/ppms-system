@@ -58,7 +58,15 @@ export function openRecord(app, { form, context, template, view = null }) {
       revision?.dataJson ||
       defaultData(fieldsOf(template.definitionJson)),
   );
-  if (!record.currentRevisionNo && Object.hasOwn(data, "productionDate"))
+  if (
+    !record.currentRevisionNo &&
+    (!Object.hasOwn(data, "productionDate") ||
+      data.productionDate === null ||
+      data.productionDate === "") &&
+    fieldsOf(template.definitionJson).some(
+      (field) => field.key === "productionDate" && field.type === "date",
+    )
+  )
     data.productionDate = String(record.productionDate).slice(0, 10);
   let review = view?.reviewReference || view?.server?.reviewReference || {};
   let selections = (
