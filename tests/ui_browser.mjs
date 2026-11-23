@@ -5,6 +5,7 @@ import assert from "node:assert/strict";
 import { mkdir, writeFile } from "node:fs/promises";
 import { chromium } from "playwright";
 import { chooseOption, assertSharedTheme, verifyDesignSystem } from "./design_browser.mjs";
+import { verifyViewport } from "./viewport_browser.mjs";
 
 const base = process.env.PPMS_UI_URL;
 const password = process.env.PPMS_UI_PASSWORD;
@@ -779,6 +780,8 @@ try {
     admin, newPage, base, artifacts, openForm, openListedRecord, recordId, code,
   });
   results.push(...design.checks);
+  const viewport = await verifyViewport({ newPage, base, artifacts });
+  results.push(...viewport.checks);
   assert.deepEqual(errors, [], "Unexpected uncaught browser errors");
   await writeFile(
     `${artifacts}/ui-results.json`,
@@ -788,6 +791,7 @@ try {
         checks: results,
         largeForm: metrics,
         designThemes: design.themes,
+        fullscreenThemes: viewport.colors,
         physicalKeyboardVerified: false,
       },
       null,
@@ -801,6 +805,7 @@ try {
         checks: results,
         largeForm: metrics,
         designThemes: design.themes,
+        fullscreenThemes: viewport.colors,
         physicalKeyboardVerified: false,
       },
       null,
