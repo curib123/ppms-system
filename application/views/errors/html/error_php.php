@@ -1,8 +1,9 @@
 <?php
 defined('BASEPATH') OR exit('No direct script access allowed');
+include __DIR__ . '/_theme.php';
 ?>
 
-<div style="border:1px solid #990000;padding-left:20px;margin:0 0 10px 0;">
+<div class="system-error" role="alert">
 
 <h4>A PHP Error was encountered</h4>
 
@@ -18,7 +19,7 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 
 		<?php if (isset($error['file']) && strpos($error['file'], realpath(BASEPATH)) !== 0): ?>
 
-			<p style="margin-left:10px">
+			<p class="backtrace">
 			File: <?php echo $error['file'] ?><br />
 			Line: <?php echo $error['line'] ?><br />
 			Function: <?php echo $error['function'] ?>
