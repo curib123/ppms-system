@@ -4,6 +4,7 @@ import {
   field,
   textInput,
   select,
+  searchableSelect,
   modal,
   showError,
   notify,
@@ -31,6 +32,7 @@ function plantDate(zone = "Asia/Manila") {
 export function openRecord(app, { form, context, template, view = null }) {
   app.cleanup?.();
   app.main.replaceChildren();
+  app.main.dataset.screenLabel = `${app.mode} record editor`;
   const mobile = app.mode === "mobile";
   const editorSessionId = crypto.randomUUID();
   let expectedLocalEditVersion = Number(view?.localEditVersion || 0);
@@ -104,7 +106,7 @@ export function openRecord(app, { form, context, template, view = null }) {
     required: true,
     disabled: !!record.currentRevisionNo || !editable,
   });
-  const area = select(
+  const area = searchableSelect(
     (context.areaAssignments || []).map((a) => ({
       value: a.id,
       label: a.areaName || a.name || a.areaId || a.id,

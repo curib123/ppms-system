@@ -6,7 +6,9 @@ import {
   iconButton,
   field,
   textInput,
+  searchInput,
   select,
+  searchableSelect,
   empty,
   sectionTitle,
   modal,
@@ -19,6 +21,7 @@ import {
   confirmAction,
 } from "./ui.js";
 import { OfflineStore, SyncEngine } from "./offline.js";
+import { getThemePreference, setThemePreference } from "./theme.js";
 import { FormBuilder } from "./builder.js";
 import { openRecord } from "./records.js";
 import {
@@ -209,7 +212,10 @@ export class Workspace {
     appHost.append(
       el(
         "main",
-        { class: "login-layout" },
+        {
+          class: "login-layout",
+          "data-screen-label": `${this.mode} sign-in`,
+        },
         el(
           "aside",
           { class: "login-visual", "aria-hidden": "true" },
@@ -579,6 +585,7 @@ export class Workspace {
     this.cleanup = null;
     this.pendingNavigation = false;
     this.currentPage = page;
+    this.main.dataset.screenLabel = `${this.mode} ${page}`;
     for (const n of this.nav.children)
       n.classList.toggle("active", n.dataset.page === page);
     this.main.replaceChildren();
@@ -602,12 +609,12 @@ export class Workspace {
   }
   async showForms() {
     this.currentPage = "forms";
+    this.main.dataset.screenLabel = `${this.mode} form library`;
     for (const n of this.nav.children)
       n.classList.toggle("active", n.dataset.page === "forms");
     this.main.replaceChildren();
     const count = this.forms.length;
-    const search = textInput("", {
-      type: "search",
+    const search = searchInput("", {
       placeholder: "Search forms by name or code…",
       "aria-label": "Search forms",
     });
@@ -674,8 +681,8 @@ export class Workspace {
       ),
       el(
         "div",
-        { class: "search-toolbar" },
-        el("div", { class: "search-box" }, icon("search"), search),
+        { class: "search-toolbar", role: "search", "aria-label": "Find forms" },
+        search,
       ),
       grid,
     );
@@ -843,11 +850,12 @@ export class Workspace {
   }
   async showRecords(form = null) {
     this.currentPage = "records";
+    this.main.dataset.screenLabel = `${this.mode} records`;
     for (const n of this.nav.children)
       n.classList.toggle("active", n.dataset.page === "records");
     this.main.replaceChildren();
     const chosen = form || this.activeForm;
-    const filter = select(
+    const filter = searchableSelect(
       [
         { value: "", label: "All forms" },
         ...this.forms.map((f) => ({
@@ -858,12 +866,11 @@ export class Workspace {
       chosen?.id || "",
       { "aria-label": "Filter by form" },
     );
-    const search = textInput("", {
-      type: "search",
+    const search = searchInput("", {
       placeholder: "Search record ID, batch or lot…",
       "aria-label": "Search records",
     });
-    const status = select(
+    const status = searchableSelect(
       [
         { value: "", label: "All review states" },
         ...[
@@ -929,8 +936,12 @@ export class Workspace {
         if (!items?.length) {
           result.append(
             empty(
-              "No records yet",
-              "Create a record using the current published form.",
+              search.value || status.value
+                ? "No matching records"
+                : "No records yet",
+              search.value || status.value
+                ? "Try a different search or review status."
+                : "Create a record using the current published form.",
               filter.value
                 ? button("New record", () => this.newRecord(filter.value), {
                     kind: "primary",
@@ -1074,7 +1085,13 @@ export class Workspace {
           }),
         ],
       ),
-      el("div", { class: "filters" }, filter, search, status),
+      el(
+        "div",
+        { class: "filters", role: "search", "aria-label": "Filter records" },
+        search,
+        filter,
+        status,
+      ),
       result,
       pager,
     );
@@ -1083,7 +1100,7 @@ export class Workspace {
   }
   async newRecord(formId) {
     if (!formId) {
-      const choice = select(
+      const choice = searchableSelect(
         this.forms.map((f) => ({
           value: f.id,
           label: f.ppmCode + " · " + f.title,
@@ -1175,7 +1192,7 @@ export class Workspace {
           required: true,
           placeholder: "Production monitoring",
         }),
-        area = select(
+        area = searchableSelect(
           areas.items.map((a) => ({
             value: a.id,
             label: a.code + " · " + a.name,
@@ -1327,6 +1344,7 @@ export class Workspace {
     this.cleanup = null;
     this.flushCurrent = null;
     this.main.replaceChildren();
+    this.main.dataset.screenLabel = `${this.mode} form builder`;
     const b = new FormBuilder({
       form,
       template,
@@ -1381,8 +1399,8 @@ export class Workspace {
   }
   async showTrace() {
     this.main.replaceChildren();
-    const q = textInput("", {
-        type: "search",
+    this.main.dataset.screenLabel = `${this.mode} traceability`;
+    const q = searchInput("", {
         placeholder: "Search a production, batch or trace code…",
         required: true,
         "aria-label": "Trace code",
@@ -1592,6 +1610,15 @@ export class Workspace {
     document.dispatchEvent(new CustomEvent("ppms-sync-status"));
   }
   account() {
+    const theme = select(
+      [
+        { value: "system", label: "System" },
+        { value: "light", label: "Light" },
+        { value: "dark", label: "Dark" },
+      ],
+      getThemePreference(),
+    );
+    theme.addEventListener("change", () => setThemePreference(theme.value));
     const content = el(
       "div",
       {},
@@ -1601,6 +1628,7 @@ export class Workspace {
         { class: "muted" },
         `${this.user.username} · ${this.user.role.toLowerCase().replaceAll("_", " ")}`,
       ),
+      field("Theme", theme, "Appearance on this device."),
     );
     const d = modal("Your account", content);
     if (this.api.token) {

@@ -4,7 +4,7 @@ import {
   iconButton,
   field,
   textInput,
-  select,
+  searchableSelect,
   modal,
   showError,
   notify,
@@ -63,7 +63,10 @@ export class FormBuilder {
     this.onSave = onSave;
     this.onPublish = onPublish;
     this.onDuplicate = onDuplicate;
-    this.root = el("div", { class: "builder" });
+    this.root = el("div", {
+      class: "builder",
+      "data-screen-label": "Form builder",
+    });
     const title = textInput(this.definition.title || form.title, {
       disabled: this.readonly,
     });
@@ -386,7 +389,9 @@ export class FormBuilder {
       required: true,
       disabled: this.readonly,
     });
-    const type = select(FIELD_TYPES, f.type, { disabled: this.readonly });
+    const type = searchableSelect(FIELD_TYPES, f.type, {
+      disabled: this.readonly,
+    });
     const required = el("input", {
       type: "checkbox",
       checked: !!f.required,
@@ -452,7 +457,7 @@ export class FormBuilder {
       max: 1000,
       disabled: this.readonly,
     });
-    const calc = select(
+    const calc = searchableSelect(
       [
         { value: "", label: "None (entered by user)" },
         ...[
@@ -489,7 +494,7 @@ export class FormBuilder {
         placeholder: "status",
         disabled: this.readonly,
       });
-      const operator = select(
+      const operator = searchableSelect(
         ["eq", "ne", "gt", "gte", "lt", "lte", "in", "notEmpty"],
         existing?.operator || "eq",
         { disabled: this.readonly },
