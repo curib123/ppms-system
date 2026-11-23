@@ -8,7 +8,7 @@ import {createRequire} from 'node:module';
 const require=createRequire(import.meta.url);
 let playwright;if(!process.argv.includes('--node')){try{playwright=require(process.env.PLAYWRIGHT_MODULE || 'playwright');}catch{playwright=require('/opt/codex/cua_node/lib/node_modules/playwright');}}
 const root=resolve(dirname(fileURLToPath(import.meta.url)),'..');
-const server=createServer(async(req,res)=>{if(req.url==='/offline.js'){res.setHeader('Content-Type','application/javascript');res.end(await readFile(resolve(root,'public/assets/ppms/offline.js')));}else{res.setHeader('Content-Type','text/html');res.end('<!doctype html><title>PPMS offline regression</title>');}});
+const server=createServer(async(req,res)=>{if(['/offline.js','/uuid.js'].includes(req.url)){res.setHeader('Content-Type','application/javascript');res.end(await readFile(resolve(root,'public/assets/ppms'+req.url)));}else{res.setHeader('Content-Type','text/html');res.end('<!doctype html><title>PPMS offline regression</title>');}});
 await new Promise(r=>server.listen(0,'127.0.0.1',r));
 let browser;
 try{
@@ -18,17 +18,23 @@ try{
     const fake=require(process.env.FAKE_INDEXEDDB_MODULE || 'fake-indexeddb');
     globalThis.indexedDB=fake.indexedDB;globalThis.IDBKeyRange=fake.IDBKeyRange;
   } else {
-    browser=await playwright.chromium.launch({headless:true,executablePath,args:['--no-sandbox']});
+    browser=await playwright.chromium.launch({headless:true,executablePath,args:['--no-sandbox','--no-proxy-server','--host-resolver-rules=MAP ppms-uuid.test 127.0.0.1']});
     page=await browser.newPage();await page.goto(`http://127.0.0.1:${server.address().port}`);
   }
   const run=async(moduleUrl)=>{
+    // Exercise the full durable queue with the compatibility path. The separate
+    // UUID suite and unmodified application contexts also verify native support.
+    Object.defineProperty(crypto,'randomUUID',{configurable:true,value:undefined});
     const {OfflineStore,SyncEngine,mergeProjection}=await import(moduleUrl);
     const tests=[];const check=(name,value)=>{if(!value)throw new Error(name);tests.push(name);};
     const rejects=async(name,work,code)=>{try{await work();throw new Error(name+' did not reject');}catch(e){if(e.code!==code)throw e;tests.push(name);}};
+    const uuidV4=/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+    check('UUID compatibility is exercised with native randomUUID unavailable',typeof crypto.randomUUID==='undefined' && typeof crypto.getRandomValues==='function');
     const c={user:{id:'test-offline-user'},userId:'test-offline-user',deviceId:'device-1',leaseVersion:1,ppmFormId:'form-1',deviceToken:'device-secret',authorProof:'author-proof',plantTimezone:'Asia/Manila',editorSessionId:'editor-main'};
     let store=await OfflineStore.open({userId:c.user.id,passphrase:'offline test passphrase'});
     await store.saveDraft({id:'record-a',ppmFormId:c.ppmFormId,editorSessionId:c.editorSessionId,dataJson:{secret:'production-private'}});
     const a=await store.queueMutation(c,{recordId:'record-a',operationType:'CREATE_DRAFT',baseRevisionNo:0,templateVersionId:'version-1',dataJson:{secret:'production-private'}});
+    check('Offline queue generates a secure v4 mutation ID without randomUUID',uuidV4.test(a.mutationId));
     await store.saveDraft({id:'record-a',ppmFormId:c.ppmFormId,editorSessionId:c.editorSessionId,dataJson:{secret:'production-edited'}});
     const a2=await store.queueMutation(c,{recordId:'record-a',operationType:'CREATE_DRAFT',baseRevisionNo:0,dataJson:{secret:'production-edited'}});
     check('Repeated unsent create is coalesced',a.mutationId===a2.mutationId && (await store.list('queue')).length===1);
@@ -43,6 +49,7 @@ try{
     const engine=new SyncEngine({store,request:async()=>{throw new Error('Unexpected network');}});await engine.configure(c);
     check('Encrypted vault does not persist plaintext device credential',!JSON.stringify(await store.exportVault()).includes('device-secret'));
     const sealed=await engine.sealBatch();const before=JSON.stringify(sealed.request);
+    check('Sealed batch gets a distinct secure v4 identity without randomUUID',uuidV4.test(sealed.id) && sealed.id!==a.mutationId);
     await store.saveDraft({id:'record-a',ppmFormId:c.ppmFormId,editorSessionId:c.editorSessionId,dataJson:{secret:'newer-local-edit'}});
     const a3=await store.queueMutation(c,{recordId:'record-a',operationType:'CREATE_DRAFT',baseRevisionNo:0,dataJson:{secret:'newer-local-edit'}});
     const follow=await store.get('queue',a3.mutationId);
@@ -187,6 +194,23 @@ try{
     return {passed:tests.length,tests};
   };
   const outcome=process.argv.includes('--node') ? await run(pathToFileURL(resolve(root,'public/assets/ppms/offline.js')).href) : await page.evaluate(run,'/offline.js');
+  if(browser) {
+    const insecure=await browser.newPage();
+    await insecure.goto(`http://ppms-uuid.test:${server.address().port}`);
+    const compatibility=await insecure.evaluate(async()=>{
+      const {createUuid}=await import('/uuid.js');
+      const ids=Array.from({length:256},()=>createUuid());
+      return {secure:isSecureContext,native:typeof crypto.randomUUID,randomBytes:typeof crypto.getRandomValues,ids};
+    });
+    assert.equal(compatibility.secure,false);
+    assert.equal(compatibility.native,'undefined');
+    assert.equal(compatibility.randomBytes,'function');
+    assert.ok(compatibility.ids.every(id=>/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(id)));
+    assert.equal(new Set(compatibility.ids).size,compatibility.ids.length);
+    outcome.tests.push('Non-localhost HTTP origin generates secure UUIDs when randomUUID is naturally unavailable');
+    outcome.passed++;
+    await insecure.close();
+  }
   outcome.environment=process.argv.includes('--node')?'Node WebCrypto with emulated IndexedDB':'Chromium with native IndexedDB/WebCrypto';
   assert.ok(outcome.passed>=20);console.log(JSON.stringify(outcome,null,2));
 }finally{if(browser)await browser.close();await new Promise(r=>server.close(r));}

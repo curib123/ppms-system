@@ -7,6 +7,7 @@ import { chromium } from "playwright";
 import { chooseOption, assertSharedTheme, verifyDesignSystem } from "./design_browser.mjs";
 import { verifyViewport } from "./viewport_browser.mjs";
 import { verifyBuilder } from "./builder_browser.mjs";
+import { createUuid } from "../public/assets/ppms/uuid.js";
 
 const base = process.env.PPMS_UI_URL;
 const password = process.env.PPMS_UI_PASSWORD;
@@ -48,7 +49,7 @@ async function until(check, message, timeout = 25000) {
   }
   throw new Error(message);
 }
-async function newPage(mobile = false) {
+async function newPage(mobile = false, { withoutRandomUuid = false } = {}) {
   const context = await browser.newContext(
     mobile
       ? {
@@ -60,6 +61,14 @@ async function newPage(mobile = false) {
       : { viewport: { width: 1440, height: 1050 } },
   );
   contexts.push(context);
+  if (withoutRandomUuid) {
+    await context.addInitScript(() => {
+      Object.defineProperty(globalThis.crypto, "randomUUID", {
+        configurable: true,
+        value: undefined,
+      });
+    });
+  }
   const page = await context.newPage();
   page.setDefaultTimeout(20000);
   page.on("pageerror", (error) => errors.push(error.message));
@@ -250,8 +259,9 @@ try {
       token: null,
     })
   ).token;
-  const { page: admin } = await newPage();
+  const { page: admin } = await newPage(false, { withoutRandomUuid: true });
   await login(admin, "admin");
+  assert.equal(await admin.evaluate(() => typeof crypto.randomUUID), "undefined");
   await admin.screenshot({
     path: `${artifacts}/admin-library.png`,
     fullPage: true,
@@ -331,6 +341,33 @@ try {
   );
 
   await openForm(admin, code);
+  const priorRecordScreen = await admin
+    .locator("#workspace > .section-heading")
+    .elementHandle();
+  await admin.evaluate(() => {
+    window.__ppmsRestoreCrypto = Object.getOwnPropertyDescriptor(crypto, "getRandomValues");
+    Object.defineProperty(crypto, "getRandomValues", { configurable: true, value: undefined });
+  });
+  try {
+    await admin
+      .locator("#workspace > .section-heading")
+      .getByRole("button", { name: "New record", exact: true })
+      .click();
+    await admin.getByRole("alert")
+      .filter({ hasText: "This browser cannot generate secure record IDs" })
+      .waitFor();
+    assert.equal(await priorRecordScreen.evaluate(node => node.isConnected), true,
+      "Unavailable secure randomness must leave the existing record screen intact");
+    assert.equal(await admin.locator(".form-document").count(), 0);
+  } finally {
+    await admin.evaluate(() => {
+      if (window.__ppmsRestoreCrypto)
+        Object.defineProperty(crypto, "getRandomValues", window.__ppmsRestoreCrypto);
+      else delete crypto.getRandomValues;
+      delete window.__ppmsRestoreCrypto;
+    });
+  }
+  results.push("missing secure randomness shows a recoverable error without clearing the record list");
   await admin
     .locator("#workspace > .section-heading")
     .getByRole("button", { name: "New record", exact: true })
@@ -352,6 +389,7 @@ try {
   const saved = await (await savedResponse).json();
   assert.equal(saved.result.status, "APPLIED");
   const recordId = saved.result.recordId;
+  assert.match(recordId, /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
   await until(
     async () =>
       (await admin.locator(".save-message").textContent()).includes(
@@ -441,6 +479,9 @@ try {
   results.push(
     "server-backed record entry, automatic totals, nonblocking approval and stale-review indication",
   );
+  results.push(
+    "administrator creates, submits and edits a persisted record with crypto.randomUUID unavailable",
+  );
 
   for (const user of ["alice", "bob"])
     await api(`/forms/${form.id}/access/test-${user}`, {
@@ -453,8 +494,13 @@ try {
         isActive: true,
       },
     });
-  const { page: mobile, context: mobileContext } = await newPage(true);
+  const { page: mobile, context: mobileContext } = await newPage(true, { withoutRandomUuid: true });
   const aliceDevice = await deviceFor(mobile, "alice", form.id);
+  assert.equal(await mobile.evaluate(() => typeof crypto.randomUUID), "undefined");
+  assert.match(
+    await mobile.evaluate(() => localStorage.getItem("ppms-device-uuid:test-alice")),
+    /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
+  );
   await openForm(mobile, code);
   await mobile
     .locator("#workspace > .section-heading")
@@ -541,6 +587,7 @@ try {
   const mobileId = (
     await mobile.locator(".record-heading p").textContent()
   ).split(" · ")[0];
+  assert.match(mobileId, /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
   await mobile.reload();
   await mobile.getByLabel("Username", { exact: true }).fill("alice");
   await mobile
@@ -614,6 +661,9 @@ try {
   );
   results.push(
     "network reconnection, server-confirmed durable receipt, retry without duplicates and pinned old schema",
+  );
+  results.push(
+    "personnel device registration, encrypted offline reload and durable synchronization work without crypto.randomUUID",
   );
 
   // Independent personnel devices share one form, then explicitly reconcile a stale edit.
@@ -703,7 +753,7 @@ try {
   await api(`/records/${mobileId}`, {
     method: "PATCH",
     body: {
-      clientMutationId: crypto.randomUUID(),
+      clientMutationId: createUuid(),
       baseRevisionNo: Number(beforeRemote.record.currentRevisionNo),
       dataJson: remoteData,
     },
