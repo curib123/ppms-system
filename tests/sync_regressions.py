@@ -25,6 +25,7 @@ def quote(value):
 
 class SyncRegressions(unittest.TestCase):
     api = harness.PpmApiIntegration.api
+    template_change = harness.PpmApiIntegration.template_change
     login = harness.PpmApiIntegration.login
     stop_server = harness.PpmApiIntegration.__dict__['stop_server']
 
@@ -42,8 +43,8 @@ class SyncRegressions(unittest.TestCase):
         template = self.api('POST', '/forms/' + form['id'] + '/templates', {'definitionJson': {'fields': [
             {'key': 'value', 'label': 'Value', 'type': 'text', 'validation': {'maxLength': 16384}}]}})
         if trace:
-            self.api('PUT', '/templates/' + template['id'] + '/rules', {'rules': [{'outputKey': 'code', 'outputLabel': 'Code', 'sourceType': 'MANUAL_EXTERNAL', 'status': 'ACTIVE', 'requiresUniqueBusinessCode': False, 'configurationJson': {'outputPath': 'value'}}]})
-        self.api('POST', '/templates/' + template['id'] + '/publish', {})
+            self.template_change('PUT', '/templates/' + template['id'] + '/rules', {'rules': [{'outputKey': 'code', 'outputLabel': 'Code', 'sourceType': 'MANUAL_EXTERNAL', 'status': 'ACTIVE', 'requiresUniqueBusinessCode': False, 'configurationJson': {'outputPath': 'value'}}]})
+        self.template_change('POST', '/templates/' + template['id'] + '/publish', {})
         device = self.api('POST', '/devices', {'deviceUuid': secrets.token_hex(16), 'displayName': 'Disposable test device'}, user='alice')
         self.api('PUT', '/forms/' + form['id'] + '/lease', {'deviceId': device['id'], 'expectedLeaseVersion': 0})
         for user in ('alice', 'bob'):

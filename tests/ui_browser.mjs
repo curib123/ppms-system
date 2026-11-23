@@ -6,6 +6,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { chromium } from "playwright";
 import { chooseOption, assertSharedTheme, verifyDesignSystem } from "./design_browser.mjs";
 import { verifyViewport } from "./viewport_browser.mjs";
+import { verifyBuilder } from "./builder_browser.mjs";
 
 const base = process.env.PPMS_UI_URL;
 const password = process.env.PPMS_UI_PASSWORD;
@@ -576,7 +577,7 @@ try {
   });
   await api(`/templates/${nextTemplate.id}/publish`, {
     method: "POST",
-    body: {},
+    body: { expectedEditHash: nextTemplate.editHash },
   });
   await mobileContext.setOffline(false);
   await mobile.locator(".connection-indicator").click();
@@ -782,6 +783,8 @@ try {
   results.push(...design.checks);
   const viewport = await verifyViewport({ newPage, base, artifacts });
   results.push(...viewport.checks);
+  const builder = await verifyBuilder({ newPage, login, api, artifacts });
+  results.push(...builder.checks);
   assert.deepEqual(errors, [], "Unexpected uncaught browser errors");
   await writeFile(
     `${artifacts}/ui-results.json`,
@@ -792,6 +795,7 @@ try {
         largeForm: metrics,
         designThemes: design.themes,
         fullscreenThemes: viewport.colors,
+        builderThemes: builder.themes,
         physicalKeyboardVerified: false,
       },
       null,
@@ -806,6 +810,7 @@ try {
         largeForm: metrics,
         designThemes: design.themes,
         fullscreenThemes: viewport.colors,
+        builderThemes: builder.themes,
         physicalKeyboardVerified: false,
       },
       null,

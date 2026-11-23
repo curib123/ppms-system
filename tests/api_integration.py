@@ -85,6 +85,17 @@ class PpmApiIntegration(unittest.TestCase):
         self.tokens[user] = result['token']
         return result
 
+    def template_change(self, method, path, data=None, user='admin', expected=200):
+        """Fixture mutations explicitly read a draft before editing/publishing it.
+
+        Concurrency/precondition regressions use api() with their retained token
+        so this convenience helper cannot silently refresh a conflicting edit.
+        """
+        template = self.api('GET', '/templates/' + path.split('/')[2], user=user)
+        body = dict(data or {})
+        body.setdefault('expectedEditHash', template['editHash'])
+        return self.api(method, path, body, user=user, expected=expected)
+
     def test_01_individual_login_and_bearer_authentication(self):
         self.api('GET', '/me', user=None, expected=401)
         self.api('POST', '/auth/login', {'username': 'alice', 'password': 'wrong'}, user=None, expected=401)
@@ -126,11 +137,11 @@ class PpmApiIntegration(unittest.TestCase):
         template = self.api('POST', '/forms/' + self.form + '/templates', {'definitionJson': definition})
         type(self).template = template['id']
         self.assertEqual(template['definitionJson'], definition)
-        published = self.api('POST', '/templates/' + self.template + '/publish', {})
+        published = self.template_change('POST', '/templates/' + self.template + '/publish', {})
         self.assertTrue(published['isActive'])
-        self.api('PATCH', '/templates/' + self.template,
+        self.template_change('PATCH', '/templates/' + self.template,
                  {'definitionJson': definition, 'expectedDefinitionHash': template['definitionHash']}, expected=409)
-        self.api('POST', '/templates/' + self.template + '/publish', {}, expected=409)
+        self.template_change('POST', '/templates/' + self.template + '/publish', {}, expected=409)
         self.assertEqual(sql("SELECT COUNT(*) FROM PpmTemplateVersion WHERE ppmFormId='" + self.form + "' AND isActive=1"), '1')
         self.api('POST', '/forms/' + self.form + '/templates',
                  {'definitionJson': {'fields': [{'key': 'bad', 'label': 'Bad', 'type': 'executable'}]}}, expected=422)
@@ -229,13 +240,13 @@ class PpmApiIntegration(unittest.TestCase):
     def test_08_server_publishes_configured_trace_codes(self):
         draft = self.api('POST', '/forms/' + self.form + '/templates', {'definitionJson': self.definition})
         type(self).source_template = draft['id']
-        self.api('PUT', '/templates/' + draft['id'] + '/rules', {'rules': [{
+        self.template_change('PUT', '/templates/' + draft['id'] + '/rules', {'rules': [{
             'outputKey': 'lotCode', 'outputLabel': 'Lot', 'status': 'ACTIVE', 'sourceType': 'SYSTEM_GENERATED',
             'formulaTemplate': 'LOT-{{record.productionDate}}-{{sequence}}', 'resetPeriod': 'DAILY',
             'sequencePadding': 3, 'requiresUniqueBusinessCode': True,
             'configurationJson': {'bindings': {'record.productionDate': {'source': 'RECORD', 'path': 'productionDate', 'format': 'YYYYMMDD'}}}
         }]})
-        self.api('POST', '/templates/' + draft['id'] + '/publish', {})
+        self.template_change('POST', '/templates/' + draft['id'] + '/publish', {})
         create = self.mutation('CREATE_DRAFT', 'source-lot', data={'supplier': 'Lot supplier', 'temperature': 90, 'accepted': True})
         create['templateVersionId'] = draft['id']
         result = self.batch([create, self.mutation('QUEUE_SUBMIT', 'source-lot', base=1)])
@@ -247,7 +258,7 @@ class PpmApiIntegration(unittest.TestCase):
         type(self).output = published['outputs'][0]
         self.assertEqual(self.api('POST', '/records/source-lot/publish', body), published)
         self.assertEqual(sql('SELECT currentValue FROM PpmSequenceCounter LIMIT 1'), '1')
-        self.api('PUT', '/templates/' + draft['id'] + '/rules', {'rules': []}, expected=409)
+        self.template_change('PUT', '/templates/' + draft['id'] + '/rules', {'rules': []}, expected=409)
 
     def downstream_batch(self, mutations):
         return self.api('POST', '/sync/batches', {'id': secrets.token_hex(16), 'ppmFormId': self.other_form,
@@ -258,7 +269,7 @@ class PpmApiIntegration(unittest.TestCase):
         target = self.api('POST', '/forms/' + self.other_form + '/templates', {'definitionJson': {
             'fields': [{'key': 'sourceLot', 'label': 'Source lot', 'type': 'trace-code', 'required': True}]}})
         type(self).target_template = target['id']
-        self.api('POST', '/templates/' + target['id'] + '/publish', {})
+        self.template_change('POST', '/templates/' + target['id'] + '/publish', {})
         connection = self.api('PUT', '/forms/' + self.other_form + '/connections', {
             'sourcePpmFormId': self.form, 'sourceOutputKey': 'lotCode', 'targetInputKey': 'sourceLot',
             'connectionName': 'Lot dependency', 'status': 'ACTIVE', 'requiresApprovalBeforeUse': False})
@@ -355,7 +366,10 @@ class PpmApiIntegration(unittest.TestCase):
         self.assertEqual(sql("SELECT currentRevisionNo FROM PpmRecord WHERE id='source-lot'"), '4')
 
     def test_13_concurrent_publication_reads_after_the_form_lock(self):
-        draft = self.api('POST', '/forms/' + self.form + '/templates', {'definitionJson': self.definition})
+        # Keep the output rule required by the active relationship established
+        # above; this test exercises publication locking, not invalid layouts.
+        draft = self.api('POST', '/templates/' + self.source_template + '/duplicate',
+                         {'versionLabel': 'Concurrent publication'})
         with socket.socket() as sock:
             sock.bind(('127.0.0.1', 0))
             port = sock.getsockname()[1]
@@ -373,7 +387,8 @@ class PpmApiIntegration(unittest.TestCase):
                                     stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
             self.assertEqual(lock.stdout.readline().strip(), 'READY')
             def publish(base):
-                request = Request(base + '/templates/' + draft['id'] + '/publish', data=b'{}', method='POST',
+                request = Request(base + '/templates/' + draft['id'] + '/publish',
+                                  data=json.dumps({'expectedEditHash': draft['editHash']}).encode(), method='POST',
                                   headers={'Content-Type': 'application/json', 'Authorization': 'Bearer ' + self.tokens['admin']})
                 try:
                     response = urlopen(request, timeout=20)
@@ -466,10 +481,10 @@ class PpmApiIntegration(unittest.TestCase):
         definition = {'fields': [{'key': 'entries', 'label': 'Entries', 'type': 'repeatable',
                       'fields': [{'key': 'code', 'label': 'Code', 'type': 'text', 'required': True}]}]}
         template = self.api('POST', '/forms/' + form + '/templates', {'definitionJson': definition})
-        self.api('PUT', '/templates/' + template['id'] + '/rules', {'rules': [{
+        self.template_change('PUT', '/templates/' + template['id'] + '/rules', {'rules': [{
             'outputKey': 'lotCode', 'outputLabel': 'Lot', 'sourceType': 'MANUAL_EXTERNAL', 'status': 'ACTIVE',
             'requiresUniqueBusinessCode': True, 'configurationJson': {'outputPath': 'entries[].code'}}]})
-        self.api('POST', '/templates/' + template['id'] + '/publish', {})
+        self.template_change('POST', '/templates/' + template['id'] + '/publish', {})
         device = self.api('POST', '/devices', {'deviceUuid': 'test-configurable-device', 'displayName': 'Configured device'})
         type(self).configured_device = device['id']
         self.api('PUT', '/forms/' + form + '/lease', {'deviceId': device['id'], 'expectedLeaseVersion': 0})
@@ -488,10 +503,10 @@ class PpmApiIntegration(unittest.TestCase):
     def test_19_upstream_impacts_invalidate_the_complete_downstream_chain(self):
         target = self.api('POST', '/forms/' + self.other_form + '/templates', {'definitionJson': {
             'fields': [{'key': 'sourceLot', 'label': 'Source lot', 'type': 'trace-code', 'required': True}]}})
-        self.api('PUT', '/templates/' + target['id'] + '/rules', {'rules': [{
+        self.template_change('PUT', '/templates/' + target['id'] + '/rules', {'rules': [{
             'outputKey': 'bCode', 'outputLabel': 'B output', 'sourceType': 'SYSTEM_GENERATED', 'status': 'ACTIVE',
             'formulaTemplate': 'B-{{record.id}}', 'configurationJson': {}}]})
-        self.api('POST', '/templates/' + target['id'] + '/publish', {})
+        self.template_change('POST', '/templates/' + target['id'] + '/publish', {})
         source = self.api('GET', '/records/source-lot')['record']
         source_output = sql("SELECT id FROM PpmTraceOutput WHERE recordId='source-lot' AND status='LINKED_DOWNSTREAM' LIMIT 1")
         source_code = sql("SELECT outputCode FROM PpmTraceOutput WHERE id='" + source_output + "'")
@@ -507,10 +522,10 @@ class PpmApiIntegration(unittest.TestCase):
         form_c = self.configured_form
         template_c = self.api('POST', '/forms/' + form_c + '/templates', {'definitionJson': {
             'fields': [{'key': 'fromB', 'label': 'B source', 'type': 'trace-code', 'required': True}]}})
-        self.api('PUT', '/templates/' + template_c['id'] + '/rules', {'rules': [{
+        self.template_change('PUT', '/templates/' + template_c['id'] + '/rules', {'rules': [{
             'outputKey': 'cCode', 'outputLabel': 'C output', 'sourceType': 'SYSTEM_GENERATED', 'status': 'ACTIVE',
             'formulaTemplate': 'C-{{record.id}}', 'configurationJson': {}}]})
-        self.api('POST', '/templates/' + template_c['id'] + '/publish', {})
+        self.template_change('POST', '/templates/' + template_c['id'] + '/publish', {})
         connection = self.api('PUT', '/forms/' + form_c + '/connections', {'sourcePpmFormId': self.other_form,
                              'sourceOutputKey': 'bCode', 'targetInputKey': 'fromB', 'connectionName': 'B to C',
                              'status': 'ACTIVE', 'requiresApprovalBeforeUse': False})

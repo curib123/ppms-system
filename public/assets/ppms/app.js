@@ -1351,15 +1351,14 @@ export class Workspace {
             : `/forms/${form.id}/templates`,
           { method: existing ? "PATCH" : "POST", body: payload },
         );
-        if (!existing) setTimeout(() => this.builder(form, saved), 0);
         return saved;
       },
       onPublish: async (current) => {
         const published = await this.api.request(
           `/templates/${current.id}/publish`,
-          { method: "POST", body: {} },
+          { method: "POST", body: { expectedEditHash: current.editHash } },
         );
-        this.builder(form, published);
+        if (b.root.isConnected) this.builder(form, published);
       },
       onDuplicate: async (current) => {
         try {
@@ -1370,14 +1369,15 @@ export class Workspace {
               body: { versionLabel: `Copy of version ${current.versionNo}` },
             },
           );
-          this.builder(form, duplicate);
+          if (b.root.isConnected) this.builder(form, duplicate);
         } catch (error) {
           showError(error);
         }
       },
-      onRules: () => showTraceRules(this, form, template),
+      onRules: (current, onSaved) => showTraceRules(this, form, current, onSaved),
       onConnections: () => showRelationships(this, form),
     });
+    this.cleanup = () => b.destroy();
     this.main.append(
       el(
         "div",

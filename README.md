@@ -17,8 +17,9 @@ are enforced by the same backend services.
 
 Every new form uses configurable **Header**, **Main content** and **Summary**
 sections. The shared renderer also understands all 26 original seeded templates.
-The builder supports reusable fields, tables, required rules, conditional
-visibility and safe declarative calculations. Published templates are immutable;
+The visual builder supports drag-and-drop fields and table columns, keyboard
+reordering, reusable fields, required rules, conditional visibility and safe
+declarative calculations. Published templates are immutable;
 create a new version or duplicate a template to change its structure.
 
 Review is a reference associated with a record: reviewer name and position,
@@ -108,6 +109,27 @@ The upgrade wrapper repairs the active-template constraint only after checksum
 verification. Additive migrations preserve existing data and introduce review
 references, stable sequence counters and independent form/device sync cursors.
 The [operations guide](docs/operations.md) explains resumability and restore drills.
+
+## Create a form visually
+
+1. In the administration **Form library**, choose **Create form**, enter its name
+   and code, and select its production area. Use **Configure form** on an existing
+   form to open its templates and duplicate a version.
+2. Use the field palette to add inputs to **Header**, **Main content**, or
+   **Summary**. Drag fields or table columns into position, or use the add and
+   move controls with a keyboard.
+3. Select a field to change its label, choices, help text and required setting.
+   Stable field identifiers are generated automatically. Advanced settings keep
+   calculations and conditions available without requiring source-code changes.
+4. Check the live document preview, undo accidental edits, and **Save draft**.
+   Preview data is temporary; it does not create personnel records.
+5. **Publish** after reviewing the saved version. To change a published form,
+   duplicate it into a new draft. Existing and offline records retain their
+   original template, and concurrent administrator edits are rejected instead
+   of overwritten.
+
+See the [visual builder guide](docs/design-system.md#visual-form-builder) and
+[template editing contract](docs/backend-api.md#safe-template-editing).
 
 ## Personnel and offline workflow
 

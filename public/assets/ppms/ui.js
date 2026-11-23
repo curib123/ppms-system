@@ -96,6 +96,20 @@ export function notify(message, kind = "success") {
   setTimeout(() => notice.remove(), kind === "error" ? 12000 : 6000);
 }
 export function errorMessage(error) {
+  if (error?.error === "TEMPLATE_CONNECTION_TARGET_INVALID")
+    return `An active connection uses ${error.details?.field || "a removed field"}. Restore the field or update Connections before publishing.`;
+  if (error?.error === "TEMPLATE_CONNECTION_SOURCE_INVALID")
+    return `An active connection needs the ${error.details?.outputKey || "missing"} trace output. Restore its output rule or update Connections before publishing.`;
+  const templateMessages = {
+    TEMPLATE_CHANGED:
+      "Another session changed this draft. Your edits are still here. Open the latest version before saving or publishing.",
+    TEMPLATE_PRECONDITION_REQUIRED:
+      "Reopen the latest draft before saving or publishing so its current version can be checked.",
+    PUBLISHED_TEMPLATE_IMMUTABLE:
+      "Published templates are locked. Duplicate this version to make changes safely.",
+  };
+  if (Object.hasOwn(templateMessages, error?.error || error?.message))
+    return templateMessages[error.error || error.message];
   return String(
     error?.details?.field
       ? `${error.error || error.message}: ${error.details.field}`

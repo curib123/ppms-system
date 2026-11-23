@@ -109,7 +109,7 @@ class Api extends CI_Controller
             return $this->ppms_template_service->update($actor, $match[1], $input);
         }
         if ($method === 'POST' && preg_match('#^templates/([^/]+)/publish$#D', $path, $match)) {
-            return $this->ppms_template_service->publish($actor, $match[1]);
+            return $this->ppms_template_service->publish($actor, $match[1], $input);
         }
         if ($method === 'POST' && preg_match('#^templates/([^/]+)/duplicate$#D', $path, $match)) { return $this->ppms_template_service->duplicate($actor, $match[1], $input); }
         $this->load->library('ppms_sync_service');
