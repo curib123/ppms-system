@@ -17,3 +17,6 @@ Import reusable controls from `ui.js`, including `searchInput` for searches and
 the zoomable form document. Do not duplicate per-page search/dropdown markup.
 Add new frontend modules to the offline shell and run `tests/design_system.py`.
 Use the existing browser acceptance suite when changing control interactions.
+Form documents always use the centralized white-paper palette. Fullscreen
+viewers always use the dark canvas/toolbar palette without changing the user's
+application theme. Preserve native field input while supporting mouse pan/zoom.

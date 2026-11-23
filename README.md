@@ -26,6 +26,11 @@ Pending Review / Under Review / Approved / Returned for Revision, review date an
 remarks. It does not prevent ordinary creation or editing. A later data change
 resets the reference to Pending Review while retaining its history.
 
+Form documents stay white in every appearance. Fullscreen uses a dark workspace;
+scroll the mouse wheel over the paper to zoom, drag a noninteractive area to pan,
+or use Ctrl/Cmd + wheel in the embedded viewer. Inputs and dropdowns retain normal
+editing behavior. See the [shared design guide](docs/design-system.md) for controls.
+
 The personnel client is a PWA, not a native Android or iOS binary. Serve it over
 HTTPS to enable installation, service workers and WebCrypto. Actual keyboard,
 pinch, pan and fullscreen behavior must be accepted on the deployment's devices.

@@ -38,6 +38,34 @@ role choose System, Light or Dark. This preference is stored locally, separately
 from accounts, credentials, form data and offline-vault storage. Changing
 appearance preserves the current record and viewport.
 
+### Document appearance and mouse navigation
+
+The form is always white, with dark text and light native input controls. This
+applies to embedded records, builder previews, history/conflict viewers and
+fullscreen, even when the surrounding application uses Dark appearance.
+
+Fullscreen uses a dark canvas and dark toolbar regardless of the application's
+appearance preference. Both native fullscreen and its in-page fallback use this
+presentation. Exiting fullscreen restores the surrounding appearance without
+changing the saved preference. These exceptions are scoped through the same
+central theme tokens; individual forms must not provide their own colors.
+
+| Interaction | Behavior |
+|---|---|
+| Mouse wheel over fullscreen paper/canvas | Zoom in or out around the pointer |
+| Ctrl/Cmd + mouse wheel | Zoom in embedded or fullscreen view |
+| Left-button drag on noninteractive paper/canvas | Pan horizontally and vertically |
+| Middle-button drag | Pan without activating a form field |
+| Shift + left drag | Preserve native text selection |
+| Click an input or dropdown | Focus and edit normally |
+| Two-finger pinch | Zoom while preserving native one-finger field interaction |
+| Zoom buttons / Fit | Adjust the document scale or fit its width |
+| Fullscreen button / Escape | Exit fullscreen; Escape also exits the fallback |
+
+Unmodified wheel input over an editable control remains native. Horizontal wheel
+input and Shift-wheel remain scrolling gestures. Zoom level is retained on
+fullscreen entry/exit; scrolling is constrained to the available document bounds.
+
 After changing brand tokens, run:
 
 ```sh
@@ -129,3 +157,7 @@ targets, and appearance persistence. The existing offline reload, document
 pinch/focus, conflict and calculation scenarios remain in place. Browser results
 and screenshots are published by the PR workflow; they do not establish physical
 Android/iOS keyboard acceptance.
+
+`tests/viewport_browser.mjs` verifies the production renderer with real mouse
+wheel and pointer actions, white-paper/dark-fullscreen invariants, pointer-centered
+zoom, panning, field editing after navigation, and native/fallback fullscreen exit.

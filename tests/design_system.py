@@ -44,7 +44,7 @@ def main():
                     errors.append(f'{path.name}: missing stylesheet import {imported}')
 
     for path in [*ASSETS.glob('*.js'), ROOT / 'public/sw.js',
-                 ROOT / 'tests/design_browser.mjs', ROOT / 'tests/ui_browser.mjs']:
+                 *(ROOT / 'tests').glob('*_browser.mjs')]:
         result = subprocess.run(['node', '--check', str(path)], capture_output=True, text=True)
         if result.returncode:
             errors.append(result.stderr)
