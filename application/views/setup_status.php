@@ -4,7 +4,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>PPMS Â· System setup</title>
+    <title>PPMS · System setup</title>
     <style>
         * { box-sizing: border-box; }
         body { margin: 0; background: #f4f7fb; color: #172940; font: 16px/1.6 system-ui, sans-serif; }
@@ -27,7 +27,8 @@
 <body>
 <main>
     <h1>PPMS</h1>
-    <p class="muted">CodeIgniter 3 Â· MySQL / MariaDB</p>
+    <nav aria-label="Applications"><a href="<?= html_escape($this->config->item('base_url').'admin') ?>">Administration</a> · <a href="<?= html_escape($this->config->item('base_url').'mobile') ?>">Personnel app</a></nav>
+    <p class="muted">CodeIgniter 3 · MySQL / MariaDB</p>
     <section class="panel" aria-labelledby="setup-heading">
         <h2 id="setup-heading">System setup</h2>
         <p class="status"><?= $connected ? 'Database connected' : 'Database setup needed' ?></p>
