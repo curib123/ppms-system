@@ -64,7 +64,7 @@ class Ppms_values
                 $row[$key] = json_decode($value, FALSE, 64, JSON_THROW_ON_ERROR);
             }
         }
-        foreach (array('versionNo', 'leaseVersion', 'revisionNo', 'currentRevisionNo', 'batchNo') as $key) {
+        foreach (array('versionNo', 'leaseVersion', 'revisionNo', 'currentRevisionNo') as $key) {
             if (isset($row[$key])) { $row[$key] = (int) $row[$key]; }
         }
         return $row;

@@ -45,6 +45,7 @@ class Ppms_trace_service
                 if ($status === 'ACTIVE' && $source === 'PENDING_RULE') { throw new Ppms_problem('PENDING_RULE_CANNOT_BE_ACTIVE'); }
                 $config = $rule['configurationJson'] ?? new stdClass();
                 $this->configuration($config);
+                $this->validateRule($rule, $template['definitionJson']);
                 if ($source === 'SYSTEM_GENERATED') { Ppms_values::text($rule, 'formulaTemplate', 2000); }
                 $padding = $rule['sequencePadding'] ?? 0;
                 if (!is_int($padding) || $padding < 0 || $padding > 12) { throw new Ppms_problem('INVALID_SEQUENCE_PADDING'); }
@@ -75,6 +76,11 @@ class Ppms_trace_service
             $forms = array_unique(array($source, $target)); sort($forms, SORT_STRING);
             foreach ($forms as $form) { $this->store->lockForm($form); }
             if ($status === 'ACTIVE') {
+                $existing = $this->store->row('SELECT id,status FROM PpmTraceConnection WHERE sourcePpmFormId=? AND sourceOutputKey=? AND targetPpmFormId=? AND targetInputKey=?', array($source, $output, $target, $field));
+                if (!$existing || $existing['status'] !== 'ACTIVE') {
+                    $count = (int) $this->store->row("SELECT COUNT(*) AS n FROM PpmTraceConnection WHERE targetPpmFormId=? AND status='ACTIVE'", array($target))['n'];
+                    if ($count >= 64) { throw new Ppms_problem('TRACE_CONNECTION_LIMIT', 422, array('limit' => 64)); }
+                }
                 $template = $this->store->row('SELECT definitionJson FROM PpmTemplateVersion WHERE ppmFormId=? AND isActive=1 AND publishedAt IS NOT NULL', array($target));
                 $paths = $template ? $this->fieldPaths($this->validator->fields($template['definitionJson'])) : array();
                 if (!in_array($field, $paths, TRUE)) { throw new Ppms_problem('TARGET_INPUT_NOT_DEFINED'); }
@@ -88,6 +94,160 @@ class Ppms_trace_service
             $this->store->audit($actor, 'CONFIG_CHANGE', 'PpmTraceConnection', $row['id'], $row, array('ppmFormId' => $target));
             return $row;
         });
+    }
+    public function rulesView($actor, $id)
+    {
+        $template = $this->store->row('SELECT ppmFormId,publishedAt FROM PpmTemplateVersion WHERE id=?', array($id));
+        if (!$template) { throw new Ppms_problem('TEMPLATE_NOT_FOUND', 404); }
+        if ($actor['role'] === 'ADMIN') { $this->auth->admin($actor); } else { $this->auth->access($actor, $template['ppmFormId']); }
+        if (!$template['publishedAt']) { $this->auth->admin($actor); }
+        return array('items' => $this->store->rows('SELECT * FROM TraceCodeRule WHERE templateVersionId=? ORDER BY outputKey', array($id)));
+    }
+    public function connections($actor, $form)
+    {
+        $this->auth->access($actor, $form);
+        return array('items' => $this->store->rows('SELECT c.*,f.ppmCode AS sourcePpmCode,f.title AS sourceTitle FROM PpmTraceConnection c JOIN PpmForm f ON f.id=c.sourcePpmFormId WHERE c.targetPpmFormId=? ORDER BY c.targetInputKey,c.connectionName', array($form)));
+    }
+    public function inputs($actor, $form, $query = array())
+    {
+        $this->auth->access($actor, $form);
+        $page = max(1, min(1000000, (int) ($query['page'] ?? 1)));
+        $limit = max(1, min(200, (int) ($query['limit'] ?? 50)));
+        $text = trim((string) ($query['q'] ?? ''));
+        if (mb_strlen($text) > 191) { throw new Ppms_problem('INVALID_SEARCH'); }
+        $where = " FROM PpmTraceConnection c JOIN PpmTemplateVersion t ON t.ppmFormId=c.sourcePpmFormId
+            JOIN PpmRecord r ON r.templateVersionId=t.id JOIN PpmTraceOutput o ON o.recordId=r.id AND o.outputKey=c.sourceOutputKey
+            JOIN PpmForm f ON f.id=t.ppmFormId WHERE c.targetPpmFormId=? AND c.status='ACTIVE' AND f.status='ACTIVE'
+            AND r.archivedAt IS NULL AND o.status IN ('PUBLISHED','LINKED_DOWNSTREAM') AND (?='' OR LOCATE(?,o.outputCode)>0)
+            AND NOT EXISTS (SELECT 1 FROM TraceRevalidationItem i JOIN PpmTraceLink l ON l.id=i.traceLinkId
+                JOIN PpmRecordRevision v ON v.id=l.downstreamRevisionId WHERE v.recordId=r.id AND i.status<>'RESOLVED')";
+        $args = array($form, $text, $text);
+        $total = (int) $this->store->row('SELECT COUNT(*) AS n'.$where, $args)['n'];
+        $rows = $this->store->rows('SELECT o.*,c.id AS connectionId,c.targetInputKey,t.ppmFormId,f.ppmCode,f.title'.$where.' ORDER BY o.publishedAt DESC,o.id,c.id LIMIT ? OFFSET ?', array_merge($args, array($limit, ($page - 1) * $limit)));
+        return array('connections' => $this->connections($actor, $form)['items'], 'outputs' => $rows, 'page' => $page, 'limit' => $limit, 'total' => $total);
+    }
+    private function accessibleForms($actor, $requested = NULL)
+    {
+        if ($requested) { $this->auth->access($actor, $requested); return array($requested); }
+        $ids = array();
+        foreach ($this->store->rows('SELECT id FROM PpmForm ORDER BY id') as $form) {
+            try { $this->auth->access($actor, $form['id']); $ids[] = $form['id']; }
+            catch (Ppms_problem $error) { if ($error->status !== 403) { throw $error; } }
+        }
+        return $ids;
+    }
+    public function search($actor, $query = array())
+    {
+        $forms = $this->accessibleForms($actor, $query['ppmFormId'] ?? $query['formId'] ?? NULL);
+        $page = max(1, min(1000000, (int) ($query['page'] ?? 1)));
+        $limit = max(1, min(200, (int) ($query['limit'] ?? 50)));
+        $text = trim((string) ($query['q'] ?? ''));
+        if (mb_strlen($text) > 191) { throw new Ppms_problem('INVALID_SEARCH'); }
+        if (!$forms) { return array('items' => array(), 'page' => $page, 'limit' => $limit, 'total' => 0); }
+        $where = ' FROM PpmTraceOutput o JOIN PpmRecord r ON r.id=o.recordId JOIN PpmRecordRevision v ON v.id=o.revisionId
+            JOIN PpmTemplateVersion t ON t.id=r.templateVersionId JOIN PpmForm f ON f.id=t.ppmFormId WHERE t.ppmFormId IN ('.implode(',', array_fill(0, count($forms), '?')).") AND (?='' OR LOCATE(?,o.outputCode)>0 OR LOCATE(?,COALESCE(r.recordCode,''))>0)";
+        $args = array_merge($forms, array($text, $text, $text));
+        $total = (int) $this->store->row('SELECT COUNT(*) AS n'.$where, $args)['n'];
+        $rows = $this->store->rows('SELECT o.*,t.ppmFormId,f.ppmCode,f.title,r.recordCode,r.archivedAt,v.revisionNo'.$where.' ORDER BY o.publishedAt DESC,o.id LIMIT ? OFFSET ?', array_merge($args, array($limit, ($page - 1) * $limit)));
+        return array('items' => $rows, 'page' => $page, 'limit' => $limit, 'total' => $total);
+    }
+    public function tree($actor, $outputId, $query = array())
+    {
+        $max = max(1, min(250, (int) ($query['maxNodes'] ?? 100)));
+        $forms = array_flip($this->accessibleForms($actor));
+        $root = $this->graphOutput($outputId);
+        if (!$root || !isset($forms[$root['ppmFormId']])) { throw new Ppms_problem('TRACE_OUTPUT_NOT_FOUND', 404); }
+        $nodes = array($outputId => $root);
+        $edges = array();
+        $queue = array($outputId);
+        $seen = array();
+        $truncated = FALSE;
+        while ($queue) {
+            $id = array_shift($queue);
+            if (isset($seen[$id])) { continue; }
+            $seen[$id] = TRUE;
+            $node = $nodes[$id];
+            $neighbors = array();
+            $upstreamRows = $this->store->rows('SELECT o.id,o.recordId,o.revisionId,o.outputKey,o.outputCode,o.status,o.sourcePath,
+                v.revisionNo,r.recordCode,r.archivedAt,t.ppmFormId,f.ppmCode,f.title,l.downstreamInputKey
+                FROM PpmTraceLink l JOIN PpmTraceOutput o ON o.id=l.sourceTraceOutputId JOIN PpmRecordRevision v ON v.id=o.revisionId
+                JOIN PpmRecord r ON r.id=o.recordId JOIN PpmTemplateVersion t ON t.id=r.templateVersionId JOIN PpmForm f ON f.id=t.ppmFormId
+                WHERE l.downstreamRevisionId=? ORDER BY l.id LIMIT ?', array($node['revisionId'], $max + 1));
+            if (count($upstreamRows) > $max) { $truncated = TRUE; }
+            foreach ($upstreamRows as $upstream) {
+                $path = $upstream['downstreamInputKey']; unset($upstream['downstreamInputKey']); $upstream['type'] = 'output';
+                $neighbors[] = array($upstream, $upstream['id'], $id, $path);
+            }
+            if ($node['type'] === 'output') {
+                $children = $this->store->rows('SELECT o.id,o.outputKey,o.outputCode,o.status,o.sourcePath,
+                    v.id AS revisionId,v.recordId,v.revisionNo,r.recordCode,r.archivedAt,t.ppmFormId,f.ppmCode,f.title,l.downstreamInputKey
+                    FROM PpmTraceLink l JOIN PpmRecordRevision v ON v.id=l.downstreamRevisionId JOIN PpmRecord r ON r.id=v.recordId
+                    JOIN PpmTemplateVersion t ON t.id=r.templateVersionId JOIN PpmForm f ON f.id=t.ppmFormId
+                    LEFT JOIN PpmTraceOutput o ON o.revisionId=v.id WHERE l.sourceTraceOutputId=? ORDER BY v.createdAt,v.id,o.id LIMIT ?', array($id, $max + 1));
+                if (count($children) > $max) { $truncated = TRUE; }
+                foreach ($children as $child) {
+                    $path = $child['downstreamInputKey']; unset($child['downstreamInputKey']);
+                    $child['type'] = $child['id'] ? 'output' : 'revision';
+                    if (!$child['id']) { $child['id'] = 'revision:'.$child['revisionId']; $child['status'] = $child['archivedAt'] ? 'DELETED' : 'RECORDED'; }
+                    $neighbors[] = array($child, $id, $child['id'], $path);
+                }
+            }
+            foreach ($neighbors as $neighbor) {
+                list($other, $from, $to, $path) = $neighbor;
+                if (!$other || !isset($forms[$other['ppmFormId']])) { continue; }
+                if (!isset($nodes[$other['id']])) {
+                    if (count($nodes) >= $max) { $truncated = TRUE; continue; }
+                    $nodes[$other['id']] = $other;
+                    $queue[] = $other['id'];
+                }
+                $key = $from.'|'.$to.'|'.$path;
+                if (count($edges) >= $max * 8 && !isset($edges[$key])) { $truncated = TRUE; continue; }
+                $edges[$key] = array('source' => $from, 'target' => $to, 'inputPath' => $path);
+            }
+        }
+        return array('root' => $outputId, 'nodes' => array_values($nodes), 'edges' => array_values($edges), 'truncated' => $truncated, 'maxNodes' => $max);
+    }
+    private function graphOutput($id)
+    {
+        $row = $this->store->row('SELECT o.id,o.recordId,o.revisionId,o.outputKey,o.outputCode,o.status,o.sourcePath,v.revisionNo,r.recordCode,r.archivedAt,t.ppmFormId,f.ppmCode,f.title
+            FROM PpmTraceOutput o JOIN PpmRecordRevision v ON v.id=o.revisionId JOIN PpmRecord r ON r.id=o.recordId
+            JOIN PpmTemplateVersion t ON t.id=r.templateVersionId JOIN PpmForm f ON f.id=t.ppmFormId WHERE o.id=?', array($id));
+        return $row ? $row + array('type' => 'output') : NULL;
+    }
+    /** Resolve protected trace values from verified output IDs before validation. */
+    public function populate($actor, $form, $data, $definition, $selections, $recordId)
+    {
+        Ppms_values::object($data);
+        if (!is_array($selections) || count($selections) > 1000) { throw new Ppms_problem('INVALID_TRACE_SELECTIONS'); }
+        $allowed = $this->fieldPaths($this->validator->fields($definition));
+        $seen = array();
+        $engine = new Ppms_form_engine();
+        foreach ($selections as $raw) {
+            $selection = (array) Ppms_values::object($raw);
+            $path = Ppms_values::text($selection, 'inputPath');
+            $this->safePath($path);
+            if (isset($seen[$path])) { throw new Ppms_problem('DUPLICATE_TRACE_SELECTION'); }
+            $pattern = preg_replace('/\.\d+(?=\.|$)/', '[]', $path);
+            if (!in_array($pattern, $allowed, TRUE) || !in_array($path, $engine->concrete($data, $pattern), TRUE)) { throw new Ppms_problem('TRACE_INPUT_NOT_CONFIGURED'); }
+            $connection = $this->store->row("SELECT * FROM PpmTraceConnection WHERE id=? AND targetPpmFormId=? AND targetInputKey=? AND status='ACTIVE'", array(Ppms_values::text($selection, 'connectionId'), $form, $pattern));
+            if (!$connection) { throw new Ppms_problem('TRACE_CONNECTION_INVALID'); }
+            $output = $this->store->row("SELECT o.*,t.ppmFormId,r.archivedAt,f.status AS formStatus FROM PpmTraceOutput o
+                JOIN PpmRecord r ON r.id=o.recordId JOIN PpmTemplateVersion t ON t.id=r.templateVersionId
+                JOIN PpmForm f ON f.id=t.ppmFormId WHERE o.id=? FOR UPDATE", array(Ppms_values::text($selection, 'sourceTraceOutputId')));
+            $supplied = $this->read($data, $path);
+            if (!$output || !in_array($output['status'], array('PUBLISHED','LINKED_DOWNSTREAM'), TRUE) || $output['archivedAt'] || $output['formStatus'] !== 'ACTIVE'
+                || $output['recordId'] === $recordId || $this->hasPendingImpact($output['recordId'])
+                || $output['ppmFormId'] !== $connection['sourcePpmFormId'] || $output['outputKey'] !== $connection['sourceOutputKey']
+                || ($supplied !== NULL && $supplied !== '' && $supplied !== $output['outputCode'])) { throw new Ppms_problem('TRACE_OUTPUT_INELIGIBLE'); }
+            $engine->write($data, $path, $output['outputCode']);
+            $seen[$path] = TRUE;
+        }
+        return array_keys($seen);
+    }
+    public function provenance($revisionId)
+    {
+        if (!$revisionId) { return array(); }
+        return $this->store->rows('SELECT downstreamInputKey,connectionId,sourceTraceOutputId FROM PpmTraceLink WHERE downstreamRevisionId=? AND isActive=1 ORDER BY downstreamInputKey,connectionId,sourceTraceOutputId', array($revisionId));
     }
     public function link($actor, $form, $revisionId, $data, $definition, $selections, $previousRevisionId, $context, $write = TRUE)
     {
@@ -129,7 +289,7 @@ class Ppms_trace_service
             if (!$output || !in_array($output['status'], array('PUBLISHED','LINKED_DOWNSTREAM'), TRUE) || $output['archivedAt'] || $output['formStatus'] !== 'ACTIVE'
                 || $output['recordId'] === ($context['recordId'] ?? NULL) || $this->hasPendingImpact($output['recordId'])
                 || $output['ppmFormId'] !== $connection['sourcePpmFormId'] || $output['outputKey'] !== $connection['sourceOutputKey']
-                || $output['outputCode'] !== $value || ((int) $connection['requiresApprovalBeforeUse'] && !in_array($output['recordStatus'], array('FSQA_APPROVED','SUPERVISOR_APPROVED','CLOSED'), TRUE))) {
+                || $output['outputCode'] !== $value) {
                 throw new Ppms_problem('TRACE_OUTPUT_INELIGIBLE');
             }
             if (!$write) { continue; }
@@ -147,18 +307,30 @@ class Ppms_trace_service
         return $this->store->transaction(function () use ($actor, $recordId, $input, $initial) {
             $this->store->lockForm($initial['ppmFormId']);
             $this->auth->access($actor, $initial['ppmFormId'], 'canPublish');
-            $this->devices->lease($initial['ppmFormId'], Ppms_values::text($input, 'deviceId'), Ppms_values::integer($input, 'leaseVersion', 1));
+            if (isset($input['deviceId'])) { $this->devices->lease($initial['ppmFormId'], Ppms_values::text($input, 'deviceId'), Ppms_values::integer($input, 'leaseVersion', 1)); }
             $record = $this->store->row('SELECT * FROM PpmRecord WHERE id=?', array($recordId)) + $initial;
             if ($record['currentRevisionNo'] !== Ppms_values::integer($input, 'baseRevisionNo', 1)) { throw new Ppms_problem('REVISION_CHANGED', 409); }
-            if ($record['archivedAt'] || !in_array($record['status'], array('SUBMITTED','FSQA_APPROVED','SUPERVISOR_APPROVED','CLOSED'), TRUE)) { throw new Ppms_problem('RECORD_NOT_PUBLISHABLE', 409); }
+            if ($record['archivedAt']) { throw new Ppms_problem('RECORD_NOT_PUBLISHABLE', 409); }
             if ($this->hasPendingImpact($recordId)) { throw new Ppms_problem('REVALIDATION_REQUIRED', 409); }
             $revision = $this->store->row('SELECT * FROM PpmRecordRevision WHERE recordId=? AND revisionNo=?', array($recordId, $record['currentRevisionNo']));
             $definition = $this->store->row('SELECT definitionJson FROM PpmTemplateVersion WHERE id=?', array($record['templateVersionId']))['definitionJson'];
-            $this->validator->payload($definition, $revision['dataJson'], TRUE);
+            $this->validator->payload($definition, $revision['dataJson'], TRUE, $revision['dataJson']);
             $this->link($actor, $record['ppmFormId'], $revision['id'], $revision['dataJson'], $definition, array(), $revision['id'],
                 array('recordId' => $recordId), FALSE);
             $existing = $this->store->rows('SELECT * FROM PpmTraceOutput WHERE revisionId=? ORDER BY outputKey,sourcePath', array($revision['id']));
             if ($existing) { return array('outputs' => $existing); }
+            // A review/submission or identical save can append a revision without
+            // changing production evidence. Keep its original publication stable.
+            $unchanged = $this->store->rows("SELECT DISTINCT v.id,v.revisionNo FROM PpmRecordRevision v JOIN PpmTraceOutput o ON o.revisionId=v.id
+                WHERE v.recordId=? AND v.dataHash=? AND o.status IN ('PUBLISHED','LINKED_DOWNSTREAM') ORDER BY v.revisionNo DESC LIMIT 100",
+                array($recordId, $revision['dataHash']));
+            $provenance = Ppms_values::hash($this->provenance($revision['id']));
+            foreach ($unchanged as $candidate) {
+                if (Ppms_values::hash($this->provenance($candidate['id'])) !== $provenance) { continue; }
+                $outputs = $this->store->rows('SELECT * FROM PpmTraceOutput WHERE revisionId=? ORDER BY outputKey,sourcePath', array($candidate['id']));
+                $live = array_filter($outputs, function ($output) { return in_array($output['status'], array('PUBLISHED','LINKED_DOWNSTREAM'), TRUE); });
+                if ($outputs && count($live) === count($outputs)) { return array('outputs' => $outputs); }
+            }
             $rules = $this->store->rows('SELECT * FROM TraceCodeRule WHERE templateVersionId=? AND status=\'ACTIVE\' ORDER BY outputKey', array($record['templateVersionId']));
             if (!$rules) { throw new Ppms_problem('NO_ACTIVE_TRACE_RULE'); }
             foreach ($rules as $rule) { $this->publishRule($actor, $record, $revision, $rule, $input); }
@@ -187,7 +359,7 @@ class Ppms_trace_service
                     if (is_string($binding)) { $binding = (object) array('source' => 'DATA', 'path' => $binding); }
                     $source = $binding->source ?? ($token === 'sequence' ? 'SEQUENCE' : (strpos($token, 'record.') === 0 ? 'RECORD' : 'DATA'));
                     if ($source === 'SEQUENCE') {
-                        if ($sequence === NULL) { $sequence = $this->sequence($rule, substr($record['productionDate'], 0, 10)); }
+                        if ($sequence === NULL) { $sequence = $this->sequence($rule, $record['ppmFormId'], substr($record['productionDate'], 0, 10)); }
                         return $values[$token] = str_pad((string) $sequence, (int) ($rule['sequencePadding'] ?? 0), '0', STR_PAD_LEFT);
                     }
                     $bindingPath = $binding->path ?? preg_replace('/^(record|data)\./', '', $token);
@@ -220,7 +392,7 @@ class Ppms_trace_service
                 'sourceSnapshotJson' => Ppms_values::json(array('dataHash' => $revision['dataHash'], 'sequence' => $sequence, 'sourcePath' => $path))));
             $output = $this->store->row('SELECT * FROM PpmTraceOutput WHERE id=?', array($id));
             $this->store->event($record['ppmFormId'], 'TRACE_OUTPUT_PUBLISHED', $this->outputView($output), $record['id'], $revision['id'], $rule['outputKey']);
-            $this->store->audit($actor, 'PUBLISH_CODE', 'PpmTraceOutput', $id, $this->outputView($output), array('recordId' => $record['id'], 'ppmFormId' => $record['ppmFormId'], 'deviceId' => $input['deviceId'], 'baseRevisionNo' => $record['currentRevisionNo']));
+            $this->store->audit($actor, 'PUBLISH_CODE', 'PpmTraceOutput', $id, $this->outputView($output), array('recordId' => $record['id'], 'ppmFormId' => $record['ppmFormId'], 'deviceId' => $input['deviceId'] ?? NULL, 'baseRevisionNo' => $record['currentRevisionNo']));
         }
     }
     public function retire($actor, $record, $newRevisionId, $reason, $context)
@@ -244,8 +416,9 @@ class Ppms_trace_service
                 $this->store->event($current['ppmFormId'], 'TRACE_OUTPUT_RETIRED', $this->outputView($output), $current['id'], $output['revisionId'], $output['outputKey']);
                 // Locking reads see links committed by a transaction we waited for.
                 $links = $this->store->rows('SELECT l.id,r.id AS recordId,a.ppmFormId FROM PpmTraceLink l JOIN PpmRecordRevision v ON v.id=l.downstreamRevisionId
-                    JOIN PpmRecord r ON r.id=v.recordId AND r.currentRevisionNo=v.revisionNo JOIN AreaPpmAssignment a ON a.id=r.areaPpmAssignmentId
-                    WHERE l.sourceTraceOutputId=? AND l.isActive=1 FOR UPDATE', array($output['id']));
+                    JOIN PpmRecord r ON r.id=v.recordId JOIN AreaPpmAssignment a ON a.id=r.areaPpmAssignmentId
+                    WHERE l.sourceTraceOutputId=? AND l.isActive=1 AND r.archivedAt IS NULL
+                    AND (r.currentRevisionNo=v.revisionNo OR EXISTS (SELECT 1 FROM PpmTraceOutput live WHERE live.revisionId=v.id AND live.status IN (\'PUBLISHED\',\'LINKED_DOWNSTREAM\'))) FOR UPDATE', array($output['id']));
                 foreach ($links as $link) {
                     $affected[] = $link['id'];
                     if (!isset($visited[$link['recordId']])) { $queue[] = array('id' => $link['recordId'], 'ppmFormId' => $link['ppmFormId']); }
@@ -256,6 +429,15 @@ class Ppms_trace_service
                 $this->store->insert('TraceRevalidation', array('id' => $id, 'triggerRevisionId' => $newRevisionId, 'reason' => $reason));
                 foreach (array_unique($affected) as $link) { $this->store->insert('TraceRevalidationItem', array('id' => Ppms_values::id(), 'revalidationId' => $id, 'traceLinkId' => $link)); }
                 $this->store->audit($actor, 'REVALIDATION_CREATED', 'TraceRevalidation', $id, array('affectedLinks' => count($affected), 'reason' => $reason), $context);
+            }
+            if ($current['id'] !== $record['id']) {
+                // Dependency propagation is an internal write: the source author
+                // need not have read access to every downstream form. The feed
+                // is still read only through each recipient form's access rules.
+                $ci =& get_instance();
+                $ci->load->library('ppms_record_service');
+                $snapshot = $ci->ppms_record_service->projection($actor, $current['id'], FALSE);
+                $this->store->event($current['ppmFormId'], 'RECORD_REVISION', $snapshot, $current['id'], $snapshot['revision']['id']);
             }
         }
         return $rootHadOutputs;
@@ -322,6 +504,7 @@ class Ppms_trace_service
         foreach (array('outputPath','quantityPath','unitPath') as $key) { if (isset($config->$key)) { $this->safePath($config->$key); } }
         $bindings = $config->bindings ?? new stdClass();
         Ppms_values::object($bindings);
+        if (isset($config->sequenceNamespace)) { Ppms_values::text((array) $config, 'sequenceNamespace', 128); }
         foreach (get_object_vars($bindings) as $binding) {
             if (is_string($binding)) { $this->safePath($binding); continue; }
             Ppms_values::object($binding);
@@ -333,13 +516,104 @@ class Ppms_trace_service
             }
         }
     }
-    private function sequence($rule, $date)
+    /** Validate every active rule against the immutable schema before sealing it. */
+    public function validateTemplateRules($templateId, $definition)
+    {
+        foreach ($this->store->rows('SELECT * FROM TraceCodeRule WHERE templateVersionId=?', array($templateId)) as $rule) {
+            $this->validateRule($rule, $definition);
+        }
+    }
+    public function validateRule($rule, $definition)
+    {
+        if (($rule['status'] ?? '') !== 'ACTIVE') { return; }
+        $config = $rule['configurationJson'] ?? new stdClass();
+        $this->configuration($config);
+        $fields = $this->fieldDefinitions($this->validator->fields($definition));
+        $output = $config->outputPath ?? $rule['outputKey'];
+        $generated = $rule['sourceType'] === 'SYSTEM_GENERATED';
+        if ((!$generated || isset($config->outputPath)) && !isset($fields[$output])) {
+            throw new Ppms_problem('TRACE_OUTPUT_FIELD_NOT_DEFINED', 422, array('field' => $output));
+        }
+        if (!$generated && isset($fields[$output]) && !in_array($fields[$output]->type, array('text','textarea','trace-code','select','date','datetime','number','integer'), TRUE)) { throw new Ppms_problem('INVALID_TRACE_OUTPUT_TYPE'); }
+        foreach (array('quantityPath','unitPath') as $key) {
+            if (!isset($config->$key)) { continue; }
+            $path = $config->$key;
+            if (!isset($fields[$path]) || !$this->alignable($path, $output)) { throw new Ppms_problem('TRACE_BINDING_FIELD_NOT_DEFINED', 422, array('field' => $path)); }
+            if ($key === 'quantityPath' && !in_array($fields[$path]->type, array('number','integer'), TRUE)) { throw new Ppms_problem('INVALID_TRACE_QUANTITY_TYPE'); }
+            if ($key === 'unitPath' && !in_array($fields[$path]->type, array('text','select'), TRUE)) { throw new Ppms_problem('INVALID_TRACE_UNIT_TYPE'); }
+        }
+        if (isset($config->outputFormat)) {
+            $this->render('2026-01-01', $config->outputFormat);
+            if (!$generated && in_array($config->outputFormat, array('YYYYMMDD','DDMMYY','MMDDYY','DDMMMYY'), TRUE)
+                && !in_array($fields[$output]->type, array('date','datetime'), TRUE)) { throw new Ppms_problem('TRACE_DATE_FIELD_REQUIRED', 422, array('field' => $output)); }
+        }
+        if (!$generated) { return; }
+        $formula = Ppms_values::text($rule, 'formulaTemplate', 2000);
+        $remainder = preg_replace('/\{\{\s*([A-Za-z][A-Za-z0-9_.-]*)\s*\}\}/', '', $formula);
+        if (strpos($remainder, '{{') !== FALSE || strpos($remainder, '}}') !== FALSE) { throw new Ppms_problem('INVALID_TRACE_FORMULA'); }
+        preg_match_all('/\{\{\s*([A-Za-z][A-Za-z0-9_.-]*)\s*\}\}/', $formula, $matches);
+        foreach (array_unique($matches[1]) as $token) {
+            $binding = $config->bindings->$token ?? new stdClass();
+            if (is_string($binding)) { $binding = (object) array('source' => 'DATA', 'path' => $binding); }
+            $source = $binding->source ?? ($token === 'sequence' ? 'SEQUENCE' : (strpos($token, 'record.') === 0 ? 'RECORD' : 'DATA'));
+            if ($source === 'SEQUENCE') { continue; }
+            $path = $binding->path ?? preg_replace('/^(record|data)\./', '', $token);
+            $type = NULL;
+            if ($source === 'RECORD') {
+                if (!in_array($path, array('id','productionDate','shiftCode','batchNo','lotNo'), TRUE)) { throw new Ppms_problem('INVALID_RECORD_BINDING'); }
+                $type = $path === 'productionDate' ? 'date' : 'text';
+            } elseif ($source === 'LITERAL') {
+                $this->render($binding->value ?? NULL, $binding->format ?? 'RAW');
+                if (isset($binding->dateOffsetDays) || isset($binding->dateOffsetMonths)) { $this->parseDate($binding->value ?? NULL); }
+            } elseif ($source === 'DATA') {
+                if (!isset($fields[$path]) || !$this->alignable($path, $output)) { throw new Ppms_problem('TRACE_BINDING_FIELD_NOT_DEFINED', 422, array('field' => $path)); }
+                $type = $fields[$path]->type;
+                if (in_array($type, array('table','repeatable','group','multiselect'), TRUE)) { throw new Ppms_problem('INVALID_TRACE_BINDING_TYPE'); }
+            } else { throw new Ppms_problem('INVALID_TRACE_BINDING'); }
+            if (isset($binding->format)) { $this->render('2026-01-01', $binding->format); }
+            if ($type !== NULL && (isset($binding->dateOffsetDays) || isset($binding->dateOffsetMonths) || in_array($binding->format ?? '', array('YYYYMMDD','DDMMYY','MMDDYY','DDMMMYY'), TRUE))
+                && !in_array($type, array('date','datetime'), TRUE)) { throw new Ppms_problem('TRACE_DATE_FIELD_REQUIRED', 422, array('field' => $path)); }
+        }
+    }
+    private function alignable($path, $output)
+    {
+        if (strpos($path, '[]') === FALSE) { return TRUE; }
+        $sourceParts = explode('[]', $path);
+        $outputParts = explode('[]', $output);
+        if (count($sourceParts) > count($outputParts)) { return FALSE; }
+        // Every repeated container must identify the same rows. Matching only
+        // the outer table silently couples unrelated nested tables by position.
+        for ($i = 0; $i < count($sourceParts) - 1; $i++) {
+            if ($sourceParts[$i] !== $outputParts[$i]) { return FALSE; }
+        }
+        return TRUE;
+    }
+    private function fieldDefinitions($fields, $prefix = '')
+    {
+        $result = array();
+        foreach ($fields as $field) {
+            $path = $prefix.$field->key;
+            $result[$path] = $field;
+            if (isset($field->fields)) { $result += $this->fieldDefinitions($field->fields, $path.($field->type === 'group' ? '.' : '[].')); }
+        }
+        return $result;
+    }
+    private function sequence($rule, $form, $date)
     {
         $period = array('NONE' => 'ALL', 'DAILY' => $date, 'MONTHLY' => substr($date, 0, 7), 'YEARLY' => substr($date, 0, 4))[$rule['resetPeriod']];
-        $this->store->execute('INSERT IGNORE INTO CodeSequence (id,codeRuleId,periodKey,currentValue,updatedAt) VALUES (?,?,?,0,UTC_TIMESTAMP(3))', array(Ppms_values::id(), $rule['id'], $period));
-        $row = $this->store->row('SELECT * FROM CodeSequence WHERE codeRuleId=? AND periodKey=? FOR UPDATE', array($rule['id'], $period));
-        $next = (int) $row['currentValue'] + 1;
-        $this->store->execute('UPDATE CodeSequence SET currentValue=?,updatedAt=UTC_TIMESTAMP(3) WHERE id=?', array($next, $row['id']));
+        $scope = $rule['configurationJson']->sequenceNamespace ?? $rule['outputKey'];
+        $namespace = hash('sha256', $form.'|'.$rule['outputKey'].'|'.$rule['resetPeriod'].'|'.$scope);
+        // The form lock serializes allocations across immutable rule versions.
+        // Existing version counters seed the stable namespace without changing history.
+        $legacy = (int) $this->store->row('SELECT COALESCE(MAX(c.currentValue),0) AS n FROM CodeSequence c
+            JOIN TraceCodeRule r ON r.id=c.codeRuleId JOIN PpmTemplateVersion t ON t.id=r.templateVersionId
+            WHERE t.ppmFormId=? AND r.outputKey=? AND r.resetPeriod=? AND c.periodKey=?',
+            array($form, $rule['outputKey'], $rule['resetPeriod'], $period))['n'];
+        $this->store->execute('INSERT IGNORE INTO PpmSequenceCounter (namespaceKey,periodKey,currentValue,updatedAt) VALUES (?,?,?,UTC_TIMESTAMP(3))', array($namespace, $period, $legacy));
+        $row = $this->store->row('SELECT currentValue FROM PpmSequenceCounter WHERE namespaceKey=? AND periodKey=? FOR UPDATE', array($namespace, $period));
+        $next = max((int) $row['currentValue'], $legacy) + 1;
+        if ($next > 9007199254740991) { throw new Ppms_problem('SEQUENCE_EXHAUSTED', 409); }
+        $this->store->execute('UPDATE PpmSequenceCounter SET currentValue=?,updatedAt=UTC_TIMESTAMP(3) WHERE namespaceKey=? AND periodKey=?', array($next, $namespace, $period));
         return $next;
     }
     private function parseDate($value)
