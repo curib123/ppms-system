@@ -448,13 +448,12 @@ export class FormRenderer {
         state.page = Math.floor((local[field.key].length - 1) / state.pageSize);
         draw();
         this.changed(path);
-        requestAnimationFrame(() =>
-          block
-            .querySelector(
-              "tbody tr:last-child input,tbody tr:last-child select",
-            )
-            ?.focus(),
-        );
+        // Keep focus within this trusted tap so mobile browsers may open their
+        // keyboard. The viewport handles scrolling separately after layout.
+        const firstEditable = [...body.lastElementChild.querySelectorAll("input,textarea,select")]
+          .find(control => !control.disabled && !control.readOnly &&
+            control.type !== "hidden" && control.getClientRects().length);
+        firstEditable?.focus({ preventScroll: true });
       },
       {
         small: true,

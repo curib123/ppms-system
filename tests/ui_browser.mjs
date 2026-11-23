@@ -526,6 +526,9 @@ try {
         ),
     "Fullscreen did not open",
   );
+  assert.equal(await mobile.evaluate(() => document.fullscreenElement), null,
+    "Personnel touch entry must keep browser keyboard activation available through app fullscreen");
+  assert.equal(await mobile.locator(".document-viewer.fallback-fullscreen").count(), 1);
   await pinch(mobile);
   const pinchedScale = await mobile.locator(".zoom-label").textContent();
   const description = mobile.locator(

@@ -67,6 +67,28 @@ Unmodified wheel input over an editable control remains native. Horizontal wheel
 input and Shift-wheel remain scrolling gestures. Zoom level is retained on
 fullscreen entry/exit; scrolling is constrained to the available document bounds.
 
+### Touch fullscreen and keyboard entry
+
+Touch-capable devices use the same dark fullscreen presentation inside the page,
+so the browser can keep native inputs and its on-screen keyboard available.
+Desktop devices retain native fullscreen when supported. Tapping a writable
+input, textarea or dropdown keeps the browser's normal focus action; navigation
+must not cancel a one-finger tap or move focus asynchronously.
+
+The touch fullscreen container follows `visualViewport` size and offsets when
+the keyboard changes the visible area. Its toolbar and scroller use a flexible
+layout, allowing even a bottom-row field to scroll above the keyboard. Viewport
+changes preserve document scale, entered values, focus and text selection. Only
+the scroll needed to reveal the active field changes. Adding a table row focuses
+its first visible writable control inside the Add row gesture, including a
+textarea, while scrolling is scheduled separately.
+
+Browser acceptance exercises native tap focus and typing, synchronous new-row
+focus, and a simulated keyboard-sized visual viewport without shrinking the
+layout viewport. It also keeps the existing desktop mouse and native/fullscreen
+fallback checks. Physical Android/iOS keyboard display remains a device check;
+headless browser automation does not display an operating-system keyboard.
+
 After changing brand tokens, run:
 
 ```sh
