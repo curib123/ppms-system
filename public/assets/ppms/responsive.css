@@ -599,6 +599,7 @@
     min-width: 50px;
   }
   input:not([type="checkbox"]), select, textarea,
+  .builder-section .section-name,
   .search-input .search-input-control,
   .searchable-select .searchable-select-input,
   .trace-search input,
