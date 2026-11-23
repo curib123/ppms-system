@@ -93,6 +93,36 @@ class MigrationIntegration(unittest.TestCase):
             sql("UPDATE PpmsSchemaMigration SET checksum='" + original + "' WHERE version='202610230001_offline_sync'")
         self.assertEqual(cli('setup', 'migrate').returncode, 0)
 
+    def test_07_legacy_cursors_migrate_once_and_forms_stay_independent(self):
+        user = sql('SELECT id FROM User LIMIT 1')
+        first = sql("SELECT id FROM PpmForm WHERE status='ACTIVE' ORDER BY id LIMIT 1")
+        second = sql("SELECT id FROM PpmForm WHERE status='ACTIVE' ORDER BY id LIMIT 1 OFFSET 1")
+        sql("INSERT INTO ClientDevice(id,userId,deviceUuid) VALUES ('migration-device','" + user + "','migration-device')")
+        sql("INSERT INTO PpmFormDeviceLease(ppmFormId,deviceId,leaseVersion,updatedAt) VALUES ('" + first + "','migration-device',1,UTC_TIMESTAMP(3))")
+        sql("INSERT INTO SyncPullCursor(deviceId,sourcePpmFormId,lastEventSequence,updatedAt) VALUES ('migration-device','" + first + "',17,UTC_TIMESTAMP(3))")
+        sql('DROP TABLE SyncFormPullCursor')
+        sql('ALTER TABLE PpmFormDeviceLease ADD UNIQUE INDEX uq_form_device(deviceId)')
+        sql("DELETE FROM PpmsSchemaMigration WHERE version='202611230005_multiple_form_devices'")
+        result = cli('setup', 'migrate')
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual(sql('SELECT lastEventSequence FROM SyncFormPullCursor'), '17')
+        self.assertEqual(sql('SELECT lastEventSequence FROM SyncPullCursor'), '17')
+        sql("INSERT INTO PpmFormDeviceLease(ppmFormId,deviceId,leaseVersion,updatedAt) VALUES ('" + second + "','migration-device',1,UTC_TIMESTAMP(3))")
+        sql("INSERT INTO SyncFormPullCursor(deviceId,ppmFormId,sourcePpmFormId,lastEventSequence,updatedAt) VALUES ('migration-device','" + second + "','" + first + "',0,UTC_TIMESTAMP(3))")
+        self.assertEqual(cli('setup', 'migrate').returncode, 0)
+        self.assertEqual(sql("SELECT lastEventSequence FROM SyncFormPullCursor WHERE ppmFormId='" + second + "'"), '0')
+
+    def test_08_checksum_failure_precedes_constraint_repair(self):
+        original = sql("SELECT checksum FROM PpmsSchemaMigration WHERE version='202610230001_offline_sync'")
+        sql('ALTER TABLE PpmTemplateVersion DROP INDEX uq_active_template_form')
+        sql("UPDATE PpmsSchemaMigration SET checksum=REPEAT('0',64) WHERE version='202610230001_offline_sync'")
+        try:
+            self.assertNotEqual(cli('setup', 'migrate').returncode, 0)
+            self.assertEqual(sql("SELECT COUNT(*) FROM information_schema.statistics WHERE table_schema=DATABASE() AND table_name='PpmTemplateVersion' AND index_name='uq_active_template_form'"), '0')
+        finally:
+            sql("UPDATE PpmsSchemaMigration SET checksum='" + original + "' WHERE version='202610230001_offline_sync'")
+        self.assertEqual(cli('setup', 'migrate').returncode, 0)
+
 
 if __name__ == '__main__':
     unittest.main(argv=[__file__] + TEST_ARGS, verbosity=2)
