@@ -46,6 +46,16 @@ def sql(statement, database=DATABASE):
     return rows[0][0] if rows else ''
 
 
+def lock_wait_count():
+    """MariaDB and MySQL 8 expose lock wait metadata in different schemas."""
+    for statement in ('SELECT COUNT(*) FROM information_schema.INNODB_LOCK_WAITS',
+                      'SELECT COUNT(*) FROM performance_schema.data_lock_waits'):
+        result = query(statement)
+        if result.returncode == 0:
+            return int(json.loads(result.stdout)[0][0])
+    raise AssertionError('Test database user cannot inspect InnoDB lock waits')
+
+
 def cli(*args, env=ENV):
     return subprocess.run(PHP + ['index.php', *args], cwd=ROOT, env=env,
                           text=True, capture_output=True, timeout=30)
@@ -129,7 +139,7 @@ class SetupIntegration(unittest.TestCase):
         try:
             with tempfile.TemporaryDirectory() as directory:
                 copy = Path(directory) / 'app'
-                shutil.copytree(ROOT, copy, ignore=shutil.ignore_patterns('.git', '*.log', '__pycache__', 'local.php'))
+                shutil.copytree(ROOT, copy, ignore=shutil.ignore_patterns('.git', '*.log', '__pycache__', 'local.php', 'node_modules', 'test-results', 'playwright-report'))
                 seed = copy / 'database/default_data.sql'
                 seed.write_text(seed.read_text() + '\nINSERT INTO `missing_table` VALUES (1);\n', encoding='utf-8')
                 manifest = copy / 'database/manifest.json'
@@ -167,10 +177,9 @@ class SetupIntegration(unittest.TestCase):
                 status, body = request('/', base)
                 self.assertEqual(status, 200)
                 self.assertIn('PPMS', body)
-                self.assertIn('Database connected' if healthy else 'Database setup needed', body)
-                if healthy:
-                    self.assertIn('PPM-001', body)
-                    self.assertEqual(body.count('<tr><td>'), 26)
+                self.assertIn('id="app"', body)
+                self.assertNotIn('PPM-001', body)
+                self.assertEqual(request('/register', base)[0], 404)
                 self.assertNotIn('must-not-be-disclosed', body)
                 for path in ['/setup/install', '/index.php/setup/install', '/application/config/local.php',
                              '/database/default_data.sql', '/system/core/CodeIgniter.php', '/.git/config']:

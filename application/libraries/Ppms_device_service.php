@@ -17,6 +17,7 @@ class Ppms_device_service
     public function register($actor, $input)
     {
         $uuid = Ppms_values::text($input, 'deviceUuid');
+        if (strpos($uuid, 'web-api:') === 0) { throw new Ppms_problem('RESERVED_DEVICE_IDENTIFIER'); }
         $name = Ppms_values::text($input, 'displayName');
         return $this->store->transaction(function () use ($actor, $uuid, $name) {
             $existing = $this->store->row('SELECT * FROM ClientDevice WHERE deviceUuid=? ORDER BY registeredAt LIMIT 1 FOR UPDATE', array($uuid));
@@ -33,10 +34,28 @@ class Ppms_device_service
             return array('id' => $id, 'deviceUuid' => $uuid, 'deviceToken' => $token);
         });
     }
+    public function listing($actor, $input = array())
+    {
+        $limit = min(100, max(1, (int) ($input['limit'] ?? 50)));
+        $where = 'd.id>? AND (d.platform IS NULL OR d.platform<>\'WEB_API\')';
+        $parameters = array((string) ($input['afterId'] ?? ''));
+        if ($actor['role'] !== 'ADMIN') { $where .= ' AND d.userId=?'; $parameters[] = $actor['id']; }
+        $parameters[] = $limit + 1;
+        $items = $this->store->rows('SELECT d.id,d.deviceUuid,d.displayName,d.userId,d.registeredAt,d.lastSeenAt,d.revokedAt
+            FROM ClientDevice d WHERE '.$where.' ORDER BY d.id LIMIT ?', $parameters);
+        $more = count($items) > $limit;
+        if ($more) { array_pop($items); }
+        foreach ($items as &$item) {
+            $item['leases'] = $this->store->rows('SELECT ppmFormId,leaseVersion,revokedAt AS leaseRevokedAt FROM PpmFormDeviceLease WHERE deviceId=? ORDER BY ppmFormId', array($item['id']));
+        }
+        unset($item);
+        return array('items' => $items, 'hasMore' => $more, 'nextAfterId' => $more ? end($items)['id'] : NULL);
+    }
     public function assignUser($actor, $form, $userId, $input)
     {
         $this->auth->admin($actor);
-        $values = array();
+        if (isset($input['isActive']) && !is_bool($input['isActive'])) { throw new Ppms_problem('PERMISSION_MUST_BE_BOOLEAN'); }
+        $values = array('isActive' => (int) ($input['isActive'] ?? TRUE));
         foreach (array('canView', 'canCreate', 'canEdit', 'canPublish') as $key) {
             if (isset($input[$key]) && !is_bool($input[$key])) { throw new Ppms_problem('PERMISSION_MUST_BE_BOOLEAN'); }
             $values[$key] = (int) ($input[$key] ?? FALSE);
@@ -45,8 +64,8 @@ class Ppms_device_service
             $this->store->lockForm($form);
             $this->auth->user($userId);
             $this->store->execute('INSERT INTO PersonnelPpmAssignment (id,userId,ppmFormId,isActive,canView,canCreate,canEdit,canPublish,updatedAt)
-                VALUES (?,?,?,1,?,?,?,?,UTC_TIMESTAMP(3)) ON DUPLICATE KEY UPDATE isActive=1,canView=VALUES(canView),canCreate=VALUES(canCreate),canEdit=VALUES(canEdit),canPublish=VALUES(canPublish),updatedAt=UTC_TIMESTAMP(3)',
-                array(Ppms_values::id(), $userId, $form, $values['canView'], $values['canCreate'], $values['canEdit'], $values['canPublish']));
+                VALUES (?,?,?,?,?,?,?,?,UTC_TIMESTAMP(3)) ON DUPLICATE KEY UPDATE isActive=VALUES(isActive),canView=VALUES(canView),canCreate=VALUES(canCreate),canEdit=VALUES(canEdit),canPublish=VALUES(canPublish),updatedAt=UTC_TIMESTAMP(3)',
+                array(Ppms_values::id(), $userId, $form, $values['isActive'], $values['canView'], $values['canCreate'], $values['canEdit'], $values['canPublish']));
             $this->store->audit($actor, 'PERMISSION_CHANGE', 'PersonnelPpmAssignment', $userId, $values, array('ppmFormId' => $form));
             return array('userId' => $userId, 'ppmFormId' => $form) + $values;
         });
@@ -56,29 +75,28 @@ class Ppms_device_service
         $this->auth->admin($actor);
         $deviceId = Ppms_values::text($input, 'deviceId');
         $expected = Ppms_values::integer($input, 'expectedLeaseVersion');
-        return $this->store->transaction(function () use ($actor, $form, $input, $deviceId, $expected) {
-            $this->store->lockForm($form);
-            $old = $this->store->row('SELECT * FROM PpmFormDeviceLease WHERE ppmFormId=? FOR UPDATE', array($form));
-            if (($old ? $old['leaseVersion'] : 0) !== $expected) { throw new Ppms_problem('LEASE_VERSION_CHANGED', 409); }
-            if ($old) {
-                if (($input['reconciled'] ?? FALSE) !== TRUE) { throw new Ppms_problem('RECONCILIATION_REQUIRED', 409); }
-                Ppms_values::text($input, 'reason', 2000);
-                if ($this->store->row("SELECT id FROM SyncDailyBatch WHERE ppmFormId=? AND status='PUSHING' LIMIT 1", array($form))) {
-                    throw new Ppms_problem('SYNC_BATCH_IN_PROGRESS', 409);
+        return $this->deviceLocks(array($deviceId), function () use ($actor, $form, $input, $deviceId, $expected) {
+            return $this->store->transaction(function () use ($actor, $form, $input, $deviceId, $expected) {
+                $this->store->lockForm($form);
+                $old = $this->store->row('SELECT * FROM PpmFormDeviceLease WHERE ppmFormId=? AND deviceId=? FOR UPDATE', array($form, $deviceId));
+                if (($old ? $old['leaseVersion'] : 0) !== $expected) { throw new Ppms_problem('LEASE_VERSION_CHANGED', 409); }
+                if ($old) {
+                    if (($input['reconciled'] ?? FALSE) !== TRUE) { throw new Ppms_problem('RECONCILIATION_REQUIRED', 409); }
+                    Ppms_values::text($input, 'reason', 2000);
+                    if ($this->store->row("SELECT id FROM SyncDailyBatch WHERE ppmFormId=? AND deviceId=? AND status='PUSHING' LIMIT 1", array($form, $deviceId))) {
+                        throw new Ppms_problem('SYNC_BATCH_IN_PROGRESS', 409);
+                    }
                 }
-            }
-            $device = $this->store->row('SELECT id FROM ClientDevice WHERE id=? AND revokedAt IS NULL FOR UPDATE', array($deviceId));
-            if (!$device) { throw new Ppms_problem('DEVICE_UNAVAILABLE', 403); }
-            if ($this->store->row('SELECT ppmFormId FROM PpmFormDeviceLease WHERE deviceId=? AND ppmFormId<>?', array($deviceId, $form))) {
-                throw new Ppms_problem('DEVICE_ASSIGNED_TO_ANOTHER_FORM', 409);
-            }
-            $version = $expected + 1;
-            $this->store->execute('INSERT INTO PpmFormDeviceLease (ppmFormId,deviceId,leaseVersion,updatedAt)
-                VALUES (?,?,?,UTC_TIMESTAMP(3)) ON DUPLICATE KEY UPDATE deviceId=VALUES(deviceId),leaseVersion=VALUES(leaseVersion),revokedAt=NULL,assignedAt=UTC_TIMESTAMP(3),updatedAt=UTC_TIMESTAMP(3)', array($form, $deviceId, $version));
-            $this->store->execute('DELETE FROM SyncPullCursor WHERE deviceId=?', array($deviceId));
-            $this->store->audit($actor, 'CONFIG_CHANGE', 'PpmFormDeviceLease', $form,
-                array('deviceId' => $deviceId, 'leaseVersion' => $version, 'reason' => $input['reason'] ?? 'Initial assignment'), array('ppmFormId' => $form, 'deviceId' => $deviceId));
-            return array('ppmFormId' => $form, 'deviceId' => $deviceId, 'leaseVersion' => $version);
+                $device = $this->store->row('SELECT id FROM ClientDevice WHERE id=? AND revokedAt IS NULL FOR UPDATE', array($deviceId));
+                if (!$device) { throw new Ppms_problem('DEVICE_UNAVAILABLE', 403); }
+                $version = $expected + 1;
+                $this->store->execute('INSERT INTO PpmFormDeviceLease (ppmFormId,deviceId,leaseVersion,updatedAt)
+                    VALUES (?,?,?,UTC_TIMESTAMP(3)) ON DUPLICATE KEY UPDATE deviceId=VALUES(deviceId),leaseVersion=VALUES(leaseVersion),revokedAt=NULL,assignedAt=UTC_TIMESTAMP(3),updatedAt=UTC_TIMESTAMP(3)', array($form, $deviceId, $version));
+                $this->store->execute('DELETE FROM SyncFormPullCursor WHERE deviceId=? AND ppmFormId=?', array($deviceId, $form));
+                $this->store->audit($actor, 'CONFIG_CHANGE', 'PpmFormDeviceLease', $form,
+                    array('deviceId' => $deviceId, 'leaseVersion' => $version, 'reason' => $input['reason'] ?? 'Initial assignment'), array('ppmFormId' => $form, 'deviceId' => $deviceId));
+                return array('ppmFormId' => $form, 'deviceId' => $deviceId, 'leaseVersion' => $version);
+            });
         });
     }
     public function lease($form, $deviceId, $version)
@@ -99,16 +117,20 @@ class Ppms_device_service
     {
         $this->auth->admin($actor);
         $reason = Ppms_values::text($input, 'reason', 2000);
-        $initial = $this->store->row('SELECT ppmFormId FROM PpmFormDeviceLease WHERE deviceId=?', array($deviceId));
-        return $this->store->transaction(function () use ($actor, $deviceId, $reason, $initial) {
-            if ($initial) { $this->store->lockForm($initial['ppmFormId']); }
-            if (!$this->store->row('SELECT id FROM ClientDevice WHERE id=? AND revokedAt IS NULL FOR UPDATE', array($deviceId))) { throw new Ppms_problem('DEVICE_UNAVAILABLE', 403); }
-            $token = bin2hex(random_bytes(32));
-            $this->store->execute('INSERT INTO ClientDeviceCredential (deviceId,tokenHash,updatedAt) VALUES (?,?,UTC_TIMESTAMP(3))
-                ON DUPLICATE KEY UPDATE tokenHash=VALUES(tokenHash),updatedAt=UTC_TIMESTAMP(3)', array($deviceId, hash('sha256', $token)));
-            $this->store->execute('UPDATE PpmFormDeviceLease SET leaseVersion=leaseVersion+1,updatedAt=UTC_TIMESTAMP(3) WHERE deviceId=?', array($deviceId));
-            $this->store->audit($actor, 'CONFIG_CHANGE', 'ClientDeviceCredential', $deviceId, array('reason' => $reason), array('deviceId' => $deviceId, 'ppmFormId' => $initial['ppmFormId'] ?? NULL));
-            return array('id' => $deviceId, 'deviceToken' => $token);
+        return $this->deviceLocks(array($deviceId), function () use ($actor, $deviceId, $reason) {
+            return $this->store->transaction(function () use ($actor, $deviceId, $reason) {
+                $leases = $this->store->rows('SELECT ppmFormId FROM PpmFormDeviceLease WHERE deviceId=? ORDER BY ppmFormId', array($deviceId));
+                foreach ($leases as $lease) { $this->store->lockForm($lease['ppmFormId']); }
+                if (!$this->store->row('SELECT id FROM ClientDevice WHERE id=? AND revokedAt IS NULL FOR UPDATE', array($deviceId))) { throw new Ppms_problem('DEVICE_UNAVAILABLE', 403); }
+                $token = bin2hex(random_bytes(32));
+                $this->store->execute('INSERT INTO ClientDeviceCredential (deviceId,tokenHash,updatedAt) VALUES (?,?,UTC_TIMESTAMP(3))
+                    ON DUPLICATE KEY UPDATE tokenHash=VALUES(tokenHash),updatedAt=UTC_TIMESTAMP(3)', array($deviceId, hash('sha256', $token)));
+                $this->store->execute('UPDATE PpmFormDeviceLease SET leaseVersion=leaseVersion+1,updatedAt=UTC_TIMESTAMP(3) WHERE deviceId=?', array($deviceId));
+                $this->store->audit($actor, 'CONFIG_CHANGE', 'ClientDeviceCredential', $deviceId,
+                    array('reason' => $reason, 'forms' => array_column($leases, 'ppmFormId')), array('deviceId' => $deviceId));
+                $leases = $this->store->rows('SELECT ppmFormId,leaseVersion FROM PpmFormDeviceLease WHERE deviceId=? ORDER BY ppmFormId', array($deviceId));
+                return array('id' => $deviceId, 'deviceToken' => $token, 'lease' => $leases[0] ?? NULL, 'leases' => $leases);
+            });
         });
     }
     public function grant($actor, $input)
@@ -123,10 +145,11 @@ class Ppms_device_service
             if ($this->store->setting('offline.enabled', TRUE) !== TRUE) { throw new Ppms_problem('OFFLINE_ACCESS_DISABLED', 403); }
             $hours = max(1, min(168, (int) $this->store->setting('offline.maxAccessHours', 24)));
             $claims = array('kind' => 'author', 'userId' => $actor['id'], 'ppmFormId' => $form, 'deviceId' => $device,
-                'leaseVersion' => $version, 'issuedAt' => time(), 'expiresAt' => time() + $hours * 3600);
+                'leaseVersion' => $version, 'authVersion' => (int) ($actor['authVersion'] ?? 1), 'issuedAt' => time(), 'expiresAt' => time() + $hours * 3600);
             $proof = $this->sign($claims);
             $this->store->execute('UPDATE ClientDevice SET offlineAccessIssuedAt=UTC_TIMESTAMP(3),offlineAccessExpiresAt=?,lastSeenAt=UTC_TIMESTAMP(3) WHERE id=?', array(gmdate('Y-m-d H:i:s', $claims['expiresAt']), $device));
-            return $claims + array('authorProof' => $proof);
+            return $claims + array('authorProof' => $proof,
+                'maxBatchSize' => max(1, min(500, (int) $this->store->setting('sync.batchSize', 50))));
         });
     }
     public function author($uploader, $mutation, $form, $device, $version)
@@ -141,22 +164,46 @@ class Ppms_device_service
         } elseif ($id !== $uploader['id']) {
             throw new Ppms_problem('AUTHOR_PROOF_REQUIRED', 403);
         }
-        return $this->auth->user($id);
+        $user = $this->auth->user($id);
+        if (isset($claims) && (int) ($claims['authVersion'] ?? 1) !== (int) ($user['authVersion'] ?? 1)) {
+            throw new Ppms_problem('AUTHOR_ACCESS_REVOKED', 403);
+        }
+        return $user;
     }
     public function revoke($actor, $id, $input)
     {
         $this->auth->admin($actor);
         $reason = Ppms_values::text($input, 'reason', 2000);
-        $initial = $this->store->row('SELECT ppmFormId FROM PpmFormDeviceLease WHERE deviceId=?', array($id));
-        return $this->store->transaction(function () use ($actor, $id, $initial, $reason) {
-            if ($initial) { $this->store->lockForm($initial['ppmFormId']); }
-            $device = $this->store->row('SELECT id FROM ClientDevice WHERE id=? FOR UPDATE', array($id));
-            if (!$device) { throw new Ppms_problem('DEVICE_NOT_FOUND', 404); }
-            $this->store->execute('UPDATE ClientDevice SET revokedAt=UTC_TIMESTAMP(3),offlineAccessExpiresAt=UTC_TIMESTAMP(3) WHERE id=?', array($id));
-            $this->store->execute('UPDATE PpmFormDeviceLease SET revokedAt=UTC_TIMESTAMP(3),leaseVersion=leaseVersion+1,updatedAt=UTC_TIMESTAMP(3) WHERE deviceId=? AND revokedAt IS NULL', array($id));
-            $this->store->audit($actor, 'DEVICE_REVOKED', 'ClientDevice', $id, array('reason' => $reason), array('deviceId' => $id, 'ppmFormId' => $initial['ppmFormId'] ?? NULL));
-            return array('id' => $id, 'status' => 'REVOKED');
+        return $this->deviceLocks(array($id), function () use ($actor, $id, $reason) {
+            return $this->store->transaction(function () use ($actor, $id, $reason) {
+                $leases = $this->store->rows('SELECT ppmFormId FROM PpmFormDeviceLease WHERE deviceId=? ORDER BY ppmFormId', array($id));
+                foreach ($leases as $lease) { $this->store->lockForm($lease['ppmFormId']); }
+                $device = $this->store->row('SELECT id FROM ClientDevice WHERE id=? FOR UPDATE', array($id));
+                if (!$device) { throw new Ppms_problem('DEVICE_NOT_FOUND', 404); }
+                $this->store->execute('UPDATE ClientDevice SET revokedAt=UTC_TIMESTAMP(3),offlineAccessExpiresAt=UTC_TIMESTAMP(3) WHERE id=?', array($id));
+                $this->store->execute('UPDATE PpmFormDeviceLease SET revokedAt=UTC_TIMESTAMP(3),leaseVersion=leaseVersion+1,updatedAt=UTC_TIMESTAMP(3) WHERE deviceId=? AND revokedAt IS NULL', array($id));
+                $this->store->audit($actor, 'DEVICE_REVOKED', 'ClientDevice', $id,
+                    array('reason' => $reason, 'forms' => array_column($leases, 'ppmFormId')), array('deviceId' => $id));
+                return array('id' => $id, 'status' => 'REVOKED');
+            });
         });
+    }
+    /** Device locks precede sorted form locks, so assignment cannot race credential rotation/revocation. */
+    private function deviceLocks($devices, callable $work)
+    {
+        $devices = array_unique($devices); sort($devices, SORT_STRING); $locks = array();
+        try {
+            foreach ($devices as $id) {
+                $lock = 'ppms-device-'.substr(hash('sha256', $id), 0, 40);
+                if ((int) $this->store->row('SELECT GET_LOCK(?,10) AS acquired', array($lock))['acquired'] !== 1) {
+                    throw new Ppms_problem('DEVICE_CONFIGURATION_BUSY', 409);
+                }
+                $locks[] = $lock;
+            }
+            return $work();
+        } finally {
+            foreach (array_reverse($locks) as $lock) { $this->store->row('SELECT RELEASE_LOCK(?) AS released', array($lock)); }
+        }
     }
     public function sign($claims)
     {
@@ -167,7 +214,7 @@ class Ppms_device_service
     }
     public function verify($token, $kind)
     {
-        if (!is_string($token) || strlen($token) > 4096) { throw new Ppms_problem('INVALID_PROOF', 403); }
+        if (!is_string($token) || strlen($token) > ($kind === 'bootstrap' ? 65536 : 4096)) { throw new Ppms_problem('INVALID_PROOF', 403); }
         $parts = explode('.', $token);
         $key = ppms_config('APP_ENCRYPTION_KEY');
         if (strlen($key) < 32 || count($parts) !== 2 || !hash_equals(hash_hmac('sha256', $parts[0], $key), $parts[1])) {

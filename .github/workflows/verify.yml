@@ -1,0 +1,100 @@
+name: PPMS verification
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: ppms-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - php: '8.3'
+            database: mariadb:10.11
+            health: 'mariadb-admin ping -pci-test-only'
+          - php: '8.4'
+            database: mariadb:11.8
+            health: 'mariadb-admin ping -pci-test-only'
+          - php: '8.4'
+            database: mysql:8.4
+            health: 'mysqladmin ping -pci-test-only'
+    services:
+      database:
+        image: ${{ matrix.database }}
+        env:
+          MYSQL_ROOT_PASSWORD: ci-test-only
+          MYSQL_ROOT_HOST: '%'
+          MARIADB_ROOT_PASSWORD: ci-test-only
+          MARIADB_ROOT_HOST: '%'
+        ports: ['127.0.0.1:3306:3306']
+        options: >-
+          --health-cmd="${{ matrix.health }}"
+          --health-interval=5s --health-timeout=5s --health-retries=20
+    env:
+      DB_HOST: 127.0.0.1
+      DB_PORT: 3306
+      DB_USERNAME: root
+      DB_PASSWORD: ci-test-only
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: mysqli, mbstring, ctype
+          coverage: none
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: python tests/run_all.py
+  browser-and-restore:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      database:
+        image: mariadb:11.8
+        env:
+          MARIADB_ROOT_PASSWORD: ci-test-only
+          MARIADB_ROOT_HOST: '%'
+        ports: ['127.0.0.1:3306:3306']
+        options: >-
+          --health-cmd="mariadb-admin ping -pci-test-only"
+          --health-interval=5s --health-timeout=5s --health-retries=20
+    env:
+      DB_HOST: 127.0.0.1
+      DB_PORT: 3306
+      DB_USERNAME: root
+      DB_PASSWORD: ci-test-only
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: mysqli, mbstring, ctype
+          coverage: none
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: npx playwright install --with-deps chromium
+      - run: sudo apt-get update && sudo apt-get install -y mariadb-client
+      - run: node tests/offline_client.mjs
+      - run: python tests/ui_integration.py
+      - run: python tests/operations.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ppms-browser-evidence
+          path: test-results/
+          if-no-files-found: ignore
+          retention-days: 7

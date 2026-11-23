@@ -11,7 +11,7 @@ from concurrent.futures import ThreadPoolExecutor
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
-from integration import DATABASE, ENV, PHP, ROOT, cli, query, sql
+from integration import DATABASE, ENV, PHP, ROOT, TEST_ARGS, cli, query, sql, lock_wait_count
 
 
 class PpmApiIntegration(unittest.TestCase):
@@ -108,7 +108,9 @@ class PpmApiIntegration(unittest.TestCase):
             setattr(type(self), user + '_proof', grant['authorProof'])
             self.assertEqual(grant['userId'], 'test-' + user)
         self.api('POST', '/sync/grants', {'deviceId': self.device, 'ppmFormId': self.form, 'leaseVersion': 1}, user='outsider', expected=403)
-        self.api('PUT', '/forms/' + self.other_form + '/lease', {'deviceId': self.device, 'expectedLeaseVersion': 0}, expected=409)
+        second_form = self.forms['PPM-003']['id']
+        self.assertEqual(self.api('PUT', '/forms/' + second_form + '/lease',
+                         {'deviceId': self.device, 'expectedLeaseVersion': 0})['leaseVersion'], 1)
         self.api('PUT', '/forms/' + self.form + '/access/test-outsider', {'canView': True}, user='alice', expected=403)
 
     def test_03_dynamic_templates_publish_immutably(self):
@@ -199,9 +201,9 @@ class PpmApiIntegration(unittest.TestCase):
         submitted = self.batch([self.mutation('QUEUE_SUBMIT', 'record-b', user='bob', base=2)])
         self.assertEqual(submitted['results'][0]['status'], 'APPLIED')
         self.assertEqual(self.api('GET', '/records/record-b', user='bob')['record']['status'], 'SUBMITTED')
-        forbidden = self.batch([self.mutation('UPDATE_DRAFT', 'record-b', user='bob', base=3,
-                                            data={'supplier': 'Overwrite submitted'})])
-        self.assertEqual(forbidden['results'][0]['error'], 'RECORD_NOT_EDITABLE')
+        edited = self.batch([self.mutation('UPDATE_DRAFT', 'record-b', user='bob', base=3,
+                                         data={'supplier': 'Reviewed record remains editable'})])
+        self.assertEqual(edited['results'][0]['status'], 'APPLIED')
         self.assertEqual(sql("SELECT COUNT(*) FROM WorkflowEvent WHERE recordId='record-b'"), '1')
 
     def test_07_conflict_resolution_is_explicit_and_revision_checked(self):
@@ -244,7 +246,7 @@ class PpmApiIntegration(unittest.TestCase):
         self.assertEqual(published['outputs'][0]['outputCode'], 'LOT-20261023-001')
         type(self).output = published['outputs'][0]
         self.assertEqual(self.api('POST', '/records/source-lot/publish', body), published)
-        self.assertEqual(sql('SELECT currentValue FROM CodeSequence LIMIT 1'), '1')
+        self.assertEqual(sql('SELECT currentValue FROM PpmSequenceCounter LIMIT 1'), '1')
         self.api('PUT', '/templates/' + draft['id'] + '/rules', {'rules': []}, expected=409)
 
     def downstream_batch(self, mutations):
@@ -308,7 +310,7 @@ class PpmApiIntegration(unittest.TestCase):
         self.assertGreater(int(pull['nextSequence']), 0)
         self.assertTrue(all(row['eventType'].startswith('TRACE_OUTPUT_') for row in pull['events']))
         self.assertIn('TRACE_OUTPUT_RETIRED', [row['eventType'] for row in pull['events']])
-        self.assertEqual(sql('SELECT COUNT(*) FROM SyncPullCursor'), '0')
+        self.assertEqual(sql('SELECT COUNT(*) FROM SyncFormPullCursor'), '0')
         self.api('POST', '/sync/ack', dict(context, cursorToken=pull['cursorToken'] + 'x'), user='bob', expected=403)
         acknowledged = self.api('POST', '/sync/ack', dict(context, cursorToken=pull['cursorToken']), user='bob')
         self.assertEqual(acknowledged['lastEventSequence'], pull['nextSequence'])
@@ -318,9 +320,9 @@ class PpmApiIntegration(unittest.TestCase):
         shared = self.api('POST', '/sync/pull', dict(context, sourcePpmFormId=self.form), user='alice')
         self.assertEqual(shared['nextSequence'], pull['nextSequence'])
         self.assertEqual(shared['events'], [])
-        self.assertEqual(sql('SELECT COUNT(*) FROM SyncPullCursor'), '1')
+        self.assertEqual(sql('SELECT COUNT(*) FROM SyncFormPullCursor'), '1')
 
-    def test_12_approval_gate_and_downstream_revalidation(self):
+    def test_12_reference_review_and_downstream_revalidation(self):
         submitted = self.batch([self.mutation('QUEUE_SUBMIT', 'source-lot', base=3)])
         self.assertEqual(submitted['results'][0]['revisionNo'], 4)
         published = self.api('POST', '/records/source-lot/publish', {'deviceId': self.device, 'leaseVersion': 1, 'baseRevisionNo': 4})
@@ -333,13 +335,12 @@ class PpmApiIntegration(unittest.TestCase):
                   'baseRevisionNo': 1, 'userId': 'test-bob', 'authorProof': self.downstream_proof,
                   'dataJson': {'sourceLot': output['outputCode']},
                   'traceSelections': [{'connectionId': self.connection, 'sourceTraceOutputId': output['id'], 'inputPath': 'sourceLot'}]}
-        self.assertEqual(self.downstream_batch([change])['results'][0]['error'], 'TRACE_OUTPUT_INELIGIBLE')
+        self.assertEqual(self.downstream_batch([change])['results'][0]['revisionNo'], 2)
         review = {'deviceId': self.device, 'leaseVersion': 1, 'baseRevisionNo': 4, 'action': 'APPROVE', 'reason': 'FSQA checked source'}
         self.api('POST', '/records/source-lot/review', review, user='alice', expected=403)
         approved = self.api('POST', '/records/source-lot/review', review)
-        self.assertEqual(approved['record']['status'], 'FSQA_APPROVED')
-        change['clientMutationId'] = secrets.token_hex(16)
-        self.assertEqual(self.downstream_batch([change])['results'][0]['revisionNo'], 2)
+        self.assertEqual(approved['record']['status'], 'SUBMITTED')
+        self.assertEqual(approved['reviewReference']['status'], 'APPROVED')
         impacts = self.api('GET', '/forms/' + self.other_form + '/revalidations', user='bob')['items']
         self.assertEqual(len(impacts), 1)
         item = impacts[0]['id']
@@ -351,7 +352,7 @@ class PpmApiIntegration(unittest.TestCase):
         self.api('POST', '/revalidations/items/' + item + '/resolve', dict(context, notes='Overwrite prior disposition'), expected=409)
         self.assertEqual(sql('SELECT status FROM TraceRevalidation LIMIT 1'), 'RESOLVED')
         self.assertEqual(sql('SELECT COUNT(*) FROM PpmTraceLink'), '2')
-        self.assertEqual(sql("SELECT currentRevisionNo FROM PpmRecord WHERE id='source-lot'"), '5')
+        self.assertEqual(sql("SELECT currentRevisionNo FROM PpmRecord WHERE id='source-lot'"), '4')
 
     def test_13_concurrent_publication_reads_after_the_form_lock(self):
         draft = self.api('POST', '/forms/' + self.form + '/templates', {'definitionJson': self.definition})
@@ -384,7 +385,7 @@ class PpmApiIntegration(unittest.TestCase):
                 futures = [pool.submit(publish, base) for base in (self.base, 'http://127.0.0.1:' + str(port) + '/api/v1')]
                 deadline = time.monotonic() + 8
                 while time.monotonic() < deadline:
-                    if int(sql('SELECT COUNT(*) FROM information_schema.INNODB_LOCK_WAITS')) >= 2:
+                    if lock_wait_count() >= 2:
                         break
                     time.sleep(0.05)
                 lock.communicate('\n', timeout=5)
@@ -397,9 +398,9 @@ class PpmApiIntegration(unittest.TestCase):
             second.terminate()
             second.wait(timeout=5)
 
-    def test_14_new_records_reject_stale_templates_and_authorship_spoofing(self):
+    def test_14_offline_records_keep_published_templates_and_reject_authorship_spoofing(self):
         old = self.mutation('CREATE_DRAFT', 'stale-template', data={})
-        self.assertEqual(self.batch([old])['results'][0]['error'], 'TEMPLATE_STALE_OR_UNPUBLISHED')
+        self.assertEqual(self.batch([old])['results'][0]['status'], 'APPLIED')
         # Existing records still use their exact historical definition.
         edit = self.mutation('UPDATE_DRAFT', 'record-a', base=3,
                              data={'supplier': 'Pinned', 'temperature': 70, 'accepted': False})
@@ -418,6 +419,8 @@ class PpmApiIntegration(unittest.TestCase):
         area = sql('SELECT id FROM ProductionArea LIMIT 1')
         created = self.api('POST', '/forms', {'ppmCode': 'TEST-PPM-027', 'title': 'Configured inspection', 'areaId': area})
         type(self).configured_form = created['id']
+        # A fixed business-date fixture needs a fixed effective assignment period.
+        sql("UPDATE AreaPpmAssignment SET effectiveFrom='2026-01-01' WHERE ppmFormId='" + created['id'] + "'")
         self.assertEqual(created['ppmCode'], 'TEST-PPM-027')
         self.api('POST', '/forms', {'ppmCode': 'TEST-PPM-027', 'title': 'Duplicate', 'areaId': area}, expected=409)
         self.api('POST', '/forms', {'ppmCode': 'TEST-PPM-028', 'title': 'Forbidden', 'areaId': area}, user='bob', expected=403)
@@ -517,8 +520,9 @@ class PpmApiIntegration(unittest.TestCase):
         del create_c['authorProof']
         submit_c = dict(submit_b, clientMutationId=secrets.token_hex(16), recordId='chain-c', userId='test-admin')
         del submit_c['authorProof']
-        self.api('POST', '/sync/batches', {'id': secrets.token_hex(16), 'ppmFormId': form_c, 'deviceId': self.configured_device,
+        result_c = self.api('POST', '/sync/batches', {'id': secrets.token_hex(16), 'ppmFormId': form_c, 'deviceId': self.configured_device,
                  'leaseVersion': 1, 'mutations': [create_c, submit_c]})
+        self.assertEqual(result_c['acceptedCount'], 2, result_c)
         output_c = self.api('POST', '/records/chain-c/publish', {'deviceId': self.configured_device, 'leaseVersion': 1, 'baseRevisionNo': 2})['outputs'][0]
         self.api('POST', '/records/source-lot/corrections', {'deviceId': self.device, 'leaseVersion': 1,
                  'baseRevisionNo': source['currentRevisionNo'], 'reason': 'Critical upstream correction',
@@ -574,7 +578,7 @@ class PpmApiIntegration(unittest.TestCase):
                            pool.submit(push, 'http://127.0.0.1:' + str(port) + '/api/v1', body_b)]
                 deadline = time.monotonic() + 8
                 while time.monotonic() < deadline:
-                    if int(sql('SELECT COUNT(*) FROM information_schema.INNODB_LOCK_WAITS')) >= 1:
+                    if lock_wait_count() >= 1:
                         break
                     time.sleep(0.05)
                 lock.communicate('\n', timeout=5)
@@ -588,21 +592,22 @@ class PpmApiIntegration(unittest.TestCase):
             second.terminate()
             second.wait(timeout=5)
 
-    def test_20_revocation_and_reconciled_device_transfer(self):
+    def test_20_revocation_is_scoped_to_the_selected_device(self):
         edit = self.mutation('UPDATE_DRAFT', 'record-a', base=4, data={})
         self.api('PUT', '/forms/' + self.form + '/access/test-alice', {'canView': True})
         self.assertEqual(self.batch([edit])['results'][0]['error'], 'FORM_PERMISSION_DENIED')
         replacement = self.api('POST', '/devices', {'deviceUuid': 'test-replacement', 'displayName': 'Replacement'})
         self.api('PUT', '/forms/' + self.form + '/lease', {'deviceId': replacement['id'], 'expectedLeaseVersion': 1}, expected=409)
-        lease = self.api('PUT', '/forms/' + self.form + '/lease', {'deviceId': replacement['id'], 'expectedLeaseVersion': 1,
-                        'reconciled': True, 'reason': 'All pending local changes reconciled'})
-        self.assertEqual(lease['leaseVersion'], 2)
-        self.batch([edit], expected=403)
+        lease = self.api('PUT', '/forms/' + self.form + '/lease', {'deviceId': replacement['id'], 'expectedLeaseVersion': 0,
+                        'reason': 'Authorize another personnel device'})
+        self.assertEqual(lease['leaseVersion'], 1)
+        # The new device has a separate membership; it does not revoke the old one.
+        self.api('POST', '/sync/grants', {'ppmFormId': self.form, 'deviceId': self.device, 'leaseVersion': 1}, user='alice')
         self.api('POST', '/devices/' + replacement['id'] + '/revoke', {'reason': 'Device retired'})
-        self.api('POST', '/sync/grants', {'ppmFormId': self.form, 'deviceId': replacement['id'], 'leaseVersion': 2}, user='bob', expected=403)
+        self.api('POST', '/sync/grants', {'ppmFormId': self.form, 'deviceId': replacement['id'], 'leaseVersion': 1}, user='bob', expected=403)
         self.api('POST', '/auth/logout', {}, user='bob')
         self.api('GET', '/me', user='bob', expected=401)
 
 
 if __name__ == '__main__':
-    unittest.main(verbosity=2)
+    unittest.main(argv=[__file__] + TEST_ARGS, verbosity=2)

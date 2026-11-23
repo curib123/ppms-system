@@ -1,346 +1,245 @@
-# Dynamic PPM and offline synchronization API
+# PPMS REST API v1
 
-This is the CodeIgniter 3 / native MySQLi backend for the two root plans. All
-paths below start with `/api/v1`. Responses are JSON with `Cache-Control:
-no-store`. Successful requests return HTTP 200; rejected requests return
-`{"error":"ERROR_CODE","details":{}}` with the appropriate HTTP status.
-Batch responses contain an outcome for each mutation, including failed ones.
+The personnel PWA (`/mobile`) and administration application (`/admin`, also `/`)
+use the same `/api/v1` API. PHP services own permissions, schema validation,
+calculations, record revisions, trace provenance and review decisions. Neither
+client has a second business-rule implementation that can authorize a write.
+Client calculations are immediate previews; the server recomputes persisted totals.
 
-## Install or upgrade
+## Setup and transport
 
-For a fresh database, run `php index.php setup install`, then
-`php index.php setup verify`. For both fresh and existing converted databases:
+Run `setup install` only against a new empty database, then `setup migrate`.
+For an existing converted database, pause writes and run only `setup migrate`.
+The original first migration remains sealed; the upgrade wrapper repairs the
+active-template constraint before invoking it. Later migrations add reference
+reviews, stable sequences, recovery manifests, account grant versions and
+form-scoped pull cursors without replacing baseline data.
 
-```powershell
-php index.php setup migrate
-```
+All write bodies are JSON objects with `Content-Type: application/json`. Requests
+are bounded to 2 MiB before the application reads the complete body. Configure the
+same or a lower limit at the reverse proxy. API responses are `no-store` JSON and
+include `X-Request-ID`. Failures use `{error, details}`; unexpected failures expose
+`SERVICE_UNAVAILABLE` with a correlation ID, never SQL or credentials.
 
-The baseline remains 28 original application tables and 182 original default
-rows, including the 26 forms. Upgrades add six runtime tables (34 total),
-operation flags on `PersonnelPpmAssignment`, receipt/audit context and a unique
-active-template constraint. They do not seed users or production data.
+`POST /auth/login` takes `{username,password}` and returns `{token,expiresAt,user}`.
+Send `Authorization: Bearer <token>` thereafter. Username identity is case-sensitive.
+Sessions have a 12-hour maximum and 30-minute sliding inactivity expiry. Passwords
+are 12–72 bytes; account creation is available through the CLI bootstrap or an
+administrator. Bearer tokens stay in client memory, not localStorage or the service
+worker cache. Production requires HTTPS. `GET /ready` checks database, migration
+checksums, signing configuration and timezone; `/health` is only baseline liveness.
 
-Migration one replaces the unfinished user-owned writer design with
-`PpmFormDeviceLease`. If a legacy writer table exists, its leases are copied;
-the legacy table is preserved but unused. A compatibility upgrade adds missing
-service fields to experimental daily-batch tables without removing their rows.
-Old batches remain historical; send new work with fresh batch IDs.
-Version one's implementation is
-sealed because its checksum includes its PHP runner. Later SQL migrations use
-independent checksums through `Ppms_schema_upgrades`. MySQL DDL implicitly
-commits, so migration steps must be restartable. Web startup never migrates.
+## Endpoint map
 
-Set `APP_ENCRYPTION_KEY` to at least 32 random characters and
-`PLANT_TIMEZONE` to the plant's IANA timezone, default `Asia/Manila`. Environment
-variables override the ignored `application/config/local.php`.
+| Method and path | Purpose / input |
+|---|---|
+| `GET /me`, `POST /auth/logout` | Current user and logout |
+| `POST /auth/password` | `{currentPassword,newPassword}`; revokes sessions and outstanding author grants |
+| `GET /users` | Admin search and pagination: `q,page,limit` |
+| `POST /users` | Admin creates `{username,email,displayName,role,password}` |
+| `PATCH /users/{id}` | Admin edits name/email/role/accountStatus; cannot remove the last active admin |
+| `POST /users/{id}/reset-password` | Admin `{newPassword}`; revokes access |
+| `POST /users/{id}/revoke-sessions` | Admin revokes sessions and original-author grants |
+| `PUT /users/{id}/areas/{areaId}` | Admin reviewer-area assignment `{isActive}` |
+| `GET /forms`, `GET /areas` | Authorized forms, permissions, current assignments and active template; active areas |
+| `POST /forms` | Admin `{ppmCode,title,areaId}` |
+| `PATCH /forms/{id}` | Admin `{expectedUpdatedAt,title?,status?,description?,sortOrder?}` |
+| `GET /forms/{id}/assignments` | Current areas, personnel permissions and device memberships; admins see assignment history |
+| `PUT /forms/{id}/areas/{areaId}` | Create a non-overlapping assignment period `{effectiveFrom,effectiveTo?}` (dates) |
+| `PUT /forms/{id}/access/{userId}` | Admin `{canView,canCreate,canEdit,canPublish}` |
+| `GET /forms/{id}/templates` | Bounded `page,limit,summary=true`; default 10 / max 20; summary omits definitions |
+| `GET /templates/{id}` | Exact authorized historical/published template for a pinned record |
+| `POST /forms/{id}/templates` | Create draft `{definitionJson,...documentMetadata}` |
+| `PATCH /templates/{id}` | Draft-only change with `expectedDefinitionHash` |
+| `POST /templates/{id}/duplicate` | Create a new draft from a reusable version |
+| `POST /templates/{id}/publish` | Semantic validation then immutable publication |
+| `GET/PUT /templates/{id}/rules` | Read/replace trace rules, writes only while draft |
+| `GET/PUT /forms/{id}/connections` | Read/configure source relationships; max 64 active incoming connections |
+| `GET /forms/{id}/trace-inputs` | Bounded eligible source choices, connections and outputs |
+| `GET /records` | Authorized metadata search: `ppmFormId` (or `formId`), `q,status,reviewStatus,page,limit,includeDeleted`; follow `nextOffset` |
+| `GET /records/{id}` | Current record, pinned revision, current trace links, review reference and bounded history |
+| `GET /records/{id}/history` | Byte-bounded immutable revisions; follow `nextBeforeRevisionNo` |
+| `GET /records/{id}/conflicts` | Paginated conflicts including preserved local payloads, restricted to authorized form users |
+| `POST /records` | Online create, durable mutation receipt |
+| `PATCH /records/{id}` | Online edit with expected base revision |
+| `POST /records/{id}/submit` | Validate required fields and submit |
+| `DELETE /records/{id}` | Authorized audited tombstone; does not erase revisions/receipts |
+| `POST /records/{id}/resolve-conflict` | Explicit keep-server, apply-local-as-new or manual merge |
+| `POST /records/{id}/publish` | Publish configured trace outputs; `baseRevisionNo` required |
+| `POST /records/{id}/corrections` | Explicit correction with `baseRevisionNo,reason,dataJson,traceSelections?` |
+| `POST /records/{id}/review` | Simple versioned reference review, independent of editing |
+| `GET /forms/{id}/revalidations` | Bounded impacts; optional `recordId` filter |
+| `POST /revalidations/items/{id}/resolve` | Reviewer disposition with `baseRevisionNo,decision,notes` |
+| `GET /trace?q=...` | Authorized trace-code search |
+| `GET /trace/outputs/{id}/tree` | Bounded exact-provenance graph: `root,nodes,edges,truncated` |
+| `GET/POST /devices` | Monitor/register devices; registration returns its secret once |
+| `PUT /forms/{id}/lease` | Authorize a device membership for a form |
+| `POST /devices/{id}/credentials` | Audited admin rotation; advances all device form leases |
+| `POST /devices/{id}/revoke` | Audited device revocation |
+| `POST /sync/grants` | Original-author proof for current user/form/device/lease |
+| `POST /sync/batches` | Immutable idempotent offline batch |
+| `GET /sync/batches` | Admin bounded monitor |
+| `GET /sync/batches/{id}` | Owner/admin durable outcome read, including after credential rotation |
+| `POST /sync/batches/{id}/recover` | Admin reconciles an interrupted batch from durable receipts |
+| `POST /sync/bootstrap`, `/sync/pull`, `/sync/ack` | Paged snapshot, bounded events, signed durable acknowledgement |
+| `GET/PUT /settings` | Admin non-sensitive typed configuration with optimistic `expectedUpdatedAt` |
+| `GET /audit`, `/jobs` | Bounded admin history and operational job status |
+| `GET/PUT /preferences` | User appearance/list preferences |
+| `GET /notifications`, `PATCH /notifications/{id}/read` | User's own review notifications |
 
-Create individual accounts through the CLI-only provisioning command. It reads
-JSON from standard input so the password is not a command-line argument:
+`ADMIN`, `PERSONNEL`, `FSQA`, `SUPERVISOR`, and `PLANT_MANAGER` retain the original
+role enum. Assignments add explicit form permissions. Reviewer area access requires
+an active production area and a currently effective form-area assignment. A current
+assignment grants access to historical records in that form; expired assignments do
+not independently grant current review authority.
 
-```powershell
-$account = @{
-    username = 'plant.admin'
-    displayName = 'Plant administrator'
-    email = 'plant.admin@example.com'
-    role = 'ADMIN'
-    password = [System.Net.NetworkCredential]::new('', (Read-Host 'Password' -AsSecureString)).Password
-}
-$account | ConvertTo-Json -Compress | php index.php accounts create
-$account.Clear()
-```
+## Three-section dynamic schema
 
-Passwords require 12–72 bytes and are hashed with PHP's password API. Roles are
-the original `ADMIN`, `PERSONNEL`, `FSQA`, `SUPERVISOR`, and `PLANT_MANAGER`.
-Provisioning refuses existing usernames/emails. It never resets passwords.
-
-## Authentication and device identity
-
-`POST /auth/login` accepts `username` and `password`, returning `token`,
-`expiresAt`, and the public `user`. Subsequent calls require:
-
-```http
-Authorization: Bearer <individual-session-token>
-Content-Type: application/json
-```
-
-Sessions expire after 12 hours and can be revoked with `POST /auth/logout`.
-The server checks active accounts and current permissions. Login attempts are
-throttled. Only session token hashes are stored. The JSON API does not
-authenticate through cookies; normal CI3 form CSRF protection remains enabled.
-
-Register a device with `POST /devices`:
-
-```json
-{"deviceUuid":"persistent-random-device-identity","displayName":"Egg preparation station"}
-```
-
-The response contains `id` and a one-time `deviceToken`. Persist the token in
-the device's protected shared storage. All sync, record publication, correction,
-review and revalidation writes also require:
-
-```http
-X-PPMS-Device-Token: <registered-device-token>
-```
-
-Public device IDs and lease versions are insufficient to authorize a device.
-Only the token hash is stored. Registering an existing UUID does not reissue its
-secret. An administrator can issue/rotate credentials for a migrated device
-using `POST /devices/{id}/credentials` with `reason`. Rotation increments its
-lease version and invalidates previous author grants. Revocation uses
-`POST /devices/{id}/revoke` with `reason`.
-
-## Form and personnel configuration
-
-| Method | Path | Purpose |
-| --- | --- | --- |
-| GET | `/me` | Current individual user |
-| GET | `/areas` | Active area identities |
-| GET | `/forms` | Forms visible to the current user, including current lease metadata |
-| POST | `/forms` | Admin creates a form using `ppmCode`, `title`, and `areaId` |
-| PUT | `/forms/{form}/areas/{area}` | Admin adds a non-overlapping `effectiveFrom` / optional `effectiveTo` period |
-| PUT | `/forms/{form}/access/{user}` | Admin assigns boolean `canView`, `canCreate`, `canEdit`, `canPublish` flags |
-| PUT | `/forms/{form}/lease` | Admin assigns `deviceId` with `expectedLeaseVersion` |
-
-Many personnel may share one form. Each form has one authoritative device;
-each device has one form. The device's `userId` identifies its registrar, not
-the author of subsequent work. Replacement of an existing lease also requires
-`reconciled: true` and `reason`, after local pending changes are reconciled.
-The server rejects replacement while a batch is still `PUSHING`. Transfers
-increment the lease version and clear the replacement device's pull cursors.
-
-Assignments reuse `PersonnelPpmAssignment`; there is no duplicate user-access
-table. Inactive accounts, inaccessible forms, revoked devices and stale leases
-cannot authorize new writes. Reviewer roles require form/area view access;
-personnel permissions do not confer review roles.
-
-## Dynamic template definitions
-
-| Method | Path | Purpose |
-| --- | --- | --- |
-| GET | `/forms/{form}/templates` | Published versions; admins also see drafts |
-| POST | `/forms/{form}/templates` | Admin creates a numbered draft with `definitionJson` |
-| PATCH | `/templates/{id}` | Admin changes a draft with `definitionJson` and `expectedDefinitionHash` |
-| PUT | `/templates/{id}/rules` | Admin replaces a draft's `rules` array |
-| POST | `/templates/{id}/publish` | Publish immediately; body `{}` |
-| PUT | `/forms/{form}/connections` | Configure a source output to target input relationship |
-
-A simple definition is:
+New forms use `schemaVersion: 2` and exactly `header`, `main`, `summary` sections.
+Legacy `fields` and `sections` definitions remain readable through the same engine.
+Document number, revision number, series, page and source-file hash are version
+metadata and are preserved when duplicating templates.
 
 ```json
 {
-  "fields": [
-    {"key":"supplier","label":"Supplier","type":"text","required":true},
-    {"key":"temperature","label":"Temperature","type":"number","validation":{"min":0,"max":100}},
-    {"key":"accepted","label":"Accepted?","type":"boolean","required":true},
-    {"key":"entries","label":"Readings","type":"repeatable","minRows":1,"maxRows":100,
-     "fields":[{"key":"reading","label":"Reading","type":"number","required":true}]}
+  "schemaVersion": 2,
+  "sections": [
+    {"key":"header","label":"Production","items":[
+      {"key":"operator","label":"Operator","type":"text","required":true}
+    ]},
+    {"key":"main","label":"Entries","items":[
+      {"key":"rows","label":"Items","type":"repeatable","maxRows":1000,"fields":[
+        {"key":"quantity","label":"Quantity","type":"number","validation":{"min":0}},
+        {"key":"unitPrice","label":"Unit price","type":"number","validation":{"min":0}},
+        {"key":"amount","label":"Amount","type":"number","readOnly":true,
+         "calculation":{"op":"multiply","args":[{"path":"quantity"},{"path":"unitPrice"}]}}
+      ]}
+    ]},
+    {"key":"summary","label":"Totals","items":[
+      {"key":"total","label":"Total amount","type":"number","readOnly":true,
+       "calculation":{"op":"sum","path":"rows[].amount"}}
+    ]}
   ]
 }
 ```
 
-Sectioned definitions may instead use `schemaVersion: 1`, `title`, and
-`sections: [{key,label,items:[...]}]`. Field/group keys must be unique in their
-scope. Supported scalar types are `text`, `textarea`, `number`, `integer`,
-`boolean`, `date`, `time`, `datetime`, `select`, `multiselect`, and `trace-code`.
-`group` contains an object; `table` and `repeatable` contain arrays of row objects.
-Nested groups have a maximum depth of three. Select options are strings or
-`{value,label}` objects. Validation supports `min`, `max`, `step`, `minLength`,
-`maxLength`, and bounded regular-expression `pattern` checks. Defaults must
-match the field type. Trace-code defaults are prohibited. Read-only values may
-only be initially supplied as their configured default and cannot then change.
+Supported input components include text, textarea, integer/number, date/datetime,
+boolean, select/multiselect, groups, repeatable tables and trace-code selections.
+Calculations use a bounded declarative expression tree, never JavaScript/PHP code
+or `eval`. Conditions use `visibleWhen` / `requiredWhen` with structured operators
+such as `{path:"quantity",operator:"gt",value:0}`. Formula references, cycles,
+unknown fields and incompatible paths are rejected before publication. The server
+calculates protected outputs; it rejects edits/deletion of protected stored values
+unless the definition explicitly allows the relevant container removal.
 
-Draft records may be incomplete; values supplied must have valid types and
-known keys. Submit/publication require all required values and row minima.
-Zero and `false` count as supplied values. Unknown fields are rejected.
+## Online records and reference review
 
-Publishing deactivates the previous version transactionally. Published
-definitions and trace-code rules cannot be edited. New records require the
-active, effective, published version; stale offline creates return
-`TEMPLATE_STALE_OR_UNPUBLISHED`. Existing records remain pinned to their exact
-version. A new form or ordinary field change needs configuration, not a new
-form-specific SQL table. Existing controlled default definitions are preserved;
-the backend does not invent missing production fields or activate pending rules.
-
-## Shared offline authorship and daily batches
-
-On each individual sign-in on the assigned device, request `POST /sync/grants`:
-
-```json
-{"ppmFormId":"form-id","deviceId":"device-id","leaseVersion":1}
-```
-
-The signed `authorProof` binds that user, device, form, lease version and expiry.
-Its access window follows `offline.maxAccessHours` (default 24 hours, bounded to
-1–168). Each queued mutation must retain its original user's proof. A batch
-uploader may submit mutations from several users; it never becomes their author.
-Current user permissions and device leases are revalidated for every mutation.
-The proof is confidential; never write it into audit messages or telemetry.
-
-Push an immutable batch with `POST /sync/batches`:
+Every online write supplies a fresh globally unique `clientMutationId`; retry the
+same attempted payload with the same ID. Changed intent must use a new ID.
 
 ```json
 {
-  "id":"client-generated-batch-id",
-  "ppmFormId":"form-id",
-  "deviceId":"device-id",
-  "leaseVersion":1,
-  "businessDate":"2026-10-23",
-  "mutations":[{
-    "clientMutationId":"client-generated-operation-id",
-    "userId":"original-author-id",
-    "authorProof":"signed-original-author-proof",
-    "operationType":"CREATE_DRAFT",
-    "recordId":"client-generated-record-id",
-    "baseRevisionNo":0,
-    "templateVersionId":"published-template-id",
-    "areaPpmAssignmentId":"effective-area-assignment-id",
-    "productionDate":"2026-10-23",
-    "dataJson":{"supplier":"Example","temperature":82.5,"accepted":false}
-  }]
+  "ppmFormId":"form-id", "recordId":"client-generated-uuid",
+  "clientMutationId":"client-generated-mutation-uuid", "baseRevisionNo":0,
+  "templateVersionId":"published-version-id", "areaPpmAssignmentId":"assignment-id",
+  "productionDate":"2026-11-23", "batchNo":"BATCH-0007",
+  "dataJson":{"operator":"Personnel","rows":[{"quantity":2,"unitPrice":5}]}
 }
 ```
 
-Omitting `businessDate` uses the configured plant timezone. Historical dates are
-allowed. Several batches per form/date receive increasing server batch numbers.
-`sync.batchSize` bounds each request (default 50). Every mutation runs in its own
-transaction, including its receipt, revision, trace checks, audit and change-feed
-events. One rejection or revision conflict does not roll back valid operations.
-Outcomes are `APPLIED`, `CONFLICT`, or `REJECTED`; batch states include
-`ACCEPTED`, `PARTIAL`, `CONFLICTED`, and `REJECTED`.
+Online write responses are `{result,record}`. A successful HTTP response can contain
+`result.status: CONFLICT` or `REJECTED`; clients must inspect it before claiming
+success. An `APPLIED` result is emitted only after the receipt and record commit.
+The online adapter calls the same record service as offline sync and uses a
+server-managed WEB_API identity without taking the personnel device's form lease.
 
-Supported mutation types:
+Multiple independent records per form/day are allowed. `dailyKey` is retained for
+legacy data; no implicit one-sheet/day constraint is imposed. Synchronization batch
+numbers are separate numeric sequences; business `batchNo` values remain strings.
 
-- `CREATE_DRAFT`: base zero, pinned template/area/date and an object `dataJson`.
-- `UPDATE_DRAFT`: expected base revision and replacement object `dataJson`.
-  Missing fields are removed; this is not JSON Merge Patch.
-- `QUEUE_SUBMIT`: expected base revision; submits the saved revision's data.
-- `CONFLICT_RESOLUTION`: `conflictId`, current base, `resolutionType`, and
-  `reason`; `MANUAL_MERGE` additionally supplies complete replacement `dataJson`.
+Review input uses `status` (`PENDING_REVIEW`, `UNDER_REVIEW`, `APPROVED`,
+`RETURNED_FOR_REVISION`), `reviewerName`, `reviewerPosition`, `remarks`,
+`expectedRevisionNo` and `expectedReviewVersion` (0 before the first review).
+Review time is server-set, and the actual actor is audited. Reference decisions do
+not create a new data revision or require a writer device. Later edits remain
+allowed and reset the current reference to pending while retaining history.
+Legacy staged approval fields/flags remain in storage for compatibility; approval
+is no longer a gate on normal editing or trace selection.
 
-The same authenticated author may omit `authorProof` for an online mutation;
-the device credential is still required. Different authors require their signed
-proof. Tombstone/attachment operations are rejected until implemented.
+## Trace relationships and safe numbering
 
-Repeated batch/mutation IDs return their original stored result when the owner
-and canonical payload match. JSON object-key order does not change identity.
-Reusing an ID with another owner, device or payload is rejected.
-An already committed receipt can be replayed after its author grant expires;
-this reads history and still requires current uploader access/device credentials.
-Server revision numbers are authoritative. Conflicts persist the local command and server base;
-resolution supports `KEEP_SERVER`, `APPLY_LOCAL_AS_NEW_REVISION`, and
-`MANUAL_MERGE`, using the same permission, template and lifecycle checks.
+A selection contains `{connectionId,sourceTraceOutputId,inputPath}`. The server
+verifies the exact source, fills protected trace values, and stores the precise
+source output and downstream revision relationship. Equal displayed codes are not
+equal provenance. Changing the selected source retires dependent output evidence
+and emits downstream impact events even if displayed data is unchanged.
 
-## Records, traceability and online review
+Published output sequences use a stable namespace across template versions. The
+namespace includes the form, output key, reset period and optional explicit
+sequence namespace. Legacy counters remain intact and seed the stable counter's
+floor. Revalidation dispositions and conflict reasons are committed before their
+compact feed event. Full history is paginated separately; events do not duplicate
+all preceding revisions. Record reads include at most 256 KiB of compatibility
+history and report `historyHasMore`. `/records` defaults to metadata-only
+`summary=true`; fetch an exact record when opening the editor. Optional
+`summary=false` lists and `/history` use a 1 MiB default byte budget with a 4 MiB
+ceiling (one bounded first item may exceed the requested page budget). Follow
+`nextOffset` on record lists and `nextBeforeRevisionNo` on history to avoid
+skipping items when the byte budget shortens a page.
 
-`GET /records/{id}` returns metadata, the current revision, immutable revision
-history, exact source links and revalidation items. It requires form access.
+## Offline protocol and recovery
 
-`POST /records/{id}/corrections` takes `deviceId`, `leaseVersion`,
-`baseRevisionNo`, `reason`, replacement `dataJson`, and optional
-`traceSelections`. It appends a corrected revision and returns the record to
-`ACTIVE`. Closed/archived records cannot be changed. Relevant output retirement
-preserves old links and recursively creates revalidation items and retirement
-events throughout the downstream record chain.
+One physical device may hold memberships for several assigned forms, and several
+authorized devices may edit the same form. Each (form,device) membership has its
+own monotonic lease version; server record revisions detect competing edits.
+Authorizing a new device uses expectedLeaseVersion 0 and does not revoke others.
+Reissuing an existing membership requires its exact current version and recovery
+of any interrupted work for that pair. Cursor identity is
+`(deviceId, targetPpmFormId, sourcePpmFormId)`; one form cannot acknowledge away
+another form's upstream changes. Credential rotation/revocation serializes on the
+device and advances every affected form lease.
 
-`POST /records/{id}/publish` takes the same device/base fields and requires
-`canPublish` (or admin), a submitted/reviewed record, valid current source links,
-and no outstanding revalidation. Publication is idempotent per revision.
+Device requests carry `X-PPMS-Device-Token` plus `deviceId,ppmFormId,leaseVersion`.
+Author grants additionally bind user, expiry and `authVersion`; password resets,
+revoke-all and account permission changes invalidate old grants. New writes always
+recheck current permissions. Previously committed receipts remain immutable.
 
-Rules support `SYSTEM_GENERATED`, `MANUAL_EXTERNAL`, `SCAN_EXTERNAL`, and
-`UPSTREAM_LOOKUP`. Pending rules cannot publish. Example generated rule:
+A batch contains `id,ppmFormId,deviceId,leaseVersion,businessDate?,mutations`.
+Supported operations include `CREATE_DRAFT`, `UPDATE_DRAFT`, `QUEUE_SUBMIT`,
+`CONFLICT_RESOLUTION`, and `DELETE_RECORD`. Each mutation has `clientMutationId`,
+`recordId`, `userId`, `baseRevisionNo`, and its original `authorProof` where needed.
+Offline creations may use a historical **published** version; draft/unpublished
+versions cannot be used. Existing records never silently switch schemas.
 
-```json
-{"rules":[{
-  "outputKey":"lotCode","outputLabel":"Lot","status":"ACTIVE",
-  "sourceType":"SYSTEM_GENERATED","formulaTemplate":"LOT-{{record.productionDate}}-{{sequence}}",
-  "resetPeriod":"DAILY","sequencePadding":3,"requiresUniqueBusinessCode":true,
-  "configurationJson":{"bindings":{"record.productionDate":{"source":"RECORD","path":"productionDate","format":"YYYYMMDD"}}}
-}]}
-```
+When `businessDate` is omitted, the server chooses it once and reuses it for retry.
+The client seals an immutable batch before its first attempt and retains it until a
+matching durable server result is stored locally. The editable local base revision
+is tied to the displayed draft; a background pull cannot advance that base while
+retaining older local input. A later queued edit can specify
+`dependsOnMutationId`; it applies only if that predecessor committed for the same
+record, form, device and author at the expected revision. This prevents a later
+predicted revision from overwriting data after an earlier conflict.
 
-Bindings use `DATA`, `RECORD`, `LITERAL` or `SEQUENCE`. Supported formats are
-`RAW`, `TRIM`, `UPPERCASE`, `LOWERCASE`, `INITIAL`, `DDMMYY`, `DDMMMYY`,
-`MMDDYY`, and `YYYYMMDD`. Configured paths may use repeatable rows, such as
-`entries[].code`. Uniqueness covers other records and duplicate rows of the
-same revision. Sequence counters, output creation and audit commit together.
+Bootstrap is paginated with signed short-lived `pageToken`s and bounded record,
+template and output pages. It captures initial stream boundaries, not an open
+multi-request SQL transaction. Clients merge snapshots by server revision and then
+replay events after those boundaries. Equal data revisions can carry newer review
+or impact metadata, ordered by server event sequence. Only the final page returns
+acknowledgeable boundaries. Pull also limits response bytes; apply each page and
+cursor atomically in IndexedDB before `/sync/ack`.
 
-A trace connection accepts `sourcePpmFormId`, `sourceOutputKey`,
-`targetInputKey`, `connectionName`, `status`, and boolean
-`requiresApprovalBeforeUse`. Only active connections are selectable. Record
-mutations select an existing published output using:
+For an interrupted `PUSHING` batch, an administrator sends
+`{action:"FINALIZE",reason,expectedPayloadHash}` to its recovery endpoint. Active
+workers are excluded by the batch lock. Recovery reconstructs matching outcomes
+from immutable receipts and explicitly identifies unprocessed work; it does not
+pretend those mutations committed. The client retains failed/unresolved drafts for
+review and requeue. A lost HTTP response can be retried without duplicate records.
 
-```json
-{"traceSelections":[{
-  "connectionId":"connection-id","sourceTraceOutputId":"published-output-id",
-  "inputPath":"sourceLot"
-}]}
-```
-
-For a row, use a concrete path such as `entries.0.sourceLot`; configuration uses
-`entries[].sourceLot`. The data value must equal the verified source code.
-Unchanged selections carry forward through new revisions only after current
-eligibility checks. Typing a code does not create evidence of its source.
-
-`POST /records/{id}/review` takes device/base fields, `action` (`APPROVE` or
-`RETURN`) and `reason`. Decisions require online validation. FSQA, Supervisor,
-and Plant Manager approvals proceed through the original statuses to `CLOSED`;
-an admin may perform each step. Each decision appends a revision and workflow
-event. Returns preserve history and retire affected published outputs.
-
-`GET /forms/{id}/revalidations` exposes authorized impact item IDs and reasons.
-`POST /revalidations/items/{id}/resolve` takes device/base fields, `notes` and
-`decision`: `REPLACED_SOURCE` requires a current eligible replacement link;
-`ACCEPT_HISTORICAL` requires a closed record. Only an authorized reviewer/admin
-can resolve an item. A parent resolves once all its items are resolved.
-Finalized impact dispositions cannot be overwritten.
-
-## Selective pull protocol
-
-`POST /sync/bootstrap` takes form/device/lease fields and returns the form's
-published templates, personnel permissions, area assignments, recent records,
-trace connections, and eligible upstream output projections. Other forms' raw
-records/templates are not exposed. The cache horizon follows
-`offline.maxCachedRecordDays`, default seven days. Each source includes a
-signed `cursorToken` representing the snapshot's event boundary.
-
-`POST /sync/pull` additionally takes `sourcePpmFormId`, optional
-`afterSequence` and `limit` (1–500). A device may read its own stream and direct
-active upstream dependencies. Upstream streams expose only configured trace
-outputs and retirements. Sequences are decimal strings. The response contains
-`events`, `nextSequence`, `hasMore`, and `cursorToken`. Filtered pages may be
-empty while `hasMore` is true.
-
-The client must atomically persist each page/snapshot before sending its token
-to `POST /sync/ack`, using the same device/form/lease fields. Pulling does not
-advance `SyncPullCursor`. Signed acknowledgments cannot forge skipped ranges;
-cursors move forward only and are shared by all users on that device.
-
-The client must apply events idempotently, replace active-template flags on a
-publication event, remove retired outputs, and refresh affected record/impact
-details after upstream retirement. Re-bootstrap when assignments or dependency
-configuration change, pruning no-longer-authorized cache entries. Save drafts
-and mutation queues durably, preserve original author proofs, retry interrupted
-`PUSHING` batches with the same ID/payload, and enforce offline grant expiry.
-The browser renderer, IndexedDB transactions and queue implementation are not
-part of these backend changes.
-
-## Verification
-
-```powershell
-php tests/validation.php
-python tests/conversion.py
-python tests/run_with_mariadb.py
-```
-
-The last command starts a private temporary MariaDB server using XAMPP's
-`mysql_install_db.exe`/`mysqld.exe`, runs installer, migration and HTTP suites,
-then shuts it down and removes its own temporary directory. `MARIADB_BIN` can
-select another compatible binary directory. No Windows service or configured
-application database is changed. To use a separately managed test server, run
-the three Python suites individually with `DB_HOST`, `DB_PORT`, `DB_USERNAME`,
-and `DB_PASSWORD`; each creates and drops only its disposable test database.
-
-Verified on 2026-10-23 with PHP 8.0.30 and disposable MariaDB 10.4.32:
-35 Python test cases passed, including concurrent publication, cross-form
-mutation-ID reuse, legacy batch upgrades and three-form trace invalidation.
-Application PHP syntax checks and the standalone field-validation checks passed.
+The mobile vault encrypts records, cached definitions, device secrets, author
+proofs, queue and attempted batches with WebCrypto and a user unlock passphrase.
+The passphrase/derived key is not persisted. Do not clear browser storage to resolve
+an error: it can destroy unsynchronized work. Export the encrypted vault first.
+Sync runs on reconnect/backoff while the application is open, signed in and the
+vault is unlocked. Closing an app does not grant a service worker credentials to
+silently act as a user. Cross-device conflicts preserve local and server versions
+for explicit resolution; device timestamps never choose the winner.

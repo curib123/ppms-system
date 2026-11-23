@@ -8,12 +8,25 @@ class Ppms_schema_upgrades
     {
         $ci =& get_instance();
         $ci->load->library(array('ppms_migrations','ppms_database'));
-        $result = $ci->ppms_migrations->migrate();
         $connection = $ci->ppms_database->connection();
         $database = $connection->query('SELECT DATABASE()')->fetch_row()[0];
         $lock = 'ppms-install-'.substr(hash('sha256', $database), 0, 40);
         if ((int) $connection->query("SELECT GET_LOCK('".$lock."',10)")->fetch_row()[0] !== 1) { throw new RuntimeException('Another database migration is running.'); }
         try {
+            $table = $connection->query("SELECT 1 FROM information_schema.tables WHERE table_schema=DATABASE() AND table_name='PpmsSchemaMigration'");
+            if ($table->num_rows) {
+                $sealed = $connection->query("SELECT checksum FROM PpmsSchemaMigration WHERE version='202610230001_offline_sync'")->fetch_assoc();
+                $source = file_get_contents(dirname(APPPATH).'/database/migrations/202610230001_offline_sync.sql').file_get_contents(__DIR__.'/Ppms_migrations.php');
+                if ($sealed && !hash_equals($sealed['checksum'], hash('sha256', $source))) {
+                    throw new RuntimeException('Applied migration checksum differs; restore the original migration.');
+                }
+            }
+            // Keep the original migration implementation byte-for-byte sealed.
+            // Its FK-dependent generated expression is invalid on supported engines.
+            // Prepare the equivalent, FK-independent constraint under the same lock
+            // before invoking it. This also resumes partially applied version one.
+            $this->prepareActiveTemplateConstraint($connection);
+            $result = $ci->ppms_migrations->migrate();
             $paths = glob(dirname(APPPATH).'/database/migrations/*.sql');
             sort($paths, SORT_STRING);
             foreach ($paths as $path) {
@@ -43,5 +56,27 @@ class Ppms_schema_upgrades
             }
             return $result;
         } finally { $connection->query("SELECT RELEASE_LOCK('".$lock."')"); }
+    }
+
+    private function prepareActiveTemplateConstraint($connection)
+    {
+        $connection->query('SELECT id FROM PpmTemplateVersion LIMIT 1');
+        $column = $connection->query("SELECT GENERATION_EXPRESSION FROM information_schema.columns
+            WHERE table_schema=DATABASE() AND table_name='PpmTemplateVersion' AND column_name='activePpmFormId'")->fetch_assoc();
+        $index = $connection->query("SELECT GROUP_CONCAT(column_name ORDER BY seq_in_index) AS columnsList,MIN(non_unique) AS nonUnique
+            FROM information_schema.statistics WHERE table_schema=DATABASE() AND table_name='PpmTemplateVersion'
+            AND index_name='uq_active_template_form'")->fetch_assoc();
+        $expression = "VARCHAR(191) GENERATED ALWAYS AS (CASE WHEN isActive=1 THEN 'ACTIVE' ELSE NULL END) STORED";
+        $normalized = $column ? strtolower(preg_replace('/[\s`()]/', '', $column['GENERATION_EXPRESSION'])) : '';
+        if ($column && $index['columnsList'] === 'ppmFormId,activePpmFormId' && (int) $index['nonUnique'] === 0
+            && $normalized === "casewhenisactive=1then'active'elsenullend") { return; }
+        if ($column && (!$column['GENERATION_EXPRESSION'] || stripos($column['GENERATION_EXPRESSION'], 'isActive') === FALSE)) {
+            throw new RuntimeException('Unexpected active-template constraint; review the schema before upgrading.');
+        }
+        $changes = array();
+        if ($index['columnsList']) { $changes[] = 'DROP INDEX uq_active_template_form'; }
+        $changes[] = ($column ? 'MODIFY COLUMN ' : 'ADD COLUMN ').'activePpmFormId '.$expression;
+        $changes[] = 'ADD UNIQUE INDEX uq_active_template_form (ppmFormId,activePpmFormId)';
+        $connection->query('ALTER TABLE PpmTemplateVersion '.implode(', ', $changes));
     }
 }

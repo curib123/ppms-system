@@ -1,0 +1,14 @@
+{
+  "name": "ppms-system-client-tests",
+  "private": true,
+  "type": "module",
+  "description": "Development-only verification for self-hosted PPMS clients; no Node runtime is required in production.",
+  "scripts": {
+    "test:offline": "node tests/offline_client.mjs --node",
+    "test:offline:browser": "node tests/offline_client.mjs"
+  },
+  "devDependencies": {
+    "fake-indexeddb": "6.2.8",
+    "playwright": "1.65.1"
+  }
+}
