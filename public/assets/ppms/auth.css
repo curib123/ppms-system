@@ -1,0 +1,129 @@
+/* PPMS shared auth styles. Colors come from theme.css. */
+.login-layout {
+  display: grid;
+  grid-template-columns: minmax(350px, 1fr) minmax(380px, 1fr);
+  min-height: 100vh;
+  min-height: 100dvh;
+  background: var(--surface);
+}
+.login-visual {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 70px;
+  background: var(--brand-dark);
+  color: var(--on-primary);
+}
+.login-visual-grid {
+  display: none;
+}
+.login-visual-copy {
+  position: relative;
+  width: min(460px, 100%);
+}
+.login-visual .eyebrow {
+  color: var(--brand-muted);
+  margin-bottom: 25px;
+  font-size: var(--text-xs);
+}
+.login-visual h2 {
+  font-size: clamp(35px, 4.1vw, 64px);
+  font-weight: 570;
+  letter-spacing: -2px;
+  line-height: 1.11;
+  margin-bottom: 22px;
+}
+.login-visual p {
+  font-size: var(--text-body);
+  color: var(--brand-muted);
+}
+.visual-document {
+  border: 1px solid var(--brand-line);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  margin-top: 60px;
+  background: var(--brand-overlay);
+  box-shadow: none;
+}
+.visual-document-bar {
+  width: 42%;
+  height: 10px;
+  background: var(--brand-detail);
+  border-radius: var(--radius-xs);
+  margin-bottom: 22px;
+}
+.visual-document-row {
+  display: grid;
+  grid-template-columns: 1.7fr 1fr 1fr 1fr;
+  gap: 10px;
+  margin-top: 10px;
+}
+.visual-document-row i {
+  height: 24px;
+  border: 1px solid var(--brand-line);
+  border-radius: var(--radius-xs);
+}
+.visual-document-row:nth-child(odd) i {
+  background: var(--brand-overlay);
+}
+.login-form {
+  align-self: center;
+  justify-self: center;
+  padding: 50px 40px;
+  width: 100%;
+  max-width: 470px;
+}
+.login-form .brand {
+  margin-bottom: 49px;
+}
+.login-form h1 {
+  font-size: 31px;
+  letter-spacing: -1px;
+  margin-bottom: 12px;
+}
+.login-form .eyebrow {
+  font-size: var(--text-micro);
+  margin-bottom: 15px;
+}
+.login-description {
+  font-size: var(--text-body-sm);
+  color: var(--muted);
+  margin-bottom: 29px;
+}
+.login-form > .button {
+  width: 100%;
+  margin-bottom: 10px;
+}
+.login-form .field {
+  margin-bottom: 20px;
+}
+.login-form .field-hint {
+  font-size: var(--text-xs);
+}
+.login-footer {
+  display: flex;
+  flex-direction: column;
+  gap: 25px;
+  text-align: center;
+  margin-top: 20px;
+  font-size: var(--text-sm);
+}
+.login-footer span {
+  font-size: var(--text-tiny);
+  color: var(--muted);
+}
+.initial-loader {
+  min-height: 70vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+}
+.initial-loader .brand-mark {
+  margin-bottom: 20px;
+}
+.initial-loader p {
+  color: var(--muted);
+}

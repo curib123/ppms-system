@@ -4,7 +4,9 @@ import {
   iconButton,
   field,
   textInput,
+  searchInput,
   select,
+  searchableSelect,
   modal,
   notify,
   showError,
@@ -24,8 +26,7 @@ import { SyncEngine } from "./offline.js";
 
 const roles = ["ADMIN", "PERSONNEL", "FSQA", "SUPERVISOR", "PLANT_MANAGER"];
 export async function showPeople(app) {
-  const search = textInput("", {
-      type: "search",
+  const search = searchInput("", {
       placeholder: "Search people…",
       "aria-label": "Search people",
     }),
@@ -86,7 +87,11 @@ export async function showPeople(app) {
           ),
         );
       table.append(body);
-      list.append(el("div", { class: "data-table-scroll" }, table));
+      list.append(
+        result.items.length
+          ? el("div", { class: "data-table-scroll" }, table)
+          : empty("No matching people", "Try a different name or username."),
+      );
       pager.replaceChildren(
         button(
           "Previous",
@@ -128,7 +133,11 @@ export async function showPeople(app) {
         }),
       ],
     ),
-    el("div", { class: "filters" }, search),
+    el(
+      "div",
+      { class: "filters", role: "search", "aria-label": "Find people" },
+      search,
+    ),
     list,
     pager,
   );
@@ -264,7 +273,7 @@ function accountEditor(app, user, onSaved) {
 async function areaAccess(app, user) {
   try {
     const result = await app.api.request("/areas");
-    const area = select(
+    const area = searchableSelect(
       result.items.map((a) => ({
         value: a.id,
         label: a.code + " · " + a.name,
@@ -343,7 +352,7 @@ export async function showAssignments(app, form) {
           ),
         ),
       );
-    const user = select(
+    const user = searchableSelect(
         people.items.map((u) => ({
           value: u.id,
           label: u.displayName + " · " + u.role.toLowerCase(),
@@ -460,7 +469,7 @@ function assignDevice(
       devices.filter((d) => !d.revokedAt).map((d) => [d.id, d]),
     ).values(),
   ];
-  const device = select(
+  const device = searchableSelect(
     uniqueDevices.map((d) => ({
       value: d.id,
       label: d.displayName + " · " + d.id,
@@ -543,7 +552,7 @@ export async function showSync(app) {
   }
   const deviceList = el("div"),
     batchList = el("div"),
-    filter = select(
+    filter = searchableSelect(
       [
         { value: "", label: "All batch states" },
         ...["PUSHING", "PARTIAL", "ACCEPTED", "CONFLICTED", "REJECTED"].map(
@@ -667,7 +676,7 @@ export async function showSync(app) {
             button(
               "Authorize for form",
               () => {
-                const choice = select(
+                const choice = searchableSelect(
                   app.forms.map((f) => ({
                     value: f.id,
                     label: f.ppmCode + " · " + f.title,
@@ -1407,14 +1416,14 @@ export async function showRelationships(app, form) {
           badge(c.status),
         ),
       );
-    const source = select(
+    const source = searchableSelect(
         app.forms
           .filter((f) => f.id !== form.id)
           .map((f) => ({ value: f.id, label: f.ppmCode + " · " + f.title })),
         app.forms.find((f) => f.id !== form.id)?.id,
       ),
       output = textInput("", { required: true, placeholder: "outputKey" }),
-      target = select(paths, paths[0]?.value),
+      target = searchableSelect(paths, paths[0]?.value),
       name = textInput("", { required: true }),
       status = select(
         ["ACTIVE", "RESERVED", "PENDING_VALIDATION", "DISABLED"],

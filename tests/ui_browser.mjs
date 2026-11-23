@@ -4,6 +4,7 @@
 import assert from "node:assert/strict";
 import { mkdir, writeFile } from "node:fs/promises";
 import { chromium } from "playwright";
+import { chooseOption, assertSharedTheme, verifyDesignSystem } from "./design_browser.mjs";
 
 const base = process.env.PPMS_UI_URL;
 const password = process.env.PPMS_UI_PASSWORD;
@@ -281,15 +282,22 @@ try {
   await fieldDialog
     .getByLabel("Stable field key", { exact: true })
     .fill("shift");
-  await fieldDialog
-    .getByLabel("Input type", { exact: true })
-    .selectOption("select");
+  await chooseOption(fieldDialog, "Input type", "select");
   await fieldDialog
     .getByLabel("Options, one per line", { exact: true })
     .fill("DAY | Day shift\nNIGHT | Night shift");
   await fieldDialog
     .getByRole("button", { name: "Add field", exact: true })
     .click();
+  await admin.setViewportSize({ width: 412, height: 915 });
+  const sectionInputs = await admin.locator(".builder-section .section-name").evaluateAll((nodes) =>
+    nodes.map((node) => ({ font: Number.parseFloat(getComputedStyle(node).fontSize),
+      height: node.getBoundingClientRect().height })));
+  assert.equal(sectionInputs.length, 3);
+  assert.ok(sectionInputs.every((input) => input.font >= 16 && input.height >= 44),
+    "Mobile builder section inputs must stay readable and touch-sized");
+  await admin.screenshot({ path: `${artifacts}/builder-mobile.png`, fullPage: true });
+  await admin.setViewportSize({ width: 1440, height: 1050 });
   const templateResponse = admin.waitForResponse(
     (response) =>
       response.url().endsWith(`/forms/${form.id}/templates`) &&
@@ -539,6 +547,8 @@ try {
   await mobile
     .getByRole("button", { name: "Unlock saved workspace", exact: true })
     .click();
+  await mobile.getByRole("heading", { name: "Form library", exact: true }).waitFor();
+  await assertSharedTheme(mobile);
   await openForm(mobile, code);
   await openListedRecord(mobile, mobileId);
   assert.equal(
@@ -765,6 +775,10 @@ try {
   results.push(
     "1,000-row form computes accurate totals while rendering 40 rows and retaining input identity during typing",
   );
+  const design = await verifyDesignSystem({
+    admin, newPage, base, artifacts, openForm, openListedRecord, recordId, code,
+  });
+  results.push(...design.checks);
   assert.deepEqual(errors, [], "Unexpected uncaught browser errors");
   await writeFile(
     `${artifacts}/ui-results.json`,
@@ -773,6 +787,7 @@ try {
         passed: results.length,
         checks: results,
         largeForm: metrics,
+        designThemes: design.themes,
         physicalKeyboardVerified: false,
       },
       null,
@@ -785,6 +800,7 @@ try {
         passed: results.length,
         checks: results,
         largeForm: metrics,
+        designThemes: design.themes,
         physicalKeyboardVerified: false,
       },
       null,

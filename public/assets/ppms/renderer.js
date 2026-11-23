@@ -4,7 +4,7 @@ import {
   iconButton,
   formatNumber,
   modal,
-  textInput,
+  searchInput,
   showError,
   dateLabel,
 } from "./ui.js";
@@ -626,8 +626,7 @@ export class FormRenderer {
     return block;
   }
   async findTrace(field, path, local, control) {
-    const query = textInput("", {
-        type: "search",
+    const query = searchInput("", {
         placeholder: "Search exact production code…",
         "aria-label": "Source code search",
       }),

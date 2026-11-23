@@ -1,0 +1,163 @@
+/* Shared search and searchable-select anatomy; every color comes from theme.css. */
+.search-input,
+.searchable-select-control {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  min-width: 0;
+  min-height: var(--control-height);
+  padding: 0 var(--space-1) 0 var(--space-3);
+  border: 1px solid var(--input-border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--ink);
+  transition: border-color var(--motion-fast), box-shadow var(--motion-fast);
+}
+.search-input:focus-within,
+.searchable-select-control:focus-within {
+  border-color: var(--focus-ring);
+  box-shadow: var(--focus-shadow);
+}
+.search-input > .icon {
+  color: var(--muted);
+  width: 18px;
+  height: 18px;
+}
+.search-input .search-input-control,
+.searchable-select .searchable-select-input {
+  flex: 1;
+  width: 0;
+  min-width: 0;
+  min-height: calc(var(--control-height) - 2px);
+  padding: var(--space-2) 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--ink);
+  box-shadow: none;
+  font-size: var(--text-body-sm);
+}
+.search-input-control::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+}
+.search-input-control::-ms-clear {
+  display: none;
+}
+.search-input-clear,
+.searchable-select-toggle {
+  width: 34px;
+  height: 34px;
+  margin: 0;
+  color: var(--muted);
+}
+.search-input-clear:focus-visible,
+.searchable-select-toggle:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: -2px;
+}
+.searchable-select {
+  position: relative;
+  display: block;
+  min-width: 0;
+  width: 100%;
+}
+.searchable-select[data-open="true"] .searchable-select-control {
+  border-color: var(--focus-ring);
+}
+.searchable-select[data-disabled="true"] .searchable-select-control,
+.search-input:has(input:disabled) {
+  background: var(--surface-disabled);
+  color: var(--muted);
+  cursor: not-allowed;
+}
+.searchable-select .searchable-select-input:disabled {
+  color: var(--muted);
+  background: transparent;
+}
+.searchable-select-menu {
+  position: fixed;
+  inset: auto;
+  z-index: 1800;
+  margin: 0;
+  padding: var(--space-1);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+  color: var(--ink);
+  box-shadow: var(--shadow-floating);
+  overflow: hidden;
+}
+.searchable-select-menu[popover]:not(:popover-open) {
+  display: none;
+}
+.searchable-select-list {
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  scrollbar-gutter: stable;
+}
+.searchable-select-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  min-height: var(--control-height);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-xs);
+  font-size: var(--text-body-sm);
+  line-height: 1.45;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+.searchable-select-option[aria-selected="true"] {
+  background: var(--primary-soft);
+  color: var(--primary-text);
+  font-weight: 600;
+}
+.searchable-select-option:hover:not([aria-disabled="true"]),
+.searchable-select-option.is-active:not([aria-disabled="true"]) {
+  background: var(--surface-hover);
+  outline: 1px solid var(--line-strong);
+  outline-offset: -1px;
+}
+.searchable-select-option.is-active[aria-selected="true"] {
+  background: var(--primary-soft);
+  outline-color: var(--primary-border);
+}
+.searchable-select-option[aria-disabled="true"] {
+  color: var(--muted);
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+.searchable-select-option .icon {
+  width: 16px;
+  height: 16px;
+}
+.searchable-select-empty {
+  padding: var(--space-4) var(--space-3);
+  color: var(--muted);
+  font-size: var(--text-body-sm);
+  text-align: center;
+}
+.search-toolbar > .search-input {
+  max-width: 430px;
+}
+.trace-search > .search-input {
+  flex: 1;
+}
+.section-heading > .searchable-select {
+  width: min(260px, 100%);
+  flex: 0 1 260px;
+}
+.filters > .search-input {
+  flex: 1.4;
+  max-width: 430px;
+}
+.filters > .searchable-select {
+  flex: 1;
+}

@@ -1,0 +1,77 @@
+/* Setup, register and HTML error surfaces share the application design system. */
+.system-main {
+  width: min(960px, 100%);
+  margin: 48px auto;
+  padding: 0 var(--space-6);
+}
+.system-main > .brand {
+  margin-bottom: var(--space-6);
+}
+.system-main > nav {
+  display: flex;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-6);
+}
+.system-main .system-status {
+  font-weight: 600;
+  color: var(--warning);
+}
+.system-main .system-status.connected {
+  color: var(--success);
+}
+.system-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: var(--space-4);
+}
+.system-summary dt {
+  color: var(--muted);
+  font-size: var(--text-body-sm);
+}
+.system-summary dd {
+  margin: 0;
+  font-size: var(--text-title);
+  font-weight: 600;
+}
+.system-main code,
+.system-error code {
+  overflow-wrap: anywhere;
+}
+.system-error {
+  margin: var(--space-6) auto;
+  max-width: 900px;
+  padding: var(--space-6);
+  border: 1px solid var(--danger-border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+.system-main .system-error {
+  margin: 0;
+}
+.system-error h1,
+.system-error h4 {
+  margin-bottom: var(--space-4);
+}
+.system-error code {
+  display: block;
+  padding: var(--space-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface-soft);
+  color: var(--ink);
+}
+.system-error .backtrace {
+  padding-left: var(--space-4);
+}
+@media (max-width: 600px) {
+  .system-main {
+    margin-top: var(--space-6);
+    padding: 0 var(--space-4);
+  }
+  .system-error {
+    padding: var(--space-4);
+  }
+}
