@@ -26,7 +26,7 @@ for folder in ('application', 'public', 'system', 'tests'):
         if result.returncode:
             sys.exit(result.stdout + result.stderr)
 print('PHP syntax checks passed', flush=True)
-commands = [[sys.executable, 'tests/conversion.py'], php + ['tests/validation.php'], php + ['tests/domain_validation.php']]
+commands = [[sys.executable, 'tests/design_system.py'], [sys.executable, 'tests/conversion.py'], php + ['tests/validation.php'], php + ['tests/domain_validation.php']]
 for suite in ('integration.py', 'migrations.py', 'api_integration.py', 'platform_integration.py', 'domain_regressions.py', 'sync_regressions.py'):
     commands.append([sys.executable, 'tests/' + suite] + php_args)
 if args.operations:
