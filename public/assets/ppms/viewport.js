@@ -203,13 +203,23 @@ export class DocumentViewport {
       if (e.key !== "Escape" || e.defaultPrevented ||
         !this.root.classList.contains("fallback-fullscreen")) return;
       // Let open dialogs, custom choices and native choice pickers consume Escape.
-      if (document.querySelector("dialog[open]") ||
+      if ([...document.querySelectorAll("dialog[open]")].some((dialog) => !dialog.contains(this.root)) ||
         e.target.closest("select,[role='combobox'][aria-expanded='true'],input[type='date'],input[type='time'],input[type='datetime-local'],input[type='color']")) return;
       e.preventDefault();
       this.root.classList.remove("fallback-fullscreen");
       this.updateFullscreen();
       this.fullscreenButton.focus({ preventScroll: true });
     }, options);
+    document.addEventListener("cancel", (e) => {
+      // A viewer can belong to a history/conflict dialog. When its native picker
+      // has consumed Escape, the next dialog cancellation exits this view first.
+      if (!this.root.classList.contains("fallback-fullscreen") ||
+        e.target !== this.root.closest("dialog[open]")) return;
+      e.preventDefault();
+      this.root.classList.remove("fallback-fullscreen");
+      this.updateFullscreen();
+      this.fullscreenButton.focus({ preventScroll: true });
+    }, { ...options, capture: true });
     this.observer = new ResizeObserver(() => this.measure());
     this.observer.observe(this.stage);
     this.updateFullscreen();
