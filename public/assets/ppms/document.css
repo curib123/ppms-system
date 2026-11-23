@@ -119,9 +119,20 @@
   touch-action: pan-x pan-y;
   -webkit-overflow-scrolling: touch;
   scrollbar-gutter: stable;
+  cursor: grab;
 }
-.document-viewport.dragging {
-  cursor: grabbing;
+.document-viewport :is(input, textarea, [contenteditable="true"]) {
+  cursor: text;
+}
+.document-viewport :is(button, a, select, label, input[type="checkbox"], input[type="radio"], [role="button"], [role="combobox"]) {
+  cursor: pointer;
+}
+.document-viewport :is(input, textarea, select, button):disabled {
+  cursor: not-allowed;
+}
+.document-viewport.dragging,
+.document-viewport.dragging * {
+  cursor: grabbing !important;
   user-select: none;
 }
 .document-spacer {
@@ -137,6 +148,7 @@
   width: max-content;
   will-change: transform;
 }
+.document-viewer:fullscreen,
 .document-viewer.is-fullscreen,
 .document-viewer.fallback-fullscreen {
   border-radius: 0;
@@ -150,11 +162,79 @@
   inset: 0;
   z-index: 1500;
 }
+.document-viewer:fullscreen .document-viewport,
 .document-viewer.is-fullscreen .document-viewport,
 .document-viewer.fallback-fullscreen .document-viewport {
   height: calc(100dvh - 54px);
 }
+/* Fullscreen is a dark viewing surface, independent of the account's appearance. */
+@media screen {
+  .document-viewer:is(:fullscreen, .is-fullscreen, .fallback-fullscreen) {
+    color-scheme: dark;
+    --ink: var(--dark-ink);
+    --muted: var(--dark-muted);
+    --placeholder: var(--dark-placeholder);
+    --primary: var(--dark-primary);
+    --primary-hover: var(--dark-primary-hover);
+    --primary-text: var(--dark-primary-text);
+    --primary-soft: var(--dark-primary-soft);
+    --primary-border: var(--dark-primary-border);
+    --canvas: var(--dark-canvas);
+    --surface: var(--dark-surface);
+    --surface-raised: var(--dark-surface-raised);
+    --surface-soft: var(--dark-surface-soft);
+    --surface-hover: var(--dark-surface-hover);
+    --surface-disabled: var(--dark-surface-disabled);
+    --line: var(--dark-line);
+    --line-strong: var(--dark-line-strong);
+    --input-border: var(--dark-input-border);
+    --focus-ring: var(--dark-focus-ring);
+    --focus-shadow: var(--dark-focus-shadow);
+    --document-canvas: var(--dark-document-canvas);
+    color: var(--ink);
+    background: var(--document-canvas);
+  }
+  .document-viewer:fullscreen::backdrop {
+    background: var(--dark-document-canvas);
+  }
+}
 .form-document {
+  /* Scope the complete paper palette so nested inputs/statuses never inherit dark text roles. */
+  color-scheme: light;
+  --ink: var(--paper-ink);
+  --muted: var(--paper-muted);
+  --placeholder: var(--paper-placeholder);
+  --primary: var(--paper-primary);
+  --primary-hover: var(--paper-primary-hover);
+  --primary-text: var(--paper-primary-text);
+  --primary-soft: var(--paper-primary-soft);
+  --primary-border: var(--paper-primary-border);
+  --on-primary: var(--paper-on-primary);
+  --canvas: var(--paper-surface);
+  --surface: var(--paper-surface);
+  --surface-raised: var(--paper-surface);
+  --surface-soft: var(--paper-surface-soft);
+  --surface-hover: var(--paper-surface-hover);
+  --surface-disabled: var(--paper-surface-disabled);
+  --line: var(--paper-line);
+  --line-strong: var(--paper-line-strong);
+  --input-border: var(--paper-line-strong);
+  --document-line: var(--paper-document-line);
+  --focus-ring: var(--paper-focus-ring);
+  --focus-shadow: var(--paper-focus-shadow);
+  --success: var(--paper-success);
+  --success-soft: var(--paper-success-soft);
+  --success-border: var(--paper-success-border);
+  --warning: var(--paper-warning);
+  --warning-soft: var(--paper-warning-soft);
+  --warning-border: var(--paper-warning-border);
+  --danger: var(--paper-danger);
+  --danger-action: var(--paper-danger);
+  --danger-soft: var(--paper-danger-soft);
+  --danger-border: var(--paper-danger-border);
+  --info: var(--paper-info);
+  --info-soft: var(--paper-info-soft);
+  --info-border: var(--paper-info-border);
   width: var(--document-width, 1030px);
   min-width: 1030px;
   background: var(--surface);

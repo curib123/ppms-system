@@ -129,6 +129,38 @@
   --dark-shadow-floating: 0 8px 28px #00000055;
   --dark-shadow-overlay: 0 18px 64px #00000080;
   --dark-shadow-document: 0 2px 14px #00000040;
+
+  /* A production form is white paper even when its surrounding workspace is dark. */
+  --paper-ink: #241f22;
+  --paper-muted: #6b6267;
+  --paper-placeholder: #786e73;
+  --paper-primary: #b42332;
+  --paper-primary-hover: #941c29;
+  --paper-primary-text: #a51d30;
+  --paper-primary-soft: #fcf0f1;
+  --paper-primary-border: #e8bfc6;
+  --paper-on-primary: #ffffff;
+  --paper-surface: #ffffff;
+  --paper-surface-soft: #f6f4f5;
+  --paper-surface-hover: #f1edef;
+  --paper-surface-disabled: #f0edef;
+  --paper-line: #e4dde1;
+  --paper-line-strong: #c9bdc3;
+  --paper-document-line: #cdbfc5;
+  --paper-focus-ring: #b42332;
+  --paper-focus-shadow: 0 0 0 3px #b423321f;
+  --paper-success: #276246;
+  --paper-success-soft: #edf6f0;
+  --paper-success-border: #b4d8c1;
+  --paper-warning: #805815;
+  --paper-warning-soft: #fff6e5;
+  --paper-warning-border: #e8d0a3;
+  --paper-danger: #a61b32;
+  --paper-danger-soft: #fff0f2;
+  --paper-danger-border: #e4acb6;
+  --paper-info: #365f8b;
+  --paper-info-soft: #edf2f9;
+  --paper-info-border: #bacbe0;
 }
 
 :root[data-theme="dark"] {
