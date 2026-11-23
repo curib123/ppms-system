@@ -15,6 +15,7 @@ class PlatformIntegration(unittest.TestCase):
     setUpClass = classmethod(api_fixture.PpmApiIntegration.setUpClass.__func__)
     stop_server = classmethod(api_fixture.PpmApiIntegration.stop_server.__func__)
     api = api_fixture.PpmApiIntegration.api
+    template_change = api_fixture.PpmApiIntegration.template_change
     login = api_fixture.PpmApiIntegration.login
 
     def setUp(self):
@@ -23,7 +24,7 @@ class PlatformIntegration(unittest.TestCase):
         if not getattr(type(self), 'platform_template', None):
             template = self.api('POST', '/forms/' + self.form + '/templates', {
                 'definitionJson': {'fields': [{'key': 'note', 'label': 'Note', 'type': 'text', 'required': True}]}})
-            self.api('POST', '/templates/' + template['id'] + '/publish', {})
+            self.template_change('POST', '/templates/' + template['id'] + '/publish', {})
             type(self).platform_template = template['id']
 
     def create(self, record=None, **extras):

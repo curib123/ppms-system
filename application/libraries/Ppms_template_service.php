@@ -41,7 +41,10 @@ class Ppms_template_service
             $this->auth->access($actor, $row['ppmFormId']);
             if (!$row['publishedAt']) { throw new Ppms_problem('TEMPLATE_NOT_FOUND', 404); }
         }
-        return $this->view($row);
+        return $this->store->transaction(function () use ($id, $row) {
+            $this->store->lockForm($row['ppmFormId']);
+            return $this->view($this->find($id));
+        });
     }
     public function create($actor, $form, $input)
     {
@@ -67,7 +70,7 @@ class Ppms_template_service
             $this->store->lockForm($form);
             $old = $this->find($id);
             if ($old['publishedAt']) { throw new Ppms_problem('PUBLISHED_TEMPLATE_IMMUTABLE', 409); }
-            if (($input['expectedDefinitionHash'] ?? NULL) !== Ppms_values::hash($old['definitionJson'])) { throw new Ppms_problem('TEMPLATE_CHANGED', 409); }
+            $this->assertEditHash($old, $input);
             $values = array('definitionJson' => Ppms_values::json($definition)) + $this->metadata($input);
             if (array_key_exists('versionLabel', $input)) { $values['versionLabel'] = $input['versionLabel'] === NULL ? NULL : Ppms_values::text($input, 'versionLabel'); }
             $sets = array();
@@ -77,14 +80,15 @@ class Ppms_template_service
             return $this->view($this->find($id));
         });
     }
-    public function publish($actor, $id)
+    public function publish($actor, $id, $input = array())
     {
         $this->auth->admin($actor);
         $form = $this->find($id)['ppmFormId'];
-        return $this->store->transaction(function () use ($actor, $id, $form) {
+        return $this->store->transaction(function () use ($actor, $id, $form, $input) {
             $this->store->lockForm($form);
             $template = $this->find($id);
             if ($template['publishedAt']) { throw new Ppms_problem('PUBLISHED_TEMPLATE_IMMUTABLE', 409); }
+            $this->assertEditHash($template, $input);
             $this->validator->definition($template['definitionJson']);
             $ci =& get_instance();
             $ci->load->library('ppms_trace_service');
@@ -145,6 +149,38 @@ class Ppms_template_service
         unset($row['activePpmFormId']);
         $row['isActive'] = (bool) $row['isActive'];
         $row['definitionHash'] = Ppms_values::hash($row['definitionJson']);
+        $row['editHash'] = $this->editHash($row);
         return $row;
+    }
+    /** Compare the whole reviewed draft while the caller holds its form lock. */
+    public function assertEditHash($row, $input)
+    {
+        $expected = $input['expectedEditHash'] ?? NULL;
+        if (!is_string($expected) || !preg_match('/^[a-f0-9]{64}$/D', $expected)) {
+            throw new Ppms_problem('TEMPLATE_PRECONDITION_REQUIRED', 428, array('field' => 'expectedEditHash'));
+        }
+        if (!hash_equals($this->editHash($row), $expected)) {
+            throw new Ppms_problem('TEMPLATE_CHANGED', 409, array('templateId' => $row['id']));
+        }
+    }
+    /** Definition hashes remain schema-only; edit hashes also protect metadata and rules. */
+    public function editHash($row, $rules = NULL)
+    {
+        $values = array();
+        foreach (array('id','ppmFormId','versionNo','definitionJson','versionLabel','documentNumber','revisionNumber','seriesNumber','pageNumber','sourceFileName','sourceFileHash') as $key) {
+            $values[$key] = $row[$key] ?? NULL;
+        }
+        if ($rules === NULL) {
+            $rules = $this->store->rows('SELECT * FROM TraceCodeRule WHERE templateVersionId=? ORDER BY outputKey', array($row['id']));
+        }
+        $values['rules'] = array();
+        foreach ($rules as $rule) {
+            $content = array();
+            foreach (array('outputKey','outputLabel','status','sourceType','formulaTemplate','resetPeriod','sequencePadding','requiresUniqueBusinessCode','configurationJson') as $key) {
+                $content[$key] = $rule[$key] ?? NULL;
+            }
+            $values['rules'][] = $content;
+        }
+        return Ppms_values::hash($values);
     }
 }

@@ -25,10 +25,13 @@ class Ppms_trace_service
         if (!is_array($rules) || count($rules) > 100) { throw new Ppms_problem('INVALID_TRACE_RULES'); }
         $initial = $this->store->row('SELECT ppmFormId FROM PpmTemplateVersion WHERE id=?', array($templateId));
         if (!$initial) { throw new Ppms_problem('TEMPLATE_NOT_FOUND', 404); }
-        return $this->store->transaction(function () use ($actor, $templateId, $rules, $initial) {
+        return $this->store->transaction(function () use ($actor, $templateId, $rules, $initial, $input) {
             $this->store->lockForm($initial['ppmFormId']);
             $template = $this->store->row('SELECT * FROM PpmTemplateVersion WHERE id=?', array($templateId));
             if ($template['publishedAt']) { throw new Ppms_problem('PUBLISHED_TEMPLATE_IMMUTABLE', 409); }
+            $ci =& get_instance();
+            $ci->load->library('ppms_template_service');
+            $ci->ppms_template_service->assertEditHash($template, $input);
             $this->store->execute('DELETE FROM TraceCodeRule WHERE templateVersionId=?', array($templateId));
             $keys = array();
             foreach ($rules as $raw) {
@@ -57,7 +60,8 @@ class Ppms_trace_service
                     'configurationJson' => Ppms_values::json($config), 'updatedAt' => Ppms_values::now()));
             }
             $this->store->audit($actor, 'CONFIG_CHANGE', 'TraceCodeRule', $templateId, array('outputKeys' => array_keys($keys)), array('ppmFormId' => $template['ppmFormId']));
-            return array('items' => $this->store->rows('SELECT * FROM TraceCodeRule WHERE templateVersionId=? ORDER BY outputKey', array($templateId)));
+            $items = $this->store->rows('SELECT * FROM TraceCodeRule WHERE templateVersionId=? ORDER BY outputKey', array($templateId));
+            return array('items' => $items, 'editHash' => $ci->ppms_template_service->editHash($template, $items));
         });
     }
     public function connection($actor, $target, $input)
@@ -97,11 +101,19 @@ class Ppms_trace_service
     }
     public function rulesView($actor, $id)
     {
-        $template = $this->store->row('SELECT ppmFormId,publishedAt FROM PpmTemplateVersion WHERE id=?', array($id));
+        $template = $this->store->row('SELECT * FROM PpmTemplateVersion WHERE id=?', array($id));
         if (!$template) { throw new Ppms_problem('TEMPLATE_NOT_FOUND', 404); }
         if ($actor['role'] === 'ADMIN') { $this->auth->admin($actor); } else { $this->auth->access($actor, $template['ppmFormId']); }
         if (!$template['publishedAt']) { $this->auth->admin($actor); }
-        return array('items' => $this->store->rows('SELECT * FROM TraceCodeRule WHERE templateVersionId=? ORDER BY outputKey', array($id)));
+        return $this->store->transaction(function () use ($id, $template) {
+            // Return one coherent rule/metadata snapshot to the editing client.
+            $this->store->lockForm($template['ppmFormId']);
+            $current = $this->store->row('SELECT * FROM PpmTemplateVersion WHERE id=?', array($id));
+            $ci =& get_instance();
+            $ci->load->library('ppms_template_service');
+            $items = $this->store->rows('SELECT * FROM TraceCodeRule WHERE templateVersionId=? ORDER BY outputKey', array($id));
+            return array('items' => $items, 'editHash' => $ci->ppms_template_service->editHash($current, $items));
+        });
     }
     public function connections($actor, $form)
     {

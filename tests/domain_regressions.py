@@ -12,6 +12,7 @@ from integration import PHP, ROOT, TEST_ARGS, sql
 
 class DomainRegressions(unittest.TestCase):
     api = harness.PpmApiIntegration.api
+    template_change = harness.PpmApiIntegration.template_change
     login = harness.PpmApiIntegration.login
     stop_server = harness.PpmApiIntegration.__dict__['stop_server']
 
@@ -29,8 +30,8 @@ class DomainRegressions(unittest.TestCase):
         template = self.api('POST', '/forms/' + form['id'] + '/templates', {'definitionJson': definition,
             'documentNumber': 'DOC-001', 'revisionNumber': '01', 'seriesNumber': '2026', 'pageNumber': '1 of 1', 'sourceFileHash': 'a' * 64})
         if rules:
-            self.api('PUT', '/templates/' + template['id'] + '/rules', {'rules': rules})
-        self.api('POST', '/templates/' + template['id'] + '/publish', {})
+            self.template_change('PUT', '/templates/' + template['id'] + '/rules', {'rules': rules})
+        self.template_change('POST', '/templates/' + template['id'] + '/publish', {})
         assignment = sql("SELECT id FROM AreaPpmAssignment WHERE ppmFormId='" + form['id'] + "' LIMIT 1")
         return {'form': form['id'], 'template': template['id'], 'assignment': assignment}
 
@@ -188,7 +189,7 @@ class DomainRegressions(unittest.TestCase):
         self.assertEqual(submitted['result']['status'], 'APPLIED')
         self.assertEqual(self.publish(submitted['record'])['id'], original['id'])
         copy = self.api('POST', '/templates/' + form['template'] + '/duplicate', {})
-        self.api('POST', '/templates/' + copy['id'] + '/publish', {})
+        self.template_change('POST', '/templates/' + copy['id'] + '/publish', {})
         newer = dict(form, template=copy['id'])
         self.assertEqual(self.publish(self.record(newer, {'name': 'Second'}))['outputCode'], 'SEQ-002')
         old = self.record(form, {'name': 'Created offline on original template'})
@@ -200,16 +201,16 @@ class DomainRegressions(unittest.TestCase):
         draft = self.api('POST', '/templates/' + form['template'] + '/duplicate', {})
         bad = {'outputKey': 'lot', 'outputLabel': 'Lot', 'sourceType': 'SYSTEM_GENERATED', 'status': 'ACTIVE',
                'formulaTemplate': 'LOT-{{missingField}}', 'configurationJson': {}}
-        result = self.api('PUT', '/templates/' + draft['id'] + '/rules', {'rules': [bad]}, expected=422)
+        result = self.template_change('PUT', '/templates/' + draft['id'] + '/rules', {'rules': [bad]}, expected=422)
         self.assertEqual(result['error'], 'TRACE_BINDING_FIELD_NOT_DEFINED')
         good = dict(bad, formulaTemplate='LOT-{{name}}')
-        self.api('PUT', '/templates/' + draft['id'] + '/rules', {'rules': [good]})
-        changed = self.api('PATCH', '/templates/' + draft['id'], {'expectedDefinitionHash': draft['definitionHash'],
+        self.template_change('PUT', '/templates/' + draft['id'] + '/rules', {'rules': [good]})
+        changed = self.template_change('PATCH', '/templates/' + draft['id'], {'expectedDefinitionHash': draft['definitionHash'],
             'definitionJson': {'fields': [{'key': 'different', 'label': 'Different', 'type': 'text'}]}})
-        self.api('POST', '/templates/' + draft['id'] + '/publish', {}, expected=422)
+        self.template_change('POST', '/templates/' + draft['id'] + '/publish', {}, expected=422)
         self.assertFalse(self.api('GET', '/forms/' + form['form'] + '/templates')['items'][0]['isActive'])
-        self.api('PATCH', '/templates/' + draft['id'], {'expectedDefinitionHash': changed['definitionHash'], 'definitionJson': draft['definitionJson']})
-        self.api('POST', '/templates/' + draft['id'] + '/publish', {})
+        self.template_change('PATCH', '/templates/' + draft['id'], {'expectedDefinitionHash': changed['definitionHash'], 'definitionJson': draft['definitionJson']})
+        self.template_change('POST', '/templates/' + draft['id'] + '/publish', {})
 
     def test_07_conflict_reason_is_in_committed_event(self):
         form = self.new_form({'fields': [{'key': 'name', 'label': 'Name', 'type': 'text'}]})
@@ -272,7 +273,7 @@ class DomainRegressions(unittest.TestCase):
         form = self.new_form({'fields': [{'key': 'name', 'label': 'Name', 'type': 'text'}]}, [rule])
         self.assertEqual(self.publish(self.record(form, {'name': 'First'}))['outputCode'], 'DAY-001')
         copied = self.api('POST', '/templates/' + form['template'] + '/duplicate', {})
-        self.api('POST', '/templates/' + copied['id'] + '/publish', {})
+        self.template_change('POST', '/templates/' + copied['id'] + '/publish', {})
         newer = dict(form, template=copied['id'])
         self.assertEqual(self.publish(self.record(newer, {'name': 'Second'}))['outputCode'], 'DAY-002')
         sql("INSERT INTO CodeSequence (id,codeRuleId,periodKey,currentValue,updatedAt) SELECT 'legacy-" + secrets.token_hex(5) + "',id,'" + self.today + "',9,UTC_TIMESTAMP(3) FROM TraceCodeRule WHERE templateVersionId='" + form['template'] + "' LIMIT 1")
@@ -365,6 +366,71 @@ class DomainRegressions(unittest.TestCase):
         self.assertFalse(next_page['hasMore'])
         self.assertEqual({item['record']['id'] for item in first_page['items'] + next_page['items']},
             {record['record']['id'], second['record']['id']})
+
+    def test_16_metadata_edits_and_publication_require_the_reviewed_draft(self):
+        definition = {'fields': [{'key': 'note', 'label': 'Note', 'type': 'text'}]}
+        form = self.new_form(definition)
+        draft = self.api('POST', '/templates/' + form['template'] + '/duplicate', {})
+        path = '/templates/' + draft['id']
+        self.assertEqual(len(draft['editHash']), 64)
+        missing = self.api('PATCH', path, {'definitionJson': definition,
+            'expectedDefinitionHash': draft['definitionHash']}, expected=428)
+        self.assertEqual(missing['error'], 'TEMPLATE_PRECONDITION_REQUIRED')
+        self.api('POST', path + '/publish', {}, expected=428)
+        self.api('PATCH', path, {'definitionJson': definition, 'expectedEditHash': draft['editHash']},
+                 user='outsider', expected=403)
+
+        saved = self.api('PATCH', path, {'definitionJson': definition, 'documentNumber': 'DOC-ADMIN-A',
+            'versionLabel': 'Reviewed metadata', 'expectedEditHash': draft['editHash']})
+        self.assertEqual(saved['definitionHash'], draft['definitionHash'], 'Schema identity must remain schema-only.')
+        self.assertNotEqual(saved['editHash'], draft['editHash'], 'Metadata must invalidate stale editors.')
+        stale = self.api('PATCH', path, {'definitionJson': definition, 'documentNumber': 'DOC-ADMIN-B',
+            'expectedEditHash': draft['editHash']}, expected=409)
+        self.assertEqual(stale['error'], 'TEMPLATE_CHANGED')
+        self.api('POST', path + '/publish', {'expectedEditHash': draft['editHash']}, expected=409)
+        current = self.api('GET', path)
+        self.assertEqual(current['documentNumber'], 'DOC-ADMIN-A')
+        self.assertEqual(current['editHash'], saved['editHash'])
+        self.assertIsNone(current['publishedAt'])
+        self.assertEqual(sql("SELECT id FROM PpmTemplateVersion WHERE ppmFormId='" + form['form'] + "' AND isActive=1"), form['template'])
+        self.assertEqual(sql("SELECT COUNT(*) FROM SyncChangeEvent WHERE eventType='TEMPLATE_PUBLISHED' AND JSON_UNQUOTE(JSON_EXTRACT(payloadJson,'$.id'))='" + draft['id'] + "'"), '0')
+
+        published = self.api('POST', path + '/publish', {'expectedEditHash': saved['editHash']})
+        self.assertTrue(published['isActive'])
+        self.assertEqual(published['definitionJson'], definition)
+        self.api('PATCH', path, {'definitionJson': definition, 'expectedEditHash': published['editHash']}, expected=409)
+        self.api('POST', path + '/publish', {'expectedEditHash': published['editHash']}, expected=409)
+        old_record = self.record(form, {'note': 'Offline entry on the earlier published version'})
+        self.assertEqual(old_record['record']['templateVersionId'], form['template'])
+        self.assertEqual(self.api('GET', '/templates/' + form['template'])['definitionJson'], definition)
+
+    def test_17_rule_changes_invalidate_stale_draft_saves_and_publications(self):
+        definition = {'fields': [{'key': 'note', 'label': 'Note', 'type': 'text'}]}
+        form = self.new_form(definition)
+        draft = self.api('POST', '/templates/' + form['template'] + '/duplicate', {})
+        path = '/templates/' + draft['id']
+        before = self.api('GET', path + '/rules')
+        self.assertEqual(before['editHash'], draft['editHash'])
+        self.api('PUT', path + '/rules', {'rules': []}, expected=428)
+        self.api('PUT', path + '/rules', {'rules': [], 'expectedEditHash': before['editHash']},
+                 user='outsider', expected=403)
+        rule = self.external_rule(path='note')
+        saved = self.api('PUT', path + '/rules', {'rules': [rule], 'expectedEditHash': before['editHash']})
+        self.assertNotEqual(saved['editHash'], before['editHash'])
+        self.assertEqual(len(saved['items']), 1)
+        self.api('PUT', path + '/rules', {'rules': [], 'expectedEditHash': before['editHash']}, expected=409)
+        self.api('PATCH', path, {'definitionJson': definition, 'expectedEditHash': draft['editHash']}, expected=409)
+        self.api('POST', path + '/publish', {'expectedEditHash': draft['editHash']}, expected=409)
+        current = self.api('GET', path)
+        current_rules = self.api('GET', path + '/rules')
+        self.assertEqual(current['editHash'], saved['editHash'])
+        self.assertEqual(current_rules, saved, 'Rejected stale writes must not replace rule IDs or contents.')
+        self.assertEqual(current['definitionHash'], draft['definitionHash'])
+        self.assertIsNone(current['publishedAt'])
+        published = self.api('POST', path + '/publish', {'expectedEditHash': saved['editHash']})
+        self.assertTrue(published['isActive'])
+        self.api('PUT', path + '/rules', {'rules': [], 'expectedEditHash': published['editHash']}, expected=409)
+        self.assertEqual(sql("SELECT COUNT(*) FROM AuditLog WHERE message='CONFIG_CHANGE TraceCodeRule' AND ppmFormId='" + form['form'] + "'"), '1')
 
 
 if __name__ == '__main__':
