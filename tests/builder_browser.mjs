@@ -260,12 +260,22 @@ export async function verifyBuilder({ newPage, login, api, artifacts }) {
   await page.locator(".back-row").getByRole("button", { name: "Forms", exact: true }).click();
   await page.getByRole("dialog").getByRole("button", { name: "Cancel", exact: true }).click();
   assert.equal(await inspector.getByLabel("Field label", { exact: true }).inputValue(), "Local unsaved label");
+  const recoveryResponse = page.waitForResponse((response) =>
+    new URL(response.url()).pathname === `/api/v1/forms/${form.id}/templates` && response.request().method() === "POST");
+  await page.getByRole("button", { name: "Save as new draft", exact: true }).click();
+  const recovered = await responseJson(await recoveryResponse);
+  assert.notEqual(recovered.id, saved.id);
+  assert.equal(rootField(recovered.definitionJson, textKey).label, "Local unsaved label");
+  const preserved = await api(`/templates/${saved.id}`);
+  assert.equal(preserved.versionLabel, "Remote revision");
+  assert.deepEqual(preserved.definitionJson, afterConflict.definitionJson,
+    "Recovering a conflicted draft must preserve the concurrent administrator's version");
+  await page.getByRole("button", { name: "Save as new draft", exact: true }).waitFor({ state: "hidden" });
   await page.locator(".back-row").getByRole("button", { name: "Forms", exact: true }).click();
-  await page.getByRole("dialog").getByRole("button", { name: "Leave form", exact: true }).click();
   await reopen(page, code, "Remote revision");
   inspector = await configure(page, textKey);
   assert.equal(await inspector.getByLabel("Field label", { exact: true }).inputValue(), "Batch notes");
-  checks.push("concurrent template edits return a conflict without overwriting the server or discarding local work, and navigation requires a deliberate choice");
+  checks.push("concurrent template edits preserve local work and support saving a separate draft without overwriting either administrator's version");
 
   const publishedResponse = page.waitForResponse((response) =>
     new URL(response.url()).pathname === `/api/v1/templates/${saved.id}/publish` && response.request().method() === "POST");
