@@ -7,6 +7,16 @@ async function settle(page) {
     requestAnimationFrame(() => requestAnimationFrame(resolve))));
 }
 
+async function captureBuilder(page, path) {
+  // Keep deliberate safety feedback visible for its normal lifetime. Capture
+  // the settled interface from the top so fixed chrome is not offset in a full-page image.
+  await page.waitForFunction(() => document.querySelectorAll("#notifications .toast").length === 0,
+    undefined, { timeout: 15000 });
+  await page.evaluate(() => window.scrollTo({ top: 0, left: 0, behavior: "instant" }));
+  await settle(page);
+  await page.screenshot({ path, fullPage: true });
+}
+
 const list = (page, path) => page.locator(`.builder-drop-list[data-list-path="${path}"]`);
 const card = (page, path) => page.locator(`.builder-field[data-field-path="${path}"]`);
 const slot = (page, path, index) =>
@@ -205,7 +215,7 @@ export async function verifyBuilder({ newPage, login, api, artifacts }) {
       colorScheme: getComputedStyle(node).colorScheme,
     })), { background: "rgb(255, 255, 255)", colorScheme: "light" },
     "The visual form layout must stay white in both application themes");
-    await page.screenshot({ path: `${artifacts}/visual-builder-${scheme}.png`, fullPage: true });
+    await captureBuilder(page, `${artifacts}/visual-builder-${scheme}.png`);
   }
   await page.setViewportSize({ width: 412, height: 915 });
   await assertSharedTheme(page, "dark");
@@ -222,7 +232,7 @@ export async function verifyBuilder({ newPage, login, api, artifacts }) {
     "The palette must support click-based creation without dragging");
   await page.getByRole("button", { name: "Undo", exact: true }).click();
   assert.equal(await page.locator(".builder-field").count(), fieldsBeforeClick);
-  await page.screenshot({ path: `${artifacts}/visual-builder-mobile.png`, fullPage: true });
+  await captureBuilder(page, `${artifacts}/visual-builder-mobile.png`);
   await page.setViewportSize({ width: 1440, height: 1200 });
   await assertSharedTheme(page, "light");
 
