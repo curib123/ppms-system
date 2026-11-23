@@ -129,6 +129,14 @@ export async function verifyDesignSystem({
   }
   checks.push("all six administration routes share red light/dark tokens and accessible text contrast");
 
+  await admin.locator(".user-button").click();
+  const account = admin.getByRole("dialog");
+  await account.getByLabel("Theme", { exact: true }).selectOption("light");
+  assert.equal(await admin.evaluate(() => getComputedStyle(document.documentElement).colorScheme), "light");
+  await account.getByLabel("Theme", { exact: true }).selectOption("system");
+  await assertSharedTheme(admin, "dark");
+  await account.getByRole("button", { name: "Close", exact: true }).click();
+
   // Filters are exercised against the live API, not a second client-side data model.
   await admin.locator('.main-nav [data-page="records"]').click();
   await admin.getByRole("heading", { name: "Records", exact: true }).waitFor();
@@ -176,7 +184,7 @@ export async function verifyDesignSystem({
   assert.equal(await fixture.getAttribute("data-commits"), "1");
   assert.equal(await fixture.evaluate((node) => new FormData(node).get("area")), "packing");
   await area.fill("nothing matches");
-  await controls.getByText("No matching options", { exact: true }).waitFor();
+  await controls.locator(".searchable-select-empty").filter({ hasText: "No matching options" }).waitFor();
   await area.press("Enter");
   assert.equal(await selected(), "packing", "Unmatched text must never become a filter ID");
   await area.press("Tab");
@@ -202,6 +210,7 @@ export async function verifyDesignSystem({
   assert.equal(await dialog.isVisible(), true, "Closing dropdown must not close its parent dialog");
   assert.equal(await dialogArea.inputValue(), "Area A");
   await dialogArea.press("Escape");
+  await dialog.waitFor({ state: "detached" });
   assert.equal(await dialog.count(), 0);
   checks.push("shared controls preserve committed values, keyboard navigation, labels, form values and dialog focus");
 
@@ -234,6 +243,12 @@ export async function verifyDesignSystem({
   await touch.evaluate(async () => (await import("/assets/ppms/theme.js")).setThemePreference("system"));
   await assertSharedTheme(touch, "dark");
   checks.push("mobile login and shared controls support touch targets, dark mode and persistent appearance preference");
+  const missing = await touch.goto(base + "/ppms-design-missing-page");
+  assert.equal(missing.status(), 404);
+  await assertSharedTheme(touch, "light");
+  await assertSharedTheme(touch, "dark");
+  await touch.screenshot({ path: `${artifacts}/error-mobile-dark.png`, fullPage: true });
+  checks.push("HTML error pages load the shared theme with responsive light/dark appearance");
   await assertSharedTheme(admin, "light");
   return { checks, themes };
 }

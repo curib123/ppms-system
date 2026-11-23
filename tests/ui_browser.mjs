@@ -289,6 +289,15 @@ try {
   await fieldDialog
     .getByRole("button", { name: "Add field", exact: true })
     .click();
+  await admin.setViewportSize({ width: 412, height: 915 });
+  const sectionInputs = await admin.locator(".builder-section .section-name").evaluateAll((nodes) =>
+    nodes.map((node) => ({ font: Number.parseFloat(getComputedStyle(node).fontSize),
+      height: node.getBoundingClientRect().height })));
+  assert.equal(sectionInputs.length, 3);
+  assert.ok(sectionInputs.every((input) => input.font >= 16 && input.height >= 44),
+    "Mobile builder section inputs must stay readable and touch-sized");
+  await admin.screenshot({ path: `${artifacts}/builder-mobile.png`, fullPage: true });
+  await admin.setViewportSize({ width: 1440, height: 1050 });
   const templateResponse = admin.waitForResponse(
     (response) =>
       response.url().endsWith(`/forms/${form.id}/templates`) &&
